@@ -416,13 +416,13 @@ function setupDashboard_(ss) {
       .setOption('title', title).setOption('width', 560).setOption('height', 300);
   };
   sh.insertChart(chartBase(Charts.ChartType.COLUMN, sh.getRange(m.header, 1, m.last - m.header + 1, 2), m.title, '月別 施策実施件数')
-    .setOption('legend', { position: 'none' }).setColors(['#1f6feb']).build());
+    .setOption('legend', { position: 'none' }).setOption('colors', ['#1f6feb']).build());
   sh.insertChart(chartBase(Charts.ChartType.PIE, sh.getRange(c.header, 1, c.last - c.header + 1, 2), c.title, 'カテゴリ別 件数')
     .setOption('pieSliceText', 'value').build());
   sh.insertChart(chartBase(Charts.ChartType.BAR, sh.getRange(s.header, 1, s.last - s.header + 1, 2), s.title, 'ステータス別 件数')
-    .setOption('legend', { position: 'none' }).setColors(['#e8a317']).build());
+    .setOption('legend', { position: 'none' }).setOption('colors', ['#e8a317']).build());
   sh.insertChart(chartBase(Charts.ChartType.PIE, sh.getRange(j.header, 1, j.last - j.header + 1, 2), j.title, '改善の自動判定')
-    .setOption('pieSliceText', 'value').setColors(['#2e7d32', '#c62828', '#9e9e9e', '#cfd8dc']).build());
+    .setOption('pieSliceText', 'value').setOption('colors', ['#2e7d32', '#c62828', '#9e9e9e', '#cfd8dc']).build());
 
   sh.setFrozenRows(0);
   return sh;
