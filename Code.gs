@@ -64,32 +64,43 @@ function getInitData() {
  * 検証エラーは例外ではなく {ok:false, errors:[...]} で返す。
  */
 function appendEntry(raw) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const tz = ss.getSpreadsheetTimeZone();
-  const existingCategories = getCategories_();
-  const v = validateEntry_(raw || {}, tz, existingCategories);
-  if (v.errors.length) return { ok: false, errors: v.errors };
-  const e = v.entry;
-
-  const lock = LockService.getScriptLock();
-  lock.waitLock(30000);
+  let step = '準備';
   try {
-    const sheet = ss.getSheetByName(LOG_SHEET_NAME);
-    if (!sheet) throw new Error('「' + LOG_SHEET_NAME + '」シートがありません。setup() を実行してください。');
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const tz = ss.getSpreadsheetTimeZone();
+    step = 'カテゴリ読み込み';
+    const existingCategories = getCategories_();
+    step = '入力検証';
+    const v = validateEntry_(raw || {}, tz, existingCategories);
+    if (v.errors.length) return { ok: false, errors: v.errors };
+    const e = v.entry;
 
-    const row = nextRow_(sheet);
-    if (row > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), 100);
+    step = 'ロック取得';
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+      step = 'シート取得';
+      const sheet = ss.getSheetByName(LOG_SHEET_NAME);
+      if (!sheet) throw new Error('「' + LOG_SHEET_NAME + '」シートがありません。setup() を実行してください。');
 
-    const values = [
-      new Date(), e.date, e.title, e.category, e.owner, e.status, e.content,
-      e.metric, e.direction, e.before, e.after, e.unit, e.note, e.link,
-    ].map(function (x) { return typeof x === 'string' ? escapeCell_(x) : x; });
+      step = '書き込み位置の計算';
+      const row = nextRow_(sheet);
+      if (row > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), 100);
 
-    sheet.getRange(row, 1, 1, INPUT_COLS).setValues([values]);
-    SpreadsheetApp.flush();
-    return { ok: true, row: row, category: e.category };
-  } finally {
-    lock.releaseLock();
+      step = '書き込み';
+      const values = [
+        new Date(), e.date, e.title, e.category, e.owner, e.status, e.content,
+        e.metric, e.direction, e.before, e.after, e.unit, e.note, e.link,
+      ].map(function (x) { return typeof x === 'string' ? escapeCell_(x) : x; });
+
+      sheet.getRange(row, 1, 1, INPUT_COLS).setValues([values]);
+      return { ok: true, row: row, category: e.category };
+    } finally {
+      lock.releaseLock();
+    }
+  } catch (err) {
+    console.error('appendEntry失敗 [' + step + ']', err && err.stack || err);
+    throw new Error('[' + step + '] ' + (err && err.message ? err.message : err));
   }
 }
 

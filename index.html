@@ -281,7 +281,7 @@
       .withFailureHandler(function (err) {
         setBusy(false);
         showBanner(errText(err));
-        setMsg('登録に失敗しました。', false);
+        setMsg('登録に失敗しました: ' + errText(err), false);
       })
       .appendEntry(d);
   });
