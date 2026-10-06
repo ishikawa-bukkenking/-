@@ -1,18 +1,16 @@
 /**
  * 施策ログ管理ツール(スプレッドシート コンテナバインド)
  *
- * 構成:
- *   doGet()        … Webアプリのフォーム(index.html)を返す
- *   getInitData()  … フォーム初期表示用データ(担当者メール・カテゴリ候補など)
- *   appendEntry()  … フォームの入力を「施策ログ」シートに1行追加する
- *   setup()        … 初回セットアップ(シート・ヘッダー・ダッシュボードの作成)
+ * スプレッドシートの「施策ログ」シートに直接入力して管理する。
+ *   setup()   … 初回セットアップ(シート・ヘッダー・入力規則・ダッシュボードの作成)
+ *   onEdit()  … 登録日時・実施日・担当者の自動入力
  *
- * 「判定(自動)」「実施月」列はシート上の ARRAYFORMULA で自動計算する。
- * フォームからは A〜N 列だけを書き込む。
+ * 「判定(自動)」「実施月(自動)」列はシート上の ARRAYFORMULA で自動計算する。
  */
 
 const LOG_SHEET_NAME = '施策ログ';
 const DASH_SHEET_NAME = 'ダッシュボード';
+const SETTINGS_SHEET_NAME = '設定';
 
 const CATEGORY_PRESETS = ['営業', '集客・マーケティング', '社内業務改善', 'その他'];
 const STATUSES = ['検討中', '実施中', '完了', '中止'];
@@ -25,7 +23,6 @@ const COL = {
   METRIC: 8, DIRECTION: 9, BEFORE: 10, AFTER: 11, UNIT: 12, NOTE: 13, LINK: 14,
   RESULT: 15, MONTH: 16,
 };
-const INPUT_COLS = 14; // フォームが書き込む列数(A〜N)
 const HEADERS = [
   '登録日時', '実施日', '施策タイトル', 'カテゴリ', '担当者', 'ステータス', '施策の内容',
   '効果測定指標名', '改善の方向', '施策前の数値', '施策後の数値', '単位', '結果の補足メモ', '関連リンク',
@@ -34,201 +31,49 @@ const HEADERS = [
 const VALIDATION_ROWS = 5000; // 手入力時のプルダウンを設定する行数
 
 // ---------------------------------------------------------------------------
-// Webアプリ
+// 入力補助(スプレッドシートに直接入力する運用)
 // ---------------------------------------------------------------------------
-
-function doGet() {
-  return HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('施策ログ')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-}
-
-/** フォーム表示時にクライアントから呼ばれる。 */
-function getInitData() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const tz = ss.getSpreadsheetTimeZone();
-  const dash = ss.getSheetByName(DASH_SHEET_NAME);
-  return {
-    email: getUserEmail_(),
-    today: Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd'),
-    categories: getCategories_(),
-    statuses: STATUSES,
-    directions: DIRECTIONS,
-    spreadsheetUrl: ss.getUrl(),
-    dashboardUrl: dash ? ss.getUrl() + '#gid=' + dash.getSheetId() : ss.getUrl(),
-  };
-}
 
 /**
- * フォームの送信内容を検証して「施策ログ」に1行追加する。
- * 検証エラーは例外ではなく {ok:false, errors:[...]} で返す。
+ * 「施策ログ」でタイトル(C列)が入力された行に、次を自動で補う(空欄の場合のみ)。
+ *   A列 登録日時 / B列 実施日(今日) / E列 担当者(操作した人のメールアドレス)
+ * シンプルトリガーなので、承認やトリガー設定は不要。
  */
-function appendEntry(raw) {
-  let step = '準備';
+function onEdit(e) {
   try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const tz = ss.getSpreadsheetTimeZone();
-    step = 'カテゴリ読み込み';
-    const existingCategories = getCategories_();
-    step = '入力検証';
-    const v = validateEntry_(raw || {}, tz, existingCategories);
-    if (v.errors.length) return { ok: false, errors: v.errors };
-    const e = v.entry;
+    if (!e || !e.range) return;
+    const range = e.range;
+    const sheet = range.getSheet();
+    if (sheet.getName() !== LOG_SHEET_NAME) return;
+    const first = Math.max(range.getRow(), 2);
+    const last = Math.min(range.getLastRow(), first + 199); // 貼り付けは200行まで
+    if (last < first) return;
+    if (range.getLastColumn() < COL.DATE || range.getColumn() > COL.LINK) return; // A,O,P列だけの編集は無視
 
-    step = 'ロック取得';
-    const lock = LockService.getScriptLock();
-    lock.waitLock(30000);
-    try {
-      step = 'シート取得';
-      const sheet = ss.getSheetByName(LOG_SHEET_NAME);
-      if (!sheet) throw new Error('「' + LOG_SHEET_NAME + '」シートがありません。setup() を実行してください。');
-
-      step = '書き込み位置の計算';
-      const row = nextRow_(sheet);
-      if (row > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), 100);
-
-      step = '書き込み';
-      const values = [
-        new Date(), e.date, e.title, e.category, e.owner, e.status, e.content,
-        e.metric, e.direction, e.before, e.after, e.unit, e.note, e.link,
-      ].map(function (x) { return typeof x === 'string' ? escapeCell_(x) : x; });
-
-      sheet.getRange(row, 1, 1, INPUT_COLS).setValues([values]);
-      return { ok: true, row: row, category: e.category };
-    } finally {
-      lock.releaseLock();
+    const n = last - first + 1;
+    const vals = sheet.getRange(first, 1, n, COL.OWNER).getValues();
+    const email = getUserEmail_();
+    const now = new Date();
+    for (let k = 0; k < n; k++) {
+      const row = first + k;
+      const v = vals[k];
+      if (String(v[COL.TITLE - 1]).trim() === '') continue;
+      if (v[COL.TIMESTAMP - 1] === '') sheet.getRange(row, COL.TIMESTAMP).setValue(now);
+      if (v[COL.DATE - 1] === '') sheet.getRange(row, COL.DATE).setValue(now);
+      if (v[COL.OWNER - 1] === '' && email) sheet.getRange(row, COL.OWNER).setValue(email);
     }
   } catch (err) {
-    console.error('appendEntry失敗 [' + step + ']', err && err.stack || err);
-    throw new Error('[' + step + '] ' + (err && err.message ? err.message : err));
+    console.error('onEdit失敗', err && err.stack || err);
   }
 }
 
-// ---------------------------------------------------------------------------
-// 検証
-// ---------------------------------------------------------------------------
-
-function validateEntry_(raw, tz, existingCategories) {
-  const errors = [];
-  const str = function (v) { return v == null ? '' : String(v).trim(); };
-
-  const title = str(raw.title);
-  if (!title) errors.push('施策タイトルは必須です。');
-  else if (title.length > 200) errors.push('施策タイトルは200文字以内にしてください。');
-
-  // カテゴリ: 全角英数→半角などを正規化し、既存カテゴリと表記が一致すればそちらに寄せる。
-  // (QUERY式に埋め込むため引用符は全角に置き換える)
-  let category = str(raw.category).normalize('NFKC').replace(/\s+/g, ' ')
-    .replace(/'/g, '’').replace(/"/g, '”');
-  if (!category) errors.push('カテゴリは必須です。');
-  else if (category.length > 50) errors.push('カテゴリは50文字以内にしてください。');
-  else {
-    const key = category.toLowerCase();
-    const hit = existingCategories.filter(function (c) { return c.toLowerCase() === key; })[0];
-    if (hit) category = hit;
-  }
-
-  const status = str(raw.status);
-  if (!status) errors.push('ステータスは必須です。');
-  else if (STATUSES.indexOf(status) < 0) errors.push('ステータスの値が不正です。');
-
-  const content = str(raw.content);
-  if (!content) errors.push('施策の内容は必須です。');
-  else if (content.length > 10000) errors.push('施策の内容は10000文字以内にしてください。');
-
-  // 実施日: 未入力なら今日
-  let date = null;
-  const dateStr = str(raw.date) || Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-    errors.push('実施日の形式が不正です。');
-  } else {
-    date = Utilities.parseDate(dateStr, tz, 'yyyy-MM-dd');
-    if (Utilities.formatDate(date, tz, 'yyyy-MM-dd') !== dateStr) {
-      errors.push('実施日が存在しない日付です。');
-      date = null;
-    }
-  }
-
-  const direction = str(raw.direction);
-  if (direction && DIRECTIONS.indexOf(direction) < 0) errors.push('改善の方向の値が不正です。');
-
-  const before = parseNumber_(raw.before);
-  const after = parseNumber_(raw.after);
-  if (before.error) errors.push('施策前の数値は数字で入力してください。');
-  if (after.error) errors.push('施策後の数値は数字で入力してください。');
-
-  const link = str(raw.link);
-  if (link && !/^https?:\/\/\S+$/i.test(link)) errors.push('関連リンクは http:// または https:// で始まるURLを入力してください。');
-
-  const owner = str(raw.owner);
-  const metric = str(raw.metric);
-  const unit = str(raw.unit);
-  const note = str(raw.note);
-  if (owner.length > 100) errors.push('担当者は100文字以内にしてください。');
-  if (metric.length > 100) errors.push('効果測定指標名は100文字以内にしてください。');
-  if (unit.length > 20) errors.push('単位は20文字以内にしてください。');
-  if (note.length > 10000) errors.push('結果の補足メモは10000文字以内にしてください。');
-
-  return {
-    errors: errors,
-    entry: {
-      date: date, title: title, category: category, owner: owner, status: status, content: content,
-      metric: metric, direction: direction, before: before.value, after: after.value,
-      unit: unit, note: note, link: link,
-    },
-  };
-}
-
-function parseNumber_(v) {
-  if (v === '' || v == null) return { value: '', error: false };
-  const n = typeof v === 'number' ? v : Number(String(v).trim());
-  return isFinite(n) ? { value: n, error: false } : { value: '', error: true };
-}
-
-/** 先頭が = + - @ の文字列は数式として解釈されるので、文字列として保存させる。 */
-function escapeCell_(s) {
-  return /^[=+\-@]/.test(s) ? "'" + s : s;
-}
-
-// ---------------------------------------------------------------------------
-// ヘルパー
-// ---------------------------------------------------------------------------
-
-/** 担当者の初期値。デプロイ設定や組織によっては空文字になる(導入手順.md 参照)。 */
+/** 操作しているユーザーのメールアドレス。取得できない環境では空文字。 */
 function getUserEmail_() {
   try {
     return Session.getActiveUser().getEmail() || '';
   } catch (err) {
     return '';
   }
-}
-
-/** プリセット + 過去に入力されたカテゴリ(登録が多い順)。datalistの候補に使う。 */
-function getCategories_() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(LOG_SHEET_NAME);
-  const result = CATEGORY_PRESETS.slice();
-  if (!sheet || sheet.getLastRow() < 2) return result;
-
-  const counts = {};
-  sheet.getRange(2, COL.CATEGORY, sheet.getLastRow() - 1, 1).getValues().forEach(function (r) {
-    const c = String(r[0]).trim();
-    if (c) counts[c] = (counts[c] || 0) + 1;
-  });
-  Object.keys(counts)
-    .filter(function (c) { return result.indexOf(c) < 0; })
-    .sort(function (a, b) { return counts[b] - counts[a]; })
-    .forEach(function (c) { result.push(c); });
-  return result;
-}
-
-/** A列(登録日時)の最終入力行の次の行。O/P列の自動計算列の影響を受けない。 */
-function nextRow_(sheet) {
-  const max = sheet.getMaxRows();
-  const vals = sheet.getRange(1, 1, max, 1).getValues();
-  for (let i = max - 1; i >= 1; i--) {
-    if (vals[i][0] !== '') return i + 2;
-  }
-  return 2;
 }
 
 // ---------------------------------------------------------------------------
@@ -249,6 +94,7 @@ function onOpen() {
  */
 function setup() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  setupSettingsSheet_(ss);
   setupLogSheet_(ss);
   setupDashboard_(ss);
 
@@ -257,11 +103,12 @@ function setup() {
   if (blank && ss.getSheets().length > 2 && blank.getLastRow() === 0 && blank.getLastColumn() === 0) {
     ss.deleteSheet(blank);
   }
-  notify_('セットアップが完了しました。「' + DASH_SHEET_NAME + '」シートを確認し、Webアプリとしてデプロイしてください。');
+  notify_('セットアップが完了しました。「' + DASH_SHEET_NAME + '」シートを確認してください。「' + LOG_SHEET_NAME + '」シートに直接入力できます。');
 }
 
 function rebuildDashboard() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss.getSheetByName(SETTINGS_SHEET_NAME)) setupSettingsSheet_(ss);
   if (!ss.getSheetByName(LOG_SHEET_NAME)) setupLogSheet_(ss);
   setupDashboard_(ss);
   notify_('ダッシュボードを作り直しました。');
@@ -272,6 +119,24 @@ function notify_(msg) {
   try {
     SpreadsheetApp.getActiveSpreadsheet().toast(msg, '施策ログ', 8);
   } catch (err) { /* UIなしの実行では無視 */ }
+}
+
+/** カテゴリ候補を管理する「設定」シート。A列の固定候補は自由に編集できる。 */
+function setupSettingsSheet_(ss) {
+  const sh = ss.getSheetByName(SETTINGS_SHEET_NAME) || ss.insertSheet(SETTINGS_SHEET_NAME);
+  sh.getRange('A1').setValue('カテゴリ(固定候補)');
+  sh.getRange('C1').setValue('プルダウンの候補(自動: 固定候補 + 施策ログに入力済みのカテゴリ)');
+  sh.getRange('A1:C1').setFontWeight('bold').setBackground('#e8eef7');
+  if (sh.getRange('A2').isBlank()) {
+    sh.getRange(2, 1, CATEGORY_PRESETS.length, 1).setValues(CATEGORY_PRESETS.map(function (c) { return [c]; }));
+  }
+  const L = "'" + LOG_SHEET_NAME + "'!";
+  sh.getRange('C2').setFormula(
+    '=IFERROR(UNIQUE(FILTER({A2:A;' + L + 'D2:D},{A2:A<>"";' + L + 'D2:D<>""})),"")');
+  sh.getRange('E1').setValue('※ A列にカテゴリを追加・変更すると、施策ログのプルダウンに反映されます。C列は数式なので編集しないでください。')
+    .setFontColor('#777777');
+  sh.setColumnWidth(1, 200); sh.setColumnWidth(2, 30); sh.setColumnWidth(3, 330);
+  return sh;
 }
 
 function setupLogSheet_(ss) {
@@ -299,14 +164,45 @@ function setupLogSheet_(ss) {
   sheet.getRange('M2:M').setWrap(true);
   sheet.getRange('A2:P').setVerticalAlignment('top');
 
-  // 手入力でステータス等を直すとき用のプルダウン
+  // 入力規則(プルダウン等)
   const lastRow = Math.max(sheet.getMaxRows(), VALIDATION_ROWS);
   if (sheet.getMaxRows() < lastRow) sheet.insertRowsAfter(sheet.getMaxRows(), lastRow - sheet.getMaxRows());
   const rows = sheet.getMaxRows() - 1;
-  sheet.getRange(2, COL.STATUS, rows, 1).setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInList(STATUSES, true).setAllowInvalid(false).build());
-  sheet.getRange(2, COL.DIRECTION, rows, 1).setDataValidation(
-    SpreadsheetApp.newDataValidation().requireValueInList(DIRECTIONS, true).setAllowInvalid(false).build());
+  const rule = function (col, validation) { sheet.getRange(2, col, rows, 1).setDataValidation(validation); };
+  const dv = function () { return SpreadsheetApp.newDataValidation(); };
+
+  const settings = ss.getSheetByName(SETTINGS_SHEET_NAME);
+  rule(COL.CATEGORY, dv()
+    .requireValueInRange(settings.getRange('C2:C500'), true).setAllowInvalid(true)
+    .setHelpText('候補から選択してください。新しいカテゴリは直接入力もできます(表記ゆれに注意)。').build());
+  rule(COL.STATUS, dv().requireValueInList(STATUSES, true).setAllowInvalid(false).build());
+  rule(COL.DIRECTION, dv().requireValueInList(DIRECTIONS, true).setAllowInvalid(false).build());
+  rule(COL.DATE, dv().requireDate().setAllowInvalid(false).setHelpText('日付(例: 2026/10/06)を入力してください。').build());
+  rule(COL.BEFORE, dv().requireFormulaSatisfied('=ISNUMBER(J2)').setAllowInvalid(false).setHelpText('数字で入力してください。').build());
+  rule(COL.AFTER, dv().requireFormulaSatisfied('=ISNUMBER(K2)').setAllowInvalid(false).setHelpText('数字で入力してください。').build());
+
+  // 必須項目(タイトル・カテゴリ・ステータス・施策の内容)の未入力を赤く表示
+  const required = '=AND(COUNTA($B2:$N2)>0,C2="")';
+  const red = function (a1, formula) {
+    return SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied(formula)
+      .setBackground('#fde7e7').setRanges([sheet.getRange(a1)]).build();
+  };
+  sheet.setConditionalFormatRules([
+    red('C2:D' + (rows + 1), required),
+    red('F2:G' + (rows + 1), '=AND(COUNTA($B2:$N2)>0,F2="")'),
+  ]);
+
+  // 見出しの説明(必須項目など)
+  const notes = {};
+  notes[COL.TITLE] = '必須。この列に入力すると、登録日時・実施日・担当者が自動で入ります。';
+  notes[COL.CATEGORY] = '必須。プルダウンから選択(新しい名前の直接入力も可)。';
+  notes[COL.STATUS] = '必須。検討中 / 実施中 / 完了 / 中止';
+  notes[COL.CONTENT] = '必須。背景・具体的にやったこと。';
+  notes[COL.METRIC] = '任意。例: 資料請求数、CPA、商談化率、作業時間(自由記述)';
+  notes[COL.DIRECTION] = '任意。「増える方が良い」か「減る方が良い」を選ぶと、改善/悪化を自動判定します。';
+  notes[COL.BEFORE] = '任意。数字のみ。';
+  notes[COL.AFTER] = '任意。数字のみ。';
+  Object.keys(notes).forEach(function (c) { sheet.getRange(1, Number(c)).setNote(notes[c]); });
 
   const widths = [150, 90, 220, 130, 180, 90, 320, 130, 150, 90, 90, 60, 280, 220, 90, 90];
   widths.forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
