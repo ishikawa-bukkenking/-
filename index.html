@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>施策ログ</title>
+  <style>
+    :root { --main:#1f3b63; --accent:#1f6feb; --line:#d0d7de; --err:#c62828; --ok:#2e7d32; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:#f4f6f9; color:#222; font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif; font-size:15px; }
+    header { background:var(--main); color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+    header h1 { margin:0; font-size:18px; }
+    header a { color:#cfe0ff; font-size:13px; margin-left:14px; }
+    main { max-width:820px; margin:20px auto; padding:0 16px 60px; }
+    form { background:#fff; border:1px solid var(--line); border-radius:8px; padding:20px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .full { grid-column:1 / -1; }
+    @media (max-width:640px) { .grid { grid-template-columns:1fr; } }
+    label { display:block; font-weight:600; font-size:13px; margin-bottom:4px; }
+    .req::after { content:" 必須"; color:var(--err); font-size:11px; font-weight:600; margin-left:4px; }
+    .opt::after { content:" 任意"; color:#888; font-size:11px; font-weight:400; margin-left:4px; }
+    input, select, textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; font:inherit; background:#fff; }
+    textarea { min-height:100px; resize:vertical; }
+    input:focus, select:focus, textarea:focus { outline:2px solid #9ec5ff; border-color:var(--accent); }
+    .invalid { border-color:var(--err) !important; background:#fff6f6; }
+    .hint { font-size:12px; color:#666; margin-top:4px; }
+    .error { font-size:12px; color:var(--err); margin-top:4px; min-height:0; }
+    fieldset { border:1px dashed var(--line); border-radius:6px; padding:12px 14px 14px; margin:0; }
+    legend { font-weight:600; font-size:13px; padding:0 6px; color:var(--main); }
+    .nums { display:grid; grid-template-columns:1fr 1fr 100px; gap:12px; margin-top:12px; }
+    @media (max-width:640px) { .nums { grid-template-columns:1fr 1fr; } }
+    .actions { margin-top:20px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+    button { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:10px 28px; font:inherit; font-weight:600; cursor:pointer; }
+    button:disabled { background:#9bb7e6; cursor:wait; }
+    button.sub { background:#fff; color:var(--main); border:1px solid var(--line); font-weight:400; padding:10px 18px; }
+    #msg { font-size:14px; }
+    #msg.ok { color:var(--ok); } #msg.ng { color:var(--err); }
+    #banner { background:#fdecea; color:var(--err); border:1px solid #f5c6c2; border-radius:6px; padding:10px 14px; margin-bottom:14px; display:none; white-space:pre-wrap; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>施策ログ 登録フォーム</h1>
+    <nav><a id="lnkDash" href="#" target="_blank" rel="noopener">ダッシュボードを開く</a><a id="lnkLog" href="#" target="_blank" rel="noopener">ログ(シート)を開く</a></nav>
+  </header>
+
+  <main>
+    <div id="banner"></div>
+    <form id="f" novalidate autocomplete="off">
+      <div class="grid">
+        <div>
+          <label class="opt" for="date">実施日</label>
+          <input type="date" id="date" name="date">
+          <div class="hint">未入力の場合は登録日になります。</div>
+        </div>
+        <div>
+          <label class="opt" for="owner">担当者</label>
+          <input type="text" id="owner" name="owner" placeholder="メールアドレスまたは氏名">
+        </div>
+
+        <div class="full">
+          <label class="req" for="title">施策タイトル</label>
+          <input type="text" id="title" name="title" maxlength="200">
+          <div class="error" data-for="title"></div>
+        </div>
+
+        <div>
+          <label class="req" for="category">カテゴリ</label>
+          <input type="text" id="category" name="category" list="categoryList" maxlength="50" placeholder="選択、または自由に入力">
+          <datalist id="categoryList"></datalist>
+          <div class="hint">入力欄をクリックすると候補が出ます。過去のカテゴリ名も表示されます(表記ゆれ防止のため、なるべく候補から選択してください)。</div>
+          <div class="error" data-for="category"></div>
+        </div>
+        <div>
+          <label class="req" for="status">ステータス</label>
+          <select id="status" name="status"><option value="">選択してください</option></select>
+          <div class="error" data-for="status"></div>
+        </div>
+
+        <div class="full">
+          <label class="req" for="content">施策の内容</label>
+          <textarea id="content" name="content" placeholder="背景・具体的にやったこと"></textarea>
+          <div class="error" data-for="content"></div>
+        </div>
+
+        <fieldset class="full">
+          <legend>効果測定(任意)</legend>
+          <div class="grid">
+            <div>
+              <label class="opt" for="metric">効果測定指標名</label>
+              <input type="text" id="metric" name="metric" maxlength="100" placeholder="例:資料請求数、CPA、商談化率、作業時間">
+            </div>
+            <div>
+              <label class="opt" for="direction">改善の方向</label>
+              <select id="direction" name="direction"><option value="">選択してください</option></select>
+            </div>
+          </div>
+          <div class="nums">
+            <div>
+              <label class="opt" for="before">施策前の数値</label>
+              <input type="number" id="before" name="before" step="any" inputmode="decimal">
+              <div class="error" data-for="before"></div>
+            </div>
+            <div>
+              <label class="opt" for="after">施策後の数値</label>
+              <input type="number" id="after" name="after" step="any" inputmode="decimal">
+              <div class="error" data-for="after"></div>
+            </div>
+            <div>
+              <label class="opt" for="unit">単位</label>
+              <input type="text" id="unit" name="unit" maxlength="20" placeholder="件、円、%">
+            </div>
+          </div>
+          <div class="hint" id="judgeHint">施策前後の数値と改善の方向が揃うと、ダッシュボードで「改善/悪化/変化なし」が自動判定されます。</div>
+        </fieldset>
+
+        <div class="full">
+          <label class="opt" for="note">結果の補足メモ</label>
+          <textarea id="note" name="note" placeholder="気づき、顧客の反応、次のアクションなど"></textarea>
+        </div>
+
+        <div class="full">
+          <label class="opt" for="link">関連リンク</label>
+          <input type="text" id="link" name="link" placeholder="https://...">
+          <div class="error" data-for="link"></div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" id="submit">登録する</button>
+        <button type="button" class="sub" id="clear">入力をクリア</button>
+        <span id="msg" role="status"></span>
+      </div>
+    </form>
+  </main>
+
+<script>
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { email: '', today: '' };
+
+  // 初期データ取得
+  google.script.run
+    .withSuccessHandler(init)
+    .withFailureHandler(function (err) { showBanner('初期データの取得に失敗しました: ' + errText(err)); })
+    .getInitData();
+
+  function init(d) {
+    state.email = d.email || '';
+    state.today = d.today;
+    fillOptions($('status'), d.statuses);
+    fillOptions($('direction'), d.directions);
+    setCategories(d.categories);
+    $('lnkDash').href = d.dashboardUrl;
+    $('lnkLog').href = d.spreadsheetUrl;
+    resetForm();
+  }
+
+  function fillOptions(sel, items) {
+    items.forEach(function (v) {
+      var o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+  }
+
+  function setCategories(list) {
+    var dl = $('categoryList');
+    dl.textContent = '';
+    list.forEach(function (c) {
+      var o = document.createElement('option');
+      o.value = c;
+      dl.appendChild(o);
+    });
+  }
+
+  function addCategory(c) {
+    var exists = Array.prototype.some.call($('categoryList').options, function (o) { return o.value === c; });
+    if (!exists) {
+      var o = document.createElement('option');
+      o.value = c;
+      $('categoryList').appendChild(o);
+    }
+  }
+
+  function resetForm() {
+    $('f').reset();
+    $('date').value = state.today;
+    $('owner').value = state.email;
+    clearErrors();
+    updateJudgeHint();
+  }
+
+  // ---- 検証 -------------------------------------------------------------
+  function collect() {
+    var o = {};
+    ['date', 'owner', 'title', 'category', 'status', 'content', 'metric', 'direction',
+     'before', 'after', 'unit', 'note', 'link'].forEach(function (k) { o[k] = $(k).value.trim(); });
+    return o;
+  }
+
+  function validate(d) {
+    var e = {};
+    if (!d.title) e.title = '施策タイトルを入力してください。';
+    if (!d.category) e.category = 'カテゴリを選択または入力してください。';
+    if (!d.status) e.status = 'ステータスを選択してください。';
+    if (!d.content) e.content = '施策の内容を入力してください。';
+    if (d.before !== '' && !isFinite(Number(d.before))) e.before = '数字で入力してください。';
+    if (d.after !== '' && !isFinite(Number(d.after))) e.after = '数字で入力してください。';
+    if (d.link && !/^https?:\/\/\S+$/i.test(d.link)) e.link = 'http:// または https:// で始まるURLを入力してください。';
+    return e;
+  }
+
+  function showErrors(errs) {
+    clearErrors();
+    var first = null;
+    Object.keys(errs).forEach(function (k) {
+      var el = $(k);
+      if (el) { el.classList.add('invalid'); if (!first) first = el; }
+      var box = document.querySelector('.error[data-for="' + k + '"]');
+      if (box) box.textContent = errs[k];
+    });
+    if (first) first.focus();
+  }
+
+  function clearErrors() {
+    Array.prototype.forEach.call(document.querySelectorAll('.invalid'), function (el) { el.classList.remove('invalid'); });
+    Array.prototype.forEach.call(document.querySelectorAll('.error'), function (el) { el.textContent = ''; });
+    $('banner').style.display = 'none';
+  }
+
+  function updateJudgeHint() {
+    var hasNum = $('before').value !== '' || $('after').value !== '';
+    var noDir = $('direction').value === '';
+    var h = $('judgeHint');
+    if (hasNum && noDir) {
+      h.textContent = '※ 改善の方向が未選択のため、このままだと「判定不可」として集計されます。';
+      h.style.color = '#b26a00';
+    } else {
+      h.textContent = '施策前後の数値と改善の方向が揃うと、ダッシュボードで「改善/悪化/変化なし」が自動判定されます。';
+      h.style.color = '';
+    }
+  }
+  ['before', 'after', 'direction'].forEach(function (id) { $(id).addEventListener('input', updateJudgeHint); });
+
+  // 入力し直したらその項目のエラー表示を消す
+  ['title', 'category', 'status', 'content', 'before', 'after', 'link'].forEach(function (id) {
+    $(id).addEventListener('input', function () {
+      $(id).classList.remove('invalid');
+      var box = document.querySelector('.error[data-for="' + id + '"]');
+      if (box) box.textContent = '';
+    });
+  });
+
+  // ---- 送信 -------------------------------------------------------------
+  $('f').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var d = collect();
+    var errs = validate(d);
+    if (Object.keys(errs).length) {
+      showErrors(errs);
+      setMsg('入力内容を確認してください。', false);
+      return;
+    }
+    clearErrors();
+    setBusy(true);
+    setMsg('登録中…', null);
+    google.script.run
+      .withSuccessHandler(function (res) {
+        setBusy(false);
+        if (!res.ok) {
+          showBanner(res.errors.join('\n'));
+          setMsg('登録できませんでした。', false);
+          return;
+        }
+        addCategory(res.category);
+        resetForm();
+        setMsg('登録しました(' + res.row + '行目)。続けて入力できます。', true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      })
+      .withFailureHandler(function (err) {
+        setBusy(false);
+        showBanner(errText(err));
+        setMsg('登録に失敗しました。', false);
+      })
+      .appendEntry(d);
+  });
+
+  $('clear').addEventListener('click', function () {
+    if (confirm('入力内容をクリアしますか?')) { resetForm(); setMsg('', null); }
+  });
+
+  function setBusy(b) { $('submit').disabled = b; }
+  function setMsg(t, ok) {
+    var m = $('msg');
+    m.textContent = t;
+    m.className = ok === true ? 'ok' : ok === false ? 'ng' : '';
+  }
+  function showBanner(t) { var b = $('banner'); b.textContent = t; b.style.display = 'block'; }
+  function errText(err) { return (err && err.message) ? err.message : String(err); }
+</script>
+</body>
+</html>
