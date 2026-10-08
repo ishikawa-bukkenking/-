@@ -165,6 +165,7 @@ a{color:var(--c-ink)}
   .hero .wrap{grid-template-columns:1fr;padding-top:36px}
   .king{position:absolute;right:12px;top:-6px;width:96px;margin:0;opacity:1}
   .hero h1{padding-right:90px}
+  .hero .date{display:block;margin:8px 0 0}
   .conclusions,.big2,.g2,.g3{grid-template-columns:1fr}
   .g4{grid-template-columns:repeat(2,1fr)}.g4 .kpi{padding:14px}.tgrid{grid-template-columns:1fr}
   .heat{min-width:480px}
