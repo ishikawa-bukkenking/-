@@ -1,0 +1,124 @@
+{
+  "_readme": "お店のメニューのデータです。価格・品名・説明・お知らせを直したら、保存するだけでサイト全体に反映されます(詳しくは README.md)。価格はすべて税込。",
+  "updated": "2026-10-08",
+  "notice": {
+    "show": false,
+    "text": "",
+    "_example": "show を true にして text に書くと、全ページの上に出ます。例:「◯月◯日(◯)は臨時休業します」"
+  },
+  "tax": "税込",
+  "lunch": {
+    "title": "平日お昼のお得なセットメニュー",
+    "rules": ["平日の夜と土日祝日は＋100円で注文できます", "ランチメニューのご飯大盛りは＋200円"],
+    "items": [
+      {"id": "lunch-aburi", "name": "あぶりセット", "desc": "醤油ラーメンと炙りチャーシューミニ丼のセット", "price": 1000, "notes": ["ラーメンは変更できません", "麺の大盛＋200円", "チャーシュー丼の大盛り＋300円"], "voice": "一番人気です♪", "badge": "一番人気"},
+      {"id": "lunch-mabo", "name": "マーボーランチ", "desc": "麻婆豆腐、焼き豚、トン唐、ご飯のセット", "price": 1000, "notes": ["激辛、チョイ辛、子供用まで、辛さは対応します", "お好みで山椒をかけてどうぞ", "激辛は＋100円"]},
+      {"id": "lunch-ramen", "name": "ラーメンセット", "desc": "醤油ラーメン、餃子、ご飯のお得なセット", "price": 1000, "notes": ["ラーメンは変更できません", "麺の大盛りは＋200円"]},
+      {"id": "lunch-chuka", "name": "中華ランチ", "desc": "八宝菜、焼き豚、トン唐、ご飯のセット", "price": 900, "notes": ["お野菜、お肉たっぷりの五目旨煮です"], "voice": "創業以来、変わらぬ味と不動の人気です！"},
+      {"id": "lunch-subuta", "name": "酢豚ランチ", "desc": "スブタ、焼き豚、ご飯のセット", "price": 900, "notes": ["甘酢のタレが美味しいです"]},
+      {"id": "lunch-gyoza", "name": "餃子ランチ", "desc": "餃子、焼き豚、トン唐、ご飯のセット", "price": 880, "notes": ["人気の手作り餃子が10個入ってます"]},
+      {"id": "lunch-karaage", "name": "唐揚げランチ", "desc": "唐揚げ、焼き豚、ご飯のセット", "price": 900, "notes": ["国産鶏のカリカリの唐揚げです", "自家製の山椒塩でどうぞ"]}
+    ]
+  },
+  "ippin": {
+    "title": "一品料理",
+    "items": [
+      {"id": "tori-karaage", "name": "鶏の唐揚げ", "desc": "国産鶏のカリカリ唐揚げです", "price": 880, "voice": "カリカリです！"},
+      {"id": "tontou", "name": "とん唐", "desc": "豚肩ロース肉の唐揚げ、噛むほどに美味しいです", "price": 880},
+      {"id": "subuta", "name": "酢豚（スブタ）", "desc": "甘酢のお肉と野菜でスタミナ疲労回復", "price": 880, "voice": "創業50年以上！変わらない人気です"},
+      {"id": "mabo-tofu", "name": "マーボー豆腐", "desc": "辛さは激辛〜甘口まで、お好みで山椒をどうぞ", "price": 850, "notes": ["激辛は＋100円"]},
+      {"id": "musuro", "name": "木須肉（ムースーロー）", "desc": "豚肉と野菜、卵たっぷりのうま煮です", "price": 980, "voice": "白菜と豚肉、卵の旨煮です！"},
+      {"id": "happosai", "name": "八宝菜", "desc": "彩り野菜と豚肉のうま煮、栄養満点で免疫力UP", "price": 950, "voice": "野菜とお肉の五目煮。栄養抜群です！"},
+      {"id": "yaki-buta", "name": "焼き豚", "desc": "自慢の焼豚、和がらしとお醤油でどうぞ！！", "price": 930, "voice": "自家製の焼き豚です"},
+      {"id": "aburi-chashu", "name": "炙りチャーシュー", "desc": "おすすめ！秘伝のタレで炙ってます！", "price": 980, "voice": "焼き豚を特製ダレで炙ってます", "badge": "おすすめ"},
+      {"id": "kani-tama", "name": "かに玉", "desc": "カニ海老卵焼き、甘酢か塩味選んでください", "price": 780, "notes": ["甘酢ケチャップ味か塩味、選んでください！"]},
+      {"id": "cabbage-miso", "name": "キャベツと豚肉の味噌炒め", "desc": "秘伝の肉味噌仕立ての回鍋肉", "price": 880},
+      {"id": "ebi-ten", "name": "エビ天", "desc": "ぷりぷり食感の海老天", "price": 880, "notes": ["自家製山椒塩でどうぞ"]},
+      {"id": "nira-reba", "name": "ニラレバ炒め", "desc": "鉄分豊富でスタミナ満点！一番人気！", "price": 980, "voice": "おすすめです！", "badge": "一番人気"},
+      {"id": "yasai-itame", "name": "野菜炒め", "desc": "彩り野菜で食物繊維たっぷりです！", "price": 800, "voice": "お野菜がっつりどうぞ！"},
+      {"id": "moyashi-itame", "name": "もやし炒め", "desc": "栄養もりもり、カロリー控えめです", "price": 750},
+      {"id": "ebi-chili", "name": "海老チリ", "desc": "絶品チリソースはご飯との相性抜群！！", "price": 950, "voice": "プリプリのエビチリ"},
+      {"id": "tontou-chilimayo", "name": "とん唐チリマヨ", "desc": "とん唐のチリソース和え 人気です！", "price": 950, "voice": "ニンニク生姜のチリソース。ご飯が進みますよ", "badge": "人気"}
+    ]
+  },
+  "men": {
+    "title": "麺類",
+    "rules": ["全てのラーメン、大盛り→麺2倍は＋200円です"],
+    "items": [
+      {"id": "shoyu-ramen", "name": "醤油ラーメン", "desc": "昔ながらの醤油ラーメンです", "price": 750},
+      {"id": "miso-ramen", "name": "味噌ラーメン", "desc": "お野菜たっぷりな味噌ラーメン", "price": 780, "notes": ["ニンニク入りもできます"]},
+      {"id": "garlic-miso-chashumen", "name": "にんにく味噌チャーシューメン", "desc": "元気満点！大人気♪", "price": 1000, "badge": "大人気"},
+      {"id": "goku-ramen", "name": "五目ラーメン", "desc": "お野菜と卵のあっさり麺です", "price": 830, "voice": "お野菜とたまごたっぷり！"},
+      {"id": "tenshin-men", "name": "天津麺", "desc": "かに玉焼の醤油麺", "price": 780, "voice": "かに玉焼きラーメン"},
+      {"id": "chashumen", "name": "チャーシュー麺", "desc": "元祖王道の焼豚麺", "price": 980},
+      {"id": "moyashi-ankake", "name": "もやしあんかけラーメン", "desc": "人気の野菜あんかけ麺", "price": 750, "badge": "人気"},
+      {"id": "curry-ramen", "name": "カレーラーメン", "desc": "カレー好きは選んでみて！美味しいよ", "price": 780},
+      {"id": "aburi-chashumen", "name": "炙りチャーシューメン", "desc": "一番人気！特製ダレで炙ってます！", "price": 980, "voice": "特製旨ダレで焼豚を炙ってます！", "badge": "一番人気"},
+      {"id": "mabo-men", "name": "マーボー麺", "desc": "麻婆豆腐がのったラーメンです", "price": 880, "notes": ["辛さ対応できます"]},
+      {"id": "baribari-mabo", "name": "バリバリ麻婆あんかけ麺", "desc": "揚げそばの上に麻婆豆腐", "price": 880, "voice": "バリそばの上に麻婆豆腐"},
+      {"id": "age-soba", "name": "揚げそば", "desc": "野菜たっぷりあんかけバリ麺", "price": 800},
+      {"id": "itame-yakisoba", "name": "炒め焼きそば", "desc": "数量限定なのであったらラッキーです", "price": 780, "notes": ["お酢をかけてどうぞ！"]},
+      {"id": "ankake-torotama", "name": "あんかけとろ玉ラーメン", "desc": "女将のイチ推し！", "price": 830, "notes": ["お酢をかけてどうぞ！"], "voice": "人気です！", "badge": "女将のイチ推し"},
+      {"id": "jajamen", "name": "ジャージャー麺", "desc": "大門特製肉味噌のまぜそばです", "price": 900}
+    ]
+  },
+  "gohan": {
+    "title": "ご飯物類",
+    "rules": ["全てスープ付き"],
+    "items": [
+      {"id": "chukameshi", "name": "中華飯", "desc": "お野菜たっぷりあんかけ丼", "price": 780, "price_large": 980},
+      {"id": "karaage-chukameshi", "name": "唐揚げ入り中華飯", "desc": "カリカリの唐揚げ入り中華飯", "price": 900, "price_large": 1100, "voice": "唐揚げゴロゴロ、ボリュームあります！"},
+      {"id": "tenshin-han", "name": "天津飯", "desc": "甘酢ケチャップか塩味を選んでください", "price": 750, "price_large": 950, "notes": ["甘酢ケチャップ味か塩味"], "voice": "かに玉丼"},
+      {"id": "chahan", "name": "チャーハン", "desc": "元祖焼飯", "price": 700, "price_large": 1050},
+      {"id": "goku-chahan", "name": "五目チャーハン", "desc": "海老・カニ入り焼飯", "price": 780, "price_large": 1170},
+      {"id": "kimchi-chahan", "name": "キムチチャーハン", "desc": "ピリ辛キムチ入り焼飯", "price": 830, "price_large": 1250},
+      {"id": "nikumiso-chahan", "name": "肉味噌チャーハン", "desc": "特製肉味噌の甘辛焼飯", "price": 900, "price_large": 1350},
+      {"id": "garlic-chahan", "name": "にんにくチャーハン", "desc": "ニンニク入り焼飯", "price": 880, "price_large": 1320, "voice": "にんにくたっぷり！カリカリ香ばしいです", "badge": "人気"},
+      {"id": "aburi-chashu-don", "name": "炙りチャーシュー丼", "desc": "焼き豚を特製ダレで炙ってます", "price": 900, "price_large": 1080},
+      {"id": "half-aburi-don", "name": "ハーフ炙りチャーシュー丼", "desc": "ハーフでも主役級！", "price": 600},
+      {"id": "mabo-meshi", "name": "マーボー飯", "desc": "辛味なしも対応できます", "price": 850, "price_large": 1050, "notes": ["激辛は＋100円"]},
+      {"id": "karaage-don", "name": "唐揚げ丼", "desc": "カリカリ唐揚げの旨ダレ丼", "price": 900, "price_large": 1100},
+      {"id": "nikumiso-don", "name": "肉味噌丼", "desc": "大門特製の肉味噌です", "price": 900, "price_large": 1100}
+    ],
+    "plain_rice": {"name": "白いご飯（漬物付き）", "large": 350, "medium": 200, "small": 180}
+  },
+  "tenshin": {
+    "title": "点心",
+    "items": [
+      {"id": "yaki-gyoza", "name": "焼餃子（6個）", "price": 380},
+      {"id": "sui-gyoza", "name": "水餃子（6個）", "price": 400},
+      {"id": "harumaki", "name": "春巻き", "desc": "卵・肉・彩り野菜など具沢山です", "price": 880, "notes": ["3本"]},
+      {"id": "shiso-cheese-harumaki", "name": "青シソとチーズの餃子春巻き", "desc": "餃子の餡を春巻きで包んだ、大門オリジナル☆", "price": 880, "badge": "オリジナル"}
+    ]
+  },
+  "drink": {
+    "title": "ドリンクメニュー",
+    "notes": ["氷・水はいつでも無料です！", "いいちこ、黒霧島、サントリー角は、ボトルキープがとてもお得ですよ！！"],
+    "alcohol": [
+      {"name": "生ビール アサヒスーパードライ ジョッキ", "price": 650},
+      {"name": "生ビール アサヒスーパードライ グラス", "price": 380},
+      {"name": "アサヒスーパードライ 大瓶", "price": 700},
+      {"name": "キリンラガー 大瓶", "price": 700},
+      {"name": "キリン一番搾り 缶ビール", "price": 480},
+      {"name": "ハイボール（サントリー角）", "price": 550},
+      {"name": "焼酎（いいちこ or 黒霧島）", "price": 580, "notes": ["ロック・水割り・お湯割り"]},
+      {"name": "日本酒 熱燗", "price": 500},
+      {"name": "日本酒 冷酒", "price": 650},
+      {"name": "レモンサワー", "price": 480}
+    ],
+    "non_alcohol_beer": [
+      {"name": "アサヒビール ドライゼロ", "price": 450}
+    ],
+    "soft": {"price": 300, "items": ["ウーロン茶", "オレンジジュース", "コカコーラ", "ジンジャーエール", "トマトジュース", "炭酸水"]}
+  },
+  "takeout": {
+    "title": "テイクアウト",
+    "sets": [
+      {"id": "takeout-a", "name": "Aセット", "desc": "炙りチャーシュー丼＆唐揚げ", "regular_price": 1300, "price": 1100},
+      {"id": "takeout-b", "name": "Bセット", "desc": "チャーハン＆餃子", "regular_price": 1150, "price": 1000},
+      {"id": "takeout-c", "name": "Cセット", "desc": "天津飯＆餃子", "regular_price": 1260, "price": 1050},
+      {"id": "takeout-d", "name": "Dセット", "desc": "肉味噌丼＆トン唐セット", "regular_price": 1300, "price": 1100}
+    ],
+    "rules": ["4セットはパック代も込みの価格", "上記以外のランチメニューやご飯類、一品料理等も全てお持ち帰りできます", "パック代は一つ50円", "ラーメン類は丼や小鍋を持ってきてくだされば、お持ち帰りできます", "お電話いただければ、ご希望の時間にお渡しできます", "土日は混み合いますので、お早めにお電話ください。お席も予約をお勧めします"]
+  }
+}
