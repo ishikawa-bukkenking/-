@@ -1,0 +1,61 @@
+# 回帰テスト用: 添付サンプル(長野県上田市版)の数値を設定にしたもの。
+company: 株式会社○○
+prefecture: 長野県
+city: 上田市
+created: 2026-01-19
+# cta_url: https://example.com/contact     # 設定した場合のみボタンを表示
+
+# 近隣不動産会社(検索結果の自動取得は規約上行わない。検索語: 「上田市 不動産」「上田市 土地」「上田市 中古」)
+competitors:
+  - {name: ピタットハウス 上田店, area: 上田市, url: "https://www.pitat.com/shopDetail/ueda.html"}
+  - {name: ハウスドゥ 上田西店, area: 上田市, url: "https://uedanishi-housedo.com/"}
+  - {name: アールハウス 上田店, area: 上田市, url: "https://www.rhouse.co.jp/"}
+
+inputs:
+  area: {households: 70809, source: 住民基本台帳(サンプル値)}
+  income:
+    source: LIFULL HOME'S調べ
+    date: 2026-01-19
+    city_avg_man: 476
+    prefecture_avg_man: 498
+    national_avg_man: 503
+    rank_in_prefecture: 72
+    brackets:
+      - {label: 300万未満, share: 0.389, households: 24340}
+      - {label: 300万〜500万未満, share: 0.285}
+      - {label: 500万〜700万未満, share: 0.167}
+      - {label: 700万〜1000万未満, share: 0.106}
+      - {label: 1000万以上, share: 0.053}
+  price_trend:
+    source: LIFULL HOME'S調べ
+    date: 2026-01-19
+    city_3y_pct: 7.22
+    prefecture_3y_pct: 7.28
+    yearly_pct: [0.83, 0.01, 6.38]
+  listings_source: REINS・SUUMO調べ     # サンプル値の出典表記(実運用では実際の取得元に合わせる)
+  listings_date: 2026-01-19
+  land:
+    tsubo_price_man: 10
+    tsubo_price_low_rise_residential_man: 12
+    tsubo_price_other_residential_man: 12.8
+    listings: 90
+    price_man: 766
+    price_per_m2_man: 3.3
+    land_area_median_m2: 230
+    compare_cities:
+      - {city: 長野市, tsubo_price_man: 25.1, listings: 217}
+      - {city: 松本市, tsubo_price_man: 21.6, listings: 114}
+      - {city: 上田市, tsubo_price_man: 10.0, listings: 90}
+      - {city: 須坂市, tsubo_price_man: 14.9, listings: 18}
+      - {city: 千曲市, tsubo_price_man: 9.9, listings: 42}
+  used_house: {price_man: 1280, listings: 239, building_area_median_m2: 116, land_area_median_m2: 301, age_median_years: 36}
+  used_mansion: {price_man: 700, listings: 4, exclusive_area_median_m2: 85, age_median_years: 34}
+  new_house: {price_man: 2280, listings: 81, building_area_median_m2: 98, land_area_median_m2: 224}
+  keywords:
+    source: google広告調べ
+    date: 2026-01-19
+    rows:
+      - {term: 土地, monthly_volume: 1000, cpc_low_yen: 6, cpc_high_yen: 161}
+      - {term: 中古マンション, monthly_volume: 880, cpc_low_yen: 3, cpc_high_yen: 63}
+      - {term: 不動産, monthly_volume: 480, cpc_low_yen: 12, cpc_high_yen: 309}
+      - {term: 中古物件, monthly_volume: 320, cpc_low_yen: 4, cpc_high_yen: 62}

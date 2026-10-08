@@ -1,0 +1,86 @@
+{
+  "_note": "添付のエリア調査シート(長野県上田市版)から読み取った値。検証用の正解データ。数値は取得日により変動するため、再取得結果とは完全一致ではなく、項目の有無・形式・桁感・内部整合性の確認に使う。画像で貼られている部分(価格推移グラフ、面積×価格の分布表、加盟店サイトのスクリーンショット)はテキストとして読み取れないため含めていない。",
+  "meta": {
+    "company": "株式会社○○",
+    "prefecture": "長野県",
+    "city": "上田市",
+    "data_date": "2026-01-19"
+  },
+  "area": {
+    "households": 70809,
+    "nearby_franchise": [
+      { "name": "リフォームワン株式会社", "area": "長野県 上田市", "url": "https://www.one-estate.jp/" },
+      { "name": "ミライズ不動産株式会社", "area": "長野県 上田市", "url": "https://www.me-rise-fudosan.jp/" }
+    ]
+  },
+  "income": {
+    "source": "LIFULL HOME'S調べ",
+    "city_avg_man": 476,
+    "prefecture_avg_man": 498,
+    "national_avg_man": 503,
+    "rank_in_prefecture": 72,
+    "municipalities_in_prefecture": 77,
+    "diff_vs_national_man": -27,
+    "brackets": [
+      { "label": "300万未満", "share": 0.389 },
+      { "label": "300万〜500万未満", "share": 0.285 },
+      { "label": "500万〜700万未満", "share": 0.167 },
+      { "label": "700万〜1000万未満", "share": 0.106 },
+      { "label": "1000万以上", "share": 0.053 }
+    ],
+    "largest_bracket": { "label": "300万未満", "households": 24340, "share": 0.389 },
+    "headline": "長野県で72位/77市町村中　全国平均より下",
+    "body": "上田市の平均年収は476万円です。長野県の77市町村の中で72位となり、全国の平均年収からは27万円下回る結果になりました。年収階級別にみると年収300万円未満の世帯が一番多く24,340世帯（38.9%）となります。"
+  },
+  "price_trend": {
+    "source": "LIFULL HOME'S調べ",
+    "city_3y_pct": 7.22,
+    "prefecture_3y_pct": 7.28,
+    "yearly_pct": [0.83, 0.01, 6.38],
+    "judgement_vs_prefecture": "同程度",
+    "body": "上田市の標準的な物件の価格は直近の3年間で7.22%程度上昇しています。これは上田市のある長野県の変動の7.28%に比べて同程度の水準です。この3年間の価格上昇率を内訳でみると、初年度0.83%、2年目0.01%、3年目6.38%となっています。"
+  },
+  "land": {
+    "source": "REINS・SUUMO調べ",
+    "tsubo_price_man": 10,
+    "tsubo_price_low_rise_residential_man": 12,
+    "tsubo_price_other_residential_man": 12.8,
+    "listings": 90,
+    "compare_cities": [
+      { "city": "長野市", "tsubo_price_man": 25.1, "listings": 217 },
+      { "city": "松本市", "tsubo_price_man": 21.6, "listings": 114 },
+      { "city": "上田市", "tsubo_price_man": 10.0, "listings": 90, "highlight": true },
+      { "city": "須坂市", "tsubo_price_man": 14.9, "listings": 18 },
+      { "city": "千曲市", "tsubo_price_man": 9.9, "listings": 42 }
+    ]
+  },
+  "used_house": { "price_man": 1280, "listings": 239, "building_area_median_m2": 116, "land_area_median_m2": 301, "age_median_years": 36 },
+  "used_mansion": { "price_man": 700, "listings": 4, "exclusive_area_median_m2": 85, "age_median_years": 34 },
+  "new_house": { "price_man": 2280, "listings": 81, "building_area_median_m2": 98, "land_area_median_m2": 224 },
+  "land_summary": { "price_man": 766, "price_per_m2_man": 3.3, "land_area_median_m2": 230 },
+  "keywords": {
+    "source": "google広告調べ",
+    "rows": [
+      { "keyword": "上田市　土地", "monthly_volume": 1000, "cpc_low_yen": 6, "cpc_high_yen": 161 },
+      { "keyword": "上田市　中古マンション", "monthly_volume": 880, "cpc_low_yen": 3, "cpc_high_yen": 63 },
+      { "keyword": "上田市　不動産", "monthly_volume": 480, "cpc_low_yen": 12, "cpc_high_yen": 309 },
+      { "keyword": "上田市　中古物件", "monthly_volume": 320, "cpc_low_yen": 4, "cpc_high_yen": 62 }
+    ]
+  },
+  "totals": {
+    "listings_total": 414,
+    "brokerage_unit_man": 47,
+    "point_listings_rounded": 420
+  },
+  "competitor_sites": [
+    { "name": "ピタットハウス 上田店", "url": "https://www.pitat.com/shopDetail/ueda.html", "listing_count": null },
+    { "name": "ハウスドゥ 上田西店", "url": "https://uedanishi-housedo.com/", "listing_count": null },
+    { "name": "アールハウス 上田店", "url": "https://www.rhouse.co.jp/", "listing_count": null }
+  ],
+  "_consistency_checks_verified_on_sample": {
+    "listings_total": "4(マンション)+90(土地)+81(新築戸建)+239(中古戸建)=414",
+    "brokerage_unit": "各種別の(売却価格相場×3%+6万円)を物件数で加重平均すると46.75→約47万円(税抜)。税込(×1.1)なら51.4万円で一致しない",
+    "price_trend": "0.83+0.01+6.38=7.22(単純合計が3年上昇率と一致)",
+    "income_diff": "503-476=27(全国平均との差)"
+  }
+}

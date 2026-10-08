@@ -1,0 +1,190 @@
+{%- macro slot(label, keys) -%}
+<div class="slot" role="note"><b>未入力: {{ label }}</b>設定ファイルに入力してください: {% for k in keys %}<code>{{ k }}</code>{% if not loop.last %} / {% endif %}{% endfor %}</div>
+{%- endmacro -%}
+{%- macro kpi(value, unit, label, cls='', nd=None) -%}
+<div class="kpi {{ cls }}"><div class="kpi-num num">{% if value is not none %}<span data-count="{{ value }}">{{ value|num(nd) }}</span><span class="u">{{ unit }}</span>{% else %}<span aria-label="未入力">—</span>{% endif %}</div><div class="kpi-label">{{ label }}</div></div>
+{%- endmacro -%}
+{%- macro srcline(sec) -%}<p class="src">（{{ sec.date }}　{{ sec.source }}）</p>{%- endmacro -%}
+{%- macro heat(h, title) -%}
+<div class="heat-wrap"><table class="heat"><caption>{{ title }}（件数／横軸は価格・万円）</caption>
+<thead><tr><th scope="col"></th>{% for c in h.cols %}<th scope="col">{{ c }}</th>{% endfor %}</tr></thead>
+<tbody>{% for r in h.rows %}{% set i = loop.index0 %}<tr><th scope="row">{{ r }}</th>{% for v in h.grid[i] %}<td{% if v %} style="background:rgba(0,151,167,{{ (0.12 + 0.55*v/h.max)|round(2) }});color:{{ '#fff' if v/h.max>0.7 else '#212121' }}"{% endif %}>{{ v if v else '' }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+{%- endmacro -%}
+{%- macro house(id, no, sec, label, rows, areas) -%}
+<section class="sec{{ ' alt' if no % 2 == 0 }}" id="{{ id }}"><div class="wrap rv">
+<p class="sec-no">{{ '%02d'|format(no) }}　{{ label }}</p>
+<h2>{% if sec.price_man is not none and sec.listings is not none %}{{ label }}の相場は<span class="em">{{ sec.price_man|num }}万円</span>、物件数は<span class="em">{{ sec.listings|num }}件</span>{% else %}{{ label }}の価格相場・物件数{% endif %}</h2>
+<div class="grid g2" style="max-width:640px">{{ kpi(sec.price_man, '万円', '売却価格相場') }}{{ kpi(sec.listings, '件', '物件数') }}</div>
+{% if sec.price_man is none or sec.listings is none %}<div style="margin-top:16px">{{ slot(label ~ 'の相場・物件数', ['inputs.' ~ id ~ '.price_man', 'inputs.' ~ id ~ '.listings', 'または inputs.listings_csv']) }}</div>{% endif %}
+<div style="margin-top:28px">
+{% if sec.heatmaps %}<div class="grid {{ 'g2' if sec.heatmaps|length > 1 else '' }}">{% for key, h in sec.heatmaps.items() %}{% if h %}{{ heat(h, ('土地面積' if key == 'land_area_m2' else '建物面積' if key == 'building_area_m2' else '専有面積') ~ '×価格') }}{% endif %}{% endfor %}</div>
+{% elif sec.heatmap_image %}<figure class="fig"><img src="{{ sec.heatmap_image }}" alt="{{ label }}の面積と価格の分布表" loading="lazy"></figure>
+{% else %}{{ slot('面積×価格の分布', ['inputs.listings_csv(物件データCSV)', 'inputs.' ~ id ~ '.heatmap_image(画像)']) }}{% endif %}
+</div>
+<ul class="notes note">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>
+{{ srcline(sec) }}
+</div></section>
+{%- endmacro -%}
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive,noimageindex">
+<title>エリア調査シート｜{{ m.company }} 御中｜{{ m.city }}</title>
+<meta name="description" content="{{ m.company }} 御中 {{ m.city }}のエリア調査シート">
+<link rel="icon" href="assets/brand/logo-teal.png">
+<link rel="stylesheet" href="assets/css/fonts.css">
+<link rel="stylesheet" href="assets/css/style.css">
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+{% if missing %}<div class="draft"><div class="wrap"><b>下書き</b><span>未入力の項目が{{ missing }}件あります(黄色の枠)。取得レポート(report.md)を確認し、設定ファイルへ入力してから再生成してください。</span></div></div>{% endif %}
+<nav class="nav" aria-label="ページ内移動"><div class="wrap"><img src="assets/brand/logo-teal.png" alt="物件王">
+{% for id, lab in toc %}<a class="i" href="#{{ id }}">{{ lab }}</a>{% endfor %}</div></nav>
+
+<header class="hero" id="top"><div class="wrap">
+<div><p class="eyebrow">エリア調査シート</p>
+<h1>{{ m.company }}<small>御中</small></h1>
+<p><span class="pill">{{ m.prefecture }}　{{ m.city }}</span><span class="date">{{ m.created_display }} 作成</span></p></div>
+<img class="king" src="assets/brand/king.png" alt="物件王の王様キャラクター">
+<div class="conclusions rv">
+{{ kpi(t.listings_total, '件', '物件総数', 'accent') }}
+{{ kpi(t.brokerage_unit_display_man, '万円', '仲介単価(約)', 'accent') }}
+<div class="kpi"><div class="kpi-num">{{ m.city }}</div><div class="kpi-label">調査した商圏({{ m.prefecture }})</div></div>
+</div>
+<nav class="anchors" aria-label="セクション">{% for id, lab in toc if id != 'top' %}<a href="#{{ id }}">{{ lab }}</a>{% endfor %}</nav>
+{% if cta_url %}<div><a class="btn" href="{{ cta_url }}">お問い合わせ・資料請求</a></div>{% endif %}
+</div></header>
+
+<main>
+<section class="sec" id="area"><div class="wrap rv">
+<p class="sec-no">01　対象エリア</p>
+<h2>{% if a.households is not none %}{{ m.city }}を商圏に、<span class="em">{{ a.households|num }}世帯</span>のエリアを調査しました{% else %}{{ m.city }}を商圏としたエリアを調査しました{% endif %}</h2>
+<div class="split">
+<div>{% if map_svg %}{{ map_svg|safe }}{% else %}{{ slot('地図', ['行政区域データの取得に失敗(取得レポート参照)']) }}{% endif %}</div>
+<div class="grid">
+{{ kpi(a.households, '世帯', '世帯数', 'flat') }}
+{% if a.households is none %}{{ slot('世帯数', ['inputs.area.households', '環境変数 ESTAT_APP_ID(e-Stat自動取得)']) }}{% endif %}
+<div class="card"><p class="sub">周辺加盟店</p>
+{% if a.franchise['items'] %}<ul class="fr">{% for f in a.franchise['items'] %}<li><b>{{ f.name }}様</b><span>※{{ f.area }}</span>{% if f.url %}<br><a href="{{ f.url }}" rel="noopener noreferrer" target="_blank">{{ f.url }}</a>{% endif %}</li>{% endfor %}</ul>
+{% else %}<p class="empty">周辺に加盟店なし</p>{% endif %}</div>
+</div></div>
+{% if a.households is not none %}<p class="src">（{{ a.households_date }}　{{ a.households_source }}）</p>{% endif %}
+</div></section>
+
+<section class="sec alt" id="income"><div class="wrap rv">
+<p class="sec-no">02　年収</p>
+<h2>{{ inc.headline or (m.city ~ 'の平均世帯年収') }}</h2>
+{% if inc.body %}<p class="lead">{{ inc.body }}</p>{% else %}{{ slot('年収の説明文', ['inputs.income.city_avg_man', 'national_avg_man', 'rank_in_prefecture', 'brackets(households)']) }}{% endif %}
+<div class="split">
+<div class="card"><p class="sub">平均世帯年収</p>
+{% if inc.city_avg_man is not none and inc.prefecture_avg_man is not none and inc.national_avg_man is not none %}<div class="chart-d">{{ bars|safe }}</div><div class="chart-c">{{ bars_c|safe }}</div>{% else %}{{ slot('平均世帯年収', ['inputs.income.city_avg_man', 'prefecture_avg_man', 'national_avg_man']) }}{% endif %}</div>
+<div class="card"><p class="sub">年収階級別の世帯構成比</p>
+{% if donut %}<div class="chart-d">{{ donut|safe }}</div><div class="chart-c"><ul class="dlist">{% for b in inc.brackets %}<li{% if b.label == inc.largest_bracket.label %} class="top"{% endif %}><span>{{ b.label }}</span><b class="num">{{ (b.share*100)|round(1) }}%</b><i style="width:{{ (b.share*100)|round(1) }}%" aria-hidden="true"></i></li>{% endfor %}</ul></div>{% else %}{{ slot('年収階級別の世帯構成', ['inputs.income.brackets(label と households または share を5区分)']) }}{% endif %}</div>
+</div>
+{{ srcline(inc) }}
+</div></section>
+
+<section class="sec" id="trend"><div class="wrap rv">
+<p class="sec-no">03　価格推移</p>
+<h2>{% if tr.city_3y_pct is not none %}直近3年で価格は<span class="em">{{ tr.city_3y_pct|num(2) }}%{{ '上昇' if tr.city_3y_pct >= 0 else '下落' }}</span>{% if tr.judgement_vs_prefecture %}、{{ m.prefecture }}と{{ tr.judgement_vs_prefecture }}{% endif %}{% else %}直近3年間の価格推移{% endif %}</h2>
+{% if tr.body %}<p class="lead">{{ tr.body }}</p>{% else %}{{ slot('価格推移の説明文', ['inputs.price_trend.city_3y_pct(または yearly_pct)', 'prefecture_3y_pct', 'yearly_pct(3年分)']) }}{% endif %}
+<div class="grid g4" style="margin-bottom:24px">
+{{ kpi(tr.city_3y_pct, '%', m.city ~ ' 3年間', 'accent', 2) }}{{ kpi(tr.prefecture_3y_pct, '%', m.prefecture ~ ' 3年間', 'flat', 2) }}
+{% if tr.yearly_pct %}<div class="kpi flat" style="grid-column:span 2"><div style="display:flex;gap:24px;flex-wrap:wrap">{% for lab in ['初年度','2年目','3年目'] %}<div><div class="kpi-num num" style="font-size:1.75rem">{{ tr.yearly_pct[loop.index0]|num(2) }}<span class="u">%</span></div><div class="kpi-label" style="display:block">{{ lab }}</div></div>{% endfor %}</div></div>{% endif %}
+</div>
+<div class="card">
+{% if trend_svg %}<div class="chart-d">{{ trend_svg|safe }}</div><div class="chart-c">{{ trend_svg_c|safe }}</div>{% elif tr.image %}<figure class="fig" style="border:0;padding:0"><img src="{{ tr.image }}" alt="{{ m.city }}の住宅価格推移グラフ"></figure>{% else %}{{ slot('価格推移グラフ', ['inputs.price_trend.series(labels と 中古マンション/中古戸建て/土地 の数値)', 'または inputs.price_trend.image(画像)']) }}{% endif %}
+<ul class="notes note" style="margin-top:14px">{% for n in tr.ai_note %}<li>{{ n }}</li>{% endfor %}</ul></div>
+{{ srcline(tr) }}
+</div></section>
+
+<section class="sec alt" id="land"><div class="wrap rv">
+<p class="sec-no">04　土地</p>
+<h2>{% if land.tsubo_price_man is not none %}{{ m.city }}の土地相場は<span class="em">坪{{ land.tsubo_price_man|num }}万円</span>{% if land.listings is not none %}、物件数は<span class="em">{{ land.listings|num }}件</span>{% endif %}{% else %}{{ m.city }}の土地価格相場・物件数{% endif %}</h2>
+<div class="grid g4">
+{{ kpi(land.tsubo_price_man, '万円/坪', '坪単価', 'accent') }}
+{{ kpi(land.tsubo_price_low_rise_residential_man, '万円/坪', '低層住居専用地域相場', 'flat') }}
+{{ kpi(land.tsubo_price_other_residential_man, '万円/坪', 'それ以外の住居専用地域', 'flat') }}
+{{ kpi(land.listings, '件', '物件数', 'flat') }}
+</div>
+{% if land.tsubo_note %}<p class="note" style="margin-top:12px">※「坪単価」は用途地域を問わず全物件を対象とした中央値のため、用途地域別の相場より低くなる場合があります。</p>{% endif %}
+{% if land.tsubo_price_man is none or land.listings is none %}<div style="margin-top:14px">{{ slot('土地の坪単価・物件数', ['inputs.land.tsubo_price_man', 'tsubo_price_low_rise_residential_man', 'tsubo_price_other_residential_man', 'listings', 'または inputs.listings_csv']) }}</div>{% endif %}
+<div class="card" style="margin-top:24px"><p class="sub">{{ m.city }}と近隣・県内主要市の比較（坪単価と物件数）</p>
+{% if land_svg %}<div class="chart-d">{{ land_svg|safe }}</div><div class="chart-c">{{ land_svg_c|safe }}</div>{% else %}{{ slot('比較5市の坪単価・物件数', ['inputs.land.compare_cities(city/tsubo_price_man/listings)'] + (['候補(隣接市): ' ~ land.compare.suggested|join('、')] if land.compare.suggested else [])) }}{% endif %}</div>
+{{ srcline(land) }}
+</div></section>
+
+{{ house('used_house', 5, uh, '中古戸建て', [], []) }}
+{{ house('used_mansion', 6, um, '中古マンション', [], []) }}
+{{ house('new_house', 7, nh, '新築戸建て', [], []) }}
+
+<section class="sec alt" id="search"><div class="wrap rv">
+<p class="sec-no">08　検索ボリューム</p>
+<h2>{% if kw.rows and kw.rows[0].monthly_volume is not none %}「{{ kw.rows[0].keyword }}」は<span class="em">月に約{{ kw.rows[0].monthly_volume|num }}回</span>検索されています{% else %}{{ m.city }}の不動産関連キーワードの検索ボリューム{% endif %}</h2>
+<div class="card"><table class="kw"><thead><tr><th scope="col">検索キーワード</th><th scope="col">月間平均検索ボリューム</th><th scope="col">予想クリック単価</th></tr></thead><tbody>
+{% for r in kw.rows %}<tr><td>{{ r.keyword }}</td>
+<td class="v num">{% if r.monthly_volume is not none %}{{ r.monthly_volume|num }}<span class="bar" style="width:{{ (100*r.monthly_volume/kw_max)|round(1) }}%" aria-hidden="true"></span>{% else %}<span class="note">未入力</span>{% endif %}</td>
+<td class="num">{% if r.cpc_low_yen is not none and r.cpc_high_yen is not none %}￥{{ r.cpc_low_yen|num }}～￥{{ r.cpc_high_yen|num }}{% else %}<span class="note">未入力</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% if kw_missing %}<div style="margin-top:14px">{{ slot('検索ボリューム・クリック単価', ['inputs.keywords.rows(term/monthly_volume/cpc_low_yen/cpc_high_yen)']) }}</div>{% endif %}
+<p class="src">（{{ kw.date }}　{{ kw.source }}）</p>
+</div></section>
+
+<section class="sec" id="summary"><div class="wrap rv">
+<p class="sec-no">09　物件総数・売却相場まとめ</p>
+<h2>{% if t.listings_total is not none %}物件総数<span class="em">{{ t.listings_total|num }}件</span>、仲介単価は約<span class="em">{{ t.brokerage_unit_display_man }}万円</span>{% else %}物件総数・売却相場まとめ{% endif %}</h2>
+<div class="big2">{{ kpi(t.brokerage_unit_display_man, '万円', '仲介単価(約)', 'accent') }}{{ kpi(t.listings_total, '件', '物件総数', 'accent') }}</div>
+{% if t.listings_total is none %}{{ slot('物件総数・仲介単価', ['4種別すべての相場と物件数(上の各セクションの入力)']) }}{% endif %}
+<div class="grid tgrid" style="margin-top:16px">
+{% macro tc(title, sec, rows) %}<div class="card tcard"><h3>{{ title }}</h3><dl>
+<dd class="big" style="grid-column:1/-1;text-align:left">{% if sec.price_man is not none %}{{ sec.price_man|num }}<span style="font-size:.5em;font-weight:500">万円</span>{% else %}—{% endif %}</dd><dt style="grid-column:1/-1;margin-top:-4px">売却価格相場</dt><hr>
+{% for lab, val, unit in rows %}<dt>{{ lab }}</dt><dd>{% if val is not none %}{{ val|num }}{{ unit }}{% else %}—{% endif %}</dd>{% endfor %}</dl></div>{% endmacro %}
+{{ tc('マンション', um, [('専有面積（中央値）', um.exclusive_area_median_m2, '㎡'), ('築年数（中央値）', um.age_median_years, '年')]) }}
+{{ tc('土地', land, [('平米単価相場（中央値）', land.price_per_m2_man, '万円/㎡'), ('土地面積（中央値）', land.land_area_median_m2, '㎡')]) }}
+{{ tc('新築一戸建て', nh, [('建物面積（中央値）', nh.building_area_median_m2, '㎡'), ('土地面積（中央値）', nh.land_area_median_m2, '㎡')]) }}
+{{ tc('中古一戸建て', uh, [('建物面積（中央値）', uh.building_area_median_m2, '㎡'), ('土地面積（中央値）', uh.land_area_median_m2, '㎡'), ('築年数（中央値）', uh.age_median_years, '年')]) }}
+</div>
+<p class="note" style="margin-top:16px">※仲介単価は加重平均で計算しております</p>
+{{ srcline(t) }}
+</div></section>
+</main>
+
+<section class="point" id="point"><div class="wrap rv">
+<img src="assets/brand/king.png" alt="物件王の王様キャラクター">
+<div><span class="tag">POINT</span>
+{% if t.point_listings_rounded is not none %}<p class="t">商圏で<b class="num">{{ t.point_listings_rounded|num }}件</b>前後の物件情報数を担保できれば、商圏No.1の情報量を担保するHPを作り上げることが実証される</p>
+{% else %}<div class="slot"><b>未入力: 物件総数</b>4種別の物件数が揃うと自動で表示されます。</div>{% endif %}</div>
+</div></section>
+
+<section class="sec" id="competitors"><div class="wrap rv comp">
+<p class="sec-no">10　近隣不動産会社のHP</p>
+<h2>近隣不動産会社のHPだと・・・</h2>
+{% if comp['items'] %}<div class="grid g3">{% for c in comp['items'] %}<div class="card"><p class="name">▼{{ c.name }}（{{ c.area }}）</p>{% if c.url %}<p><a href="{{ c.url }}" rel="noopener noreferrer" target="_blank" style="word-break:break-all;font-size:.875rem">{{ c.url }}</a></p>{% endif %}
+<p class="cnt">掲載物件数：{% if c.listing_count is not none %}<b class="num">{{ c.listing_count|num }}</b>件{% else %}<span class="note">未入力</span>{% endif %}</p></div>{% endfor %}</div>
+{% if comp['items']|length < 3 %}<div style="margin-top:14px">{{ slot('近隣不動産会社(3社)・掲載物件数', ['competitors(name/area/url/listing_count)', '検索語: ' ~ comp.queries|join(' / ')]) }}</div>{% endif %}
+{% else %}{{ slot('近隣不動産会社3社', ['competitors(name/area/url/listing_count)', '検索語: ' ~ comp.queries|join(' / ')]) }}{% endif %}
+<p class="note" style="margin-top:20px">※「{{ m.city }}　不動産・土地・中古」とそれぞれ検索し、その中から、SEO上位のものを選んでおります</p>
+</div></section>
+
+<section class="sec alt" id="listings"><div class="wrap rv">
+<p class="sec-no">11　弊社加盟店様の物件情報量</p>
+<h2>弊社加盟店様の物件情報量</h2>
+<figure class="fig"><img src="assets/fixed/franchise-listings.png" alt="加盟店様のホームページの物件掲載例" loading="lazy"></figure>
+</div></section>
+
+<section class="sec q" id="question"><div class="wrap rv">
+<img class="th" src="assets/brand/thinker.png" alt="考え込む男性のイラスト">
+<h2>どちらのサイトが<br>エンドユーザー様にとって<br><span class="em">魅力的なサイト</span>でしょうか？</h2>
+{% if cta_url %}<a class="btn" href="{{ cta_url }}">お問い合わせ・資料請求</a>{% endif %}
+</div></section>
+
+<footer class="foot"><div class="wrap">
+<p>{{ m.company }} 御中　{{ m.prefecture }}{{ m.city }}　エリア調査シート（{{ m.created_display }} 作成）</p>
+<p>{{ m.map_source }}</p>
+<p><img src="assets/brand/logo-teal.png" alt="物件王" style="height:22px;margin-top:10px"></p>
+</div></footer>
+<script src="assets/js/app.js" defer></script>
+</body>
+</html>
