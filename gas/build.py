@@ -14,7 +14,7 @@ from PIL import Image
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-ORDER = ["Jp", "Compute", "Geo", "Franchise", "Listings", "Charts", "Pipeline", "Render", "Sheet", "Code"]
+ORDER = ["Jp", "Compute", "Geo", "Franchise", "Listings", "Charts", "Pipeline", "Render", "Sheet", "Admin", "Code"]
 
 
 def data_uri(path: Path, height: int | None = None, fmt: str = "PNG", quality: int = 82) -> str:
@@ -37,7 +37,9 @@ def main() -> None:
     parts = [(HERE / "src" / f"{n}.gs").read_text("utf8") for n in ORDER]
     css = (ROOT / "areasheet" / "static" / "style.css").read_text("utf8")
     js = (ROOT / "areasheet" / "static" / "app.js").read_text("utf8")
-    consts = (f"/** 生成物(gas/build.py)。CSS/JS を文字列定数として保持する */\n"
+    app_html = (HERE / "src" / "app.html").read_text("utf8")
+    consts = (f"/** 生成物(gas/build.py)。CSS/JS/入力画面のHTML を文字列定数として保持する */\n"
+              f"var APP_HTML_ = {json.dumps(app_html, ensure_ascii=False)};\n"
               f"var STYLE_CSS_ = {json.dumps(css, ensure_ascii=False)};\n"
               f"var APP_JS_ = {json.dumps(js, ensure_ascii=False)};\n")
     (dist / "Bundle.gs").write_text("\n\n".join(parts) + "\n\n" + consts, "utf8")

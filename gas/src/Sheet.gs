@@ -167,3 +167,42 @@ function franchiseRowsFrom_(values) {
   return values.filter(function (r) { return String(r[0]).trim() && !/^(×|停止|0|無効)$/.test(String(r[5]).trim()); })
     .map(function (r) { return { name: String(r[0]).trim(), prefecture: String(r[1]).trim(), city: String(r[2]).trim(), address: String(r[3]).trim(), url: String(r[4]).trim() }; });
 }
+
+
+/** 入力システム用: 複数項目をカンマで束ねる欄の列見出し */
+function colsFor_(key) {
+  if (/^compare\./.test(key)) return ['市名', '坪単価(万円/坪)', '物件数(件)'];
+  if (/^comp\./.test(key)) return ['名称', '所在市', 'URL', '掲載物件数(任意)'];
+  if (/^kw\./.test(key)) return ['月間検索ボリューム', 'CPC下限(円)', 'CPC上限(円)'];
+  return null;
+}
+
+/** クライアントに渡す項目定義 */
+function fieldsMeta_() {
+  return FIELDS_.map(function (f) {
+    return f.h ? { h: f.h } : { k: f.k, l: f.l.replace('{市}', '○○市'), t: f.t || 'text', req: f.req ? 1 : 0, d: f.d || '', cols: colsFor_(f.k) };
+  });
+}
+
+/** 値の検証。問題があればメッセージ、なければ '' */
+function validateValue_(key, value) {
+  var f = null;
+  FIELDS_.forEach(function (x) { if (x.k === key) f = x; });
+  if (!f) return '不明な項目です';
+  value = String(value);
+  if (value.length > 600) return '長すぎます(600文字まで)';
+  if (value.trim() === '') return '';
+  if (key === 'prefecture') { try { normalizePrefecture_(value); } catch (e) { return e.message; } return ''; }
+  if (f.t === 'num' && parseNum_(value) === undefined) return '数値で入力してください';
+  if (f.t === 'date' && parseDate_(value) === undefined) return '日付は 2026-01-19 の形で入力してください';
+  if (f.t === 'list' && colsFor_(key)) {
+    var parts = splitList_(value);
+    var numCols = /^compare\./.test(key) ? [1, 2] : /^comp\./.test(key) ? [3] : [0, 1, 2];
+    for (var i = 0; i < numCols.length; i++) {
+      var v = parts[numCols[i]];
+      if (v !== undefined && v !== '' && parseNum_(v) === undefined) return colsFor_(key)[numCols[i]] + 'は数値で入力してください';
+    }
+  }
+  if (key === 'cta_url' || /\.image$|heatmap_image$/.test(key)) { if (!/^https?:\/\//.test(value.trim())) return 'https:// から始まるURLを入力してください'; }
+  return '';
+}

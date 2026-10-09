@@ -147,3 +147,46 @@ def test_blank_sheet_reports_missing_not_guesses(tmp_path):
     assert js["model"]["totals"]["listings_total"] is None and js["model"]["income"]["body"] is None
     assert len([i for i in js["report"] if i["status"] == "missing"]) > 20
     assert "未入力" in js["html"]
+
+
+def run_node(script, inp, *args):
+    subprocess.run(["python3", str(GAS / "build.py")], check=True, capture_output=True)
+    r = subprocess.run(["node", str(GAS / "test" / script), *args], input=json.dumps(inp), capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    return json.loads(r.stdout)
+
+
+def test_input_system_api(tmp_path):
+    """入力システムのサーバー側: 認証・作成・保存・検証・LP表示・総当たりロック"""
+    cfg = _plain(yaml.safe_load((ROOT / "configs" / "example-ueda.yaml").read_text("utf8")))
+    vals = {k: v for k, v in sheet_values(cfg).items() if k not in ("company", "prefecture", "city")}
+    r = run_node("api_test.js", dict(values=vals, geoDir=geo_dir("長野県")))
+    assert r["pwLen"] == 12 and r["pwKept"] and r["urlKept"]            # 初期設定の再実行で設定を壊さない
+    assert r["badPw"]["err"] and all(r["noPwApi"])                      # パスワード無しでは全APIが拒否される
+    assert r["login"] and r["createdId"] == 16 and r["listLen"] == 1
+    assert r["listUrl"].startswith("https://example.test/exec?id=")
+    assert r["company"] == "株式会社○○" and r["pref"] == "長野県"          # 「長野」でも県名に正規化
+    assert set(r["valErr"]["errors"]) == {"inputs.income.city_avg_man", "bogus", "cta_url", "compare.0"}
+    assert r["valErr"]["saved"] == 1                                     # 正しい項目だけ保存される
+    assert r["save"]["errors"] == {} and r["afterSave"] == "476"
+    assert r["totals"] == {"listings_total": 414, "brokerage": 47} and r["checksNg"] == []
+    assert r["lpHas414"] and r["lpBadId"] and r["lpBadId2"]
+    assert r["appPage"] and r["appPage2"]                                # 入力画面にパスワードは含まれない
+    assert "ロック" in r["locked"]                                       # 誤りが続くと正しいパスワードでも拒否
+
+
+def test_input_screen_in_browser(tmp_path):
+    chrome = next(iter(sorted(Path("/opt/pw-browsers").glob("chromium-*/chrome-linux/chrome"))), None)
+    import os
+    core = os.environ.get("PLAYWRIGHT_CORE") or (str(ROOT / "node_modules" / "playwright-core" / "index.mjs")
+                                                  if (ROOT / "node_modules" / "playwright-core").exists() else "")
+    if not chrome or not core:
+        pytest.skip("ブラウザまたは playwright-core が無い(npm i playwright-core / PLAYWRIGHT_CORE)")
+    env = {**os.environ, "CHROME": str(chrome), "PLAYWRIGHT_CORE": core}
+    r = subprocess.run(["node", str(GAS / "test" / "ui_test.mjs"), geo_dir("愛知県"), str(tmp_path)],
+                       capture_output=True, text=True, env=env)
+    assert r.returncode == 0, r.stderr[-800:]
+    log = json.loads(r.stdout)
+    assert "パスワードが違" in log["wrongPw"] and log["title"].endswith("岡崎市") and log["errors"] == []
+    assert log["sheet"]["hh"] == "150000" and log["sheet"]["cmp"] == "豊田市,12,80" and log["sheet"]["pref"] == ""  # 不正値は保存されない
+    assert log["badShown"] == 1 and log["hscroll"] == "375/375"

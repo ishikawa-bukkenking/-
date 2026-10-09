@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>エリア調査シート 入力システム</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root{--teal:#007482;--teal-l:#E0F2F4;--accent:#FFAB40;--text:#212121;--sub:#595959;--line:#d5dde0;--bg:#F4F7F8;--warn:#b26a00;--warn-bg:#fff8ec;--err:#B00020;
+ --f:"Noto Sans JP","Hiragino Kaku Gothic ProN",Meiryo,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--f);color:var(--text);background:var(--bg);line-height:1.7;font-size:16px}
+header.top{background:var(--teal);color:#fff;padding:12px 16px;position:sticky;top:0;z-index:10;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+header.top h1{font-size:1.05rem;margin:0;flex:1;min-width:200px}
+main{max-width:980px;margin:0 auto;padding:20px 16px 80px}
+button,.btn{font:inherit;cursor:pointer;border:0;border-radius:999px;padding:10px 20px;background:var(--accent);color:var(--text);font-weight:700;text-decoration:none;display:inline-block;min-height:44px}
+button.ghost,.btn.ghost{background:#fff;color:var(--teal);border:2px solid var(--teal)}
+header button.ghost{background:transparent;color:#fff;border-color:#fff}
+button:disabled{opacity:.5;cursor:default}
+input,select{font:inherit;width:100%;padding:10px 12px;border:1px solid #aab7bb;border-radius:8px;background:#fff;min-height:44px}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--teal);outline-offset:1px}
+.card{background:#fff;border-radius:14px;padding:20px;margin-bottom:16px;box-shadow:0 1px 0 rgba(0,0,0,.04)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grow{flex:1;min-width:160px}
+.chip{display:inline-block;border-radius:999px;padding:2px 12px;font-size:.8125rem;font-weight:700;background:var(--teal-l);color:var(--teal)}
+.chip.need{background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn)}
+.msg{color:var(--err);font-size:.9375rem;margin-top:8px}
+.note{font-size:.8125rem;color:var(--sub)}
+.item{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:14px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border:0}.item b{font-size:1.05rem}
+details.sec{background:#fff;border-radius:14px;margin-bottom:12px;overflow:hidden}
+details.sec>summary{cursor:pointer;padding:14px 18px;font-weight:700;background:var(--teal);color:#fff;list-style:none;display:flex;justify-content:space-between;gap:8px}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec .body{padding:8px 18px 18px}
+.field{padding:12px 0;border-bottom:1px solid #eef2f3}.field:last-child{border:0}
+.field label{font-weight:500;display:block;margin-bottom:4px}
+.req{font-size:.75rem;background:var(--warn-bg);color:var(--warn);border:1px solid var(--warn);border-radius:4px;padding:0 6px;margin-left:6px;font-weight:700}
+.field.need input{border-color:var(--warn);background:var(--warn-bg)}
+.field.bad input{border-color:var(--err)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.cols span{font-size:.75rem;color:var(--sub);display:block}
+.hint{font-size:.8125rem;color:var(--sub);margin-top:4px}
+.err{font-size:.8125rem;color:var(--err);margin-top:4px}
+#miss{margin:0;padding-left:1.2em;font-size:.875rem}
+#miss li{margin:2px 0}
+#saved{font-size:.875rem}
+@media (max-width:640px){main{padding:12px 12px 80px}.card{padding:14px}}
+</style></head><body>
+<header class="top"><h1 id="title">エリア調査シート 入力システム</h1><span id="hstat" class="chip" hidden></span><span id="saved"></span>
+<button class="ghost" id="back" hidden>← 一覧</button><button class="ghost" id="logout" hidden>ログアウト</button></header>
+<main id="main"></main>
+<script>
+var pw = '', cur = null, dirty = {}, timer = null, saving = false, meta = [], vals = {};
+var $ = function (id) { return document.getElementById(id); };
+function el(tag, attrs, kids) {
+  var e = document.createElement(tag);
+  Object.keys(attrs || {}).forEach(function (k) { if (k === 'text') e.textContent = attrs[k]; else if (k === 'class') e.className = attrs[k]; else e.setAttribute(k, attrs[k]); });
+  (kids || []).forEach(function (c) { e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+  return e;
+}
+function call(name, args, ok) {
+  busy(true);
+  var r = google.script.run.withSuccessHandler(function (res) { busy(false); ok(res); })
+    .withFailureHandler(function (e) { busy(false); var m = String(e && e.message || e).replace(/^Error:\s*/, ''); if (/パスワードが違|ロック/.test(m)) { try { sessionStorage.removeItem('pw'); } catch (x) {} } show(m, true); });
+  r[name].apply(r, args);
+}
+function busy(b) { document.body.style.cursor = b ? 'progress' : ''; }
+function show(msg, bad) { var m = $('msg'); if (m) { m.textContent = msg; m.className = bad ? 'msg' : 'note'; } else if (bad) { alert(msg); } }
+function setSaved(t, bad) { var s = $('saved'); s.textContent = t; s.style.color = bad ? '#ffd0d0' : '#fff'; }
+
+/* ---- ログイン ---- */
+function viewLogin() {
+  cur = null; $('hstat').hidden = true; $('back').hidden = true; $('logout').hidden = true; $('title').textContent = 'エリア調査シート 入力システム'; setSaved('');
+  var inp = el('input', { type: 'password', id: 'pw', placeholder: 'パスワード', autocomplete: 'current-password' });
+  var btn = el('button', { text: 'ログイン' });
+  var go = function () { var p = inp.value; if (!p) return; call('api_login', [p], function () { pw = p; sessionStorage.setItem('pw', p); route(); }); };
+  btn.onclick = go; inp.onkeydown = function (e) { if (e.key === 'Enter') go(); };
+  $('main').replaceChildren(el('div', { class: 'card', style: 'max-width:420px;margin:40px auto' }, [
+    el('h2', { text: 'ログイン', style: 'margin-top:0' }),
+    el('p', { class: 'note', text: 'パスワードは、スプレッドシートの「設定」シートのB6にあります。' }), inp, el('div', { style: 'height:12px' }), btn, el('p', { id: 'msg', class: 'msg' })]));
+  inp.focus();
+}
+
+/* ---- 一覧 ---- */
+function viewList() {
+  cur = null; $('hstat').hidden = true; $('back').hidden = true; $('logout').hidden = false; $('title').textContent = '商談先の一覧'; setSaved('');
+  call('api_list', [pw], function (r) {
+    var wrap = el('div', {});
+    var add = el('div', { class: 'card' }, [el('h2', { text: '新しい商談先を追加', style: 'margin-top:0;font-size:1.1rem' })]);
+    var c1 = el('input', { id: 'nc', placeholder: '先方の会社名(例: 株式会社○○)' });
+    var sel = el('select', { id: 'np' }); ['都道府県を選ぶ'].concat(window.__prefs || []).forEach(function (p, i) { sel.appendChild(el('option', { value: i ? p : '', text: p })); });
+    var c3 = el('input', { id: 'ncity', placeholder: '市区町村(例: 上田市)' });
+    var ab = el('button', { text: '追加して入力を始める' });
+    ab.onclick = function () {
+      if (!c1.value.trim() || !sel.value || !c3.value.trim()) { $('msg').textContent = '会社名・都道府県・市区町村を入力してください。'; return; }
+      call('api_create', [pw, c1.value, sel.value, c3.value], function (x) { openProspect(x.id); });
+    };
+    add.appendChild(el('div', { class: 'row' }, [el('div', { class: 'grow' }, [c1]), el('div', { style: 'width:180px;flex:none' }, [sel]), el('div', { class: 'grow' }, [c3]), ab]));
+    add.appendChild(el('p', { id: 'msg', class: 'msg' }));
+    wrap.appendChild(add);
+    var list = el('div', { class: 'card' }, [el('h2', { text: '作成済み(' + r.items.length + '件)', style: 'margin-top:0;font-size:1.1rem' })]);
+    if (!r.items.length) list.appendChild(el('p', { class: 'note', text: 'まだありません。上のフォームから追加してください。' }));
+    r.items.forEach(function (it) {
+      var need = /未入力/.test(it.status);
+      var row = el('div', { class: 'item' }, [el('div', { class: 'grow' }, [el('b', { text: it.company || it.tab }), el('br'), el('span', { class: 'chip' + (need ? ' need' : ''), text: it.status || '' })])]);
+      var ed = el('button', { text: '入力する' }); ed.onclick = function () { openProspect(it.id); };
+      row.appendChild(ed);
+      if (it.url) { row.appendChild(el('a', { class: 'btn ghost', href: it.url, target: '_blank', rel: 'noopener', text: 'LPを開く' }));
+        var cp = el('button', { class: 'ghost', text: 'URLをコピー' }); cp.onclick = function () { copyText(it.url, cp); }; row.appendChild(cp); }
+      list.appendChild(row);
+    });
+    if (!r.hasUrl) list.appendChild(el('p', { class: 'note', text: '※「設定」シートのB1にウェブアプリのURLを貼ると、LPのURLがここに出ます。' }));
+    wrap.appendChild(list); $('main').replaceChildren(wrap);
+  });
+}
+function copyText(t, btn) {
+  var done = function () { var o = btn.textContent; btn.textContent = 'コピーしました'; setTimeout(function () { btn.textContent = o; }, 1500); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, function () { prompt('コピーしてください', t); });
+  else prompt('コピーしてください', t);
+}
+function openProspect(id) { location.hash = 'id=' + id; route(); }
+
+/* ---- 入力画面 ---- */
+function splitCols(v, n) { var a = String(v || '').split(/[,，]/).map(function (x) { return x.trim(); }); while (a.length < n) a.push(''); return a; }
+function joinCols(a) { return a.every(function (x) { return !x.trim(); }) ? '' : a.map(function (x) { return x.trim(); }).join(','); }
+function markDirty(k, v) { dirty[k] = v; vals[k] = v; refreshNeed(); setSaved('入力中…'); clearTimeout(timer); timer = setTimeout(flush, 700); }
+function flush() {
+  if (saving) { timer = setTimeout(flush, 400); return; }
+  var ch = dirty; dirty = {}; if (!Object.keys(ch).length) return;
+  saving = true; setSaved('保存中…');
+  google.script.run.withSuccessHandler(function (r) {
+    saving = false;
+    document.querySelectorAll('.field').forEach(function (f) { f.classList.remove('bad'); var e = f.querySelector('.err'); if (e) e.remove(); });
+    var bad = Object.keys(r.errors);
+    bad.forEach(function (k) { var f = document.querySelector('[data-k="' + k + '"]'); if (f) { f.classList.add('bad'); f.appendChild(el('div', { class: 'err', text: r.errors[k] + '(この項目は保存されていません)' })); } });
+    setSaved(bad.length ? '保存できない項目があります' : '保存しました ' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }), bad.length > 0);
+    loadStatus();
+  }).withFailureHandler(function (e) { saving = false; setSaved('保存に失敗: ' + (e.message || e), true); Object.keys(ch).forEach(function (k) { dirty[k] = ch[k]; }); })
+    .api_save(pw, cur, ch);
+}
+function refreshNeed() {
+  document.querySelectorAll('.field[data-req="1"]').forEach(function (f) {
+    var v = vals[f.getAttribute('data-k')]; f.classList.toggle('need', !v || !String(v).replace(/[,，\s]/g, ''));
+  });
+  document.querySelectorAll('details.sec').forEach(function (d) {
+    var n = d.querySelectorAll('.field.need').length, c = d.querySelector('.cnt');
+    c.textContent = n ? '未入力 ' + n : '入力済み'; c.style.opacity = n ? '1' : '.7';
+  });
+}
+function loadStatus() {
+  google.script.run.withSuccessHandler(function (s) {
+    var chip = $('stat'); if (!chip) return;
+    var hs = $('hstat'); hs.hidden = false; hs.textContent = s.missing.length ? '未入力 ' + s.missing.length + '件' : '入力完了'; hs.className = 'chip' + (s.missing.length ? ' need' : '');
+    chip.textContent = s.missing.length ? '未入力・未取得 ' + s.missing.length + '件' : '入力完了';
+    chip.className = 'chip' + (s.missing.length ? ' need' : '');
+    var ul = $('miss'); ul.replaceChildren();
+    s.missing.slice(0, 40).forEach(function (m) { ul.appendChild(el('li', { text: m.label })); });
+    s.checksNg.forEach(function (c) { ul.appendChild(el('li', { text: '整合性チェックNG: ' + c, style: 'color:#B00020' })); });
+    var t = $('totals'); if (t) t.textContent = s.totals.listings_total != null ? '物件総数 ' + s.totals.listings_total + '件 / 仲介単価 約' + s.totals.brokerage + '万円' : '';
+  }).withFailureHandler(function () {}).api_status(pw, cur);
+}
+function fieldView(f) {
+  var wrap = el('div', { class: 'field', 'data-k': f.k, 'data-req': f.req ? '1' : '0' });
+  var lab = el('label', { text: f.l }); if (f.req) lab.appendChild(el('span', { class: 'req', text: '必須' })); wrap.appendChild(lab);
+  var v = vals[f.k] || '';
+  if (f.cols) {
+    var parts = splitCols(v, f.cols.length), inputs = [], grid = el('div', { class: 'cols' });
+    f.cols.forEach(function (c, i) {
+      var inp = el('input', { type: 'text', value: parts[i], inputmode: /数|円|件|坪|%/.test(c) && !/名|URL|市/.test(c) ? 'decimal' : 'text', 'aria-label': f.l + ' ' + c });
+      inp.oninput = function () { markDirty(f.k, joinCols(inputs.map(function (x) { return x.value; }))); };
+      inputs.push(inp); grid.appendChild(el('div', {}, [el('span', { text: c }), inp]));
+    });
+    wrap.appendChild(grid);
+  } else {
+    var inp;
+    if (f.k === 'prefecture') { inp = el('select', {}); [''].concat(window.__prefs).forEach(function (p) { var o = el('option', { value: p, text: p || '選んでください' }); if (p === v) o.selected = true; inp.appendChild(o); }); inp.onchange = function () { markDirty(f.k, inp.value); }; }
+    else { inp = el('input', { type: f.t === 'date' ? 'date' : 'text', value: v, inputmode: f.t === 'num' ? 'decimal' : 'text' }); inp.oninput = function () { markDirty(f.k, inp.value); }; }
+    inp.setAttribute('aria-label', f.l); wrap.appendChild(inp);
+  }
+  if (f.d) wrap.appendChild(el('div', { class: 'hint', text: f.d }));
+  return wrap;
+}
+function viewEdit(id) {
+  call('api_get', [pw, id], function (r) {
+    cur = r.id; meta = r.fields; vals = r.values; dirty = {}; window.__prefs = r.prefectures;
+    $('back').hidden = false; $('logout').hidden = false;
+    $('title').textContent = (vals.company || '') + '　' + (vals.city || '');
+    var top = el('div', { class: 'card' }, [
+      el('div', { class: 'row' }, [el('span', { id: 'stat', class: 'chip need', text: '確認中…' }), el('span', { id: 'totals', class: 'note' })]),
+      el('details', { style: 'margin-top:8px' }, [el('summary', { text: '未入力・未取得の項目を見る', style: 'cursor:pointer' }), el('ul', { id: 'miss' })]),
+      el('div', { class: 'row', style: 'margin-top:12px' }, [])]);
+    var acts = top.lastChild;
+    if (r.url) { acts.appendChild(el('a', { class: 'btn', href: r.url, target: '_blank', rel: 'noopener', text: 'LPを開いて確認' }));
+      var cp = el('button', { class: 'ghost', text: 'URLをコピー' }); cp.onclick = function () { copyText(r.url, cp); }; acts.appendChild(cp); }
+    else acts.appendChild(el('span', { class: 'note', text: '※「設定」シートのB1にウェブアプリのURLを貼ると、LPを開くボタンが出ます。' }));
+    acts.appendChild(el('span', { class: 'note', text: '入力は自動で保存されます。' }));
+    var wrap = el('div', {}), sec = null, body = null, n = 0;
+    meta.forEach(function (f) {
+      if (f.h) { sec = el('details', { class: 'sec' }); sec.appendChild(el('summary', {}, [el('span', { text: f.h }), el('span', { class: 'cnt' })])); body = el('div', { class: 'body' }); sec.appendChild(body); wrap.appendChild(sec); }
+      else if (body) body.appendChild(fieldView(f));
+    });
+    $('main').replaceChildren(top, wrap); refreshNeed(); loadStatus();
+    document.querySelectorAll('details.sec').forEach(function (d, i) { d.open = i < 2 || !!d.querySelector('.field.need'); });
+  });
+}
+
+/* ---- ルーティング ---- */
+function route() {
+  var m = /id=([A-Za-z0-9]+)/.exec(location.hash || '');
+  if (!pw) { viewLogin(); return; }
+  if (m) viewEdit(m[1]); else viewList();
+}
+$('back').onclick = function () { flushNow(function () { location.hash = ''; route(); }); };
+$('logout').onclick = function () { flushNow(function () { pw = ''; sessionStorage.removeItem('pw'); location.hash = ''; viewLogin(); }); };
+function flushNow(next) { clearTimeout(timer); if (Object.keys(dirty).length || saving) { flush(); setTimeout(next, 900); } else next(); }
+window.addEventListener('beforeunload', function (e) { if (Object.keys(dirty).length) { flush(); e.preventDefault(); e.returnValue = ''; } });
+window.__prefs = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+try { pw = sessionStorage.getItem('pw') || ''; } catch (e) { pw = ''; }
+if (pw) { google.script.run.withSuccessHandler(route).withFailureHandler(function () { pw = ''; viewLogin(); }).api_login(pw); } else viewLogin();
+window.addEventListener('hashchange', function () { if (pw) route(); });
+</script></body></html>

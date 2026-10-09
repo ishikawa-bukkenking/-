@@ -80,10 +80,10 @@ function ss_() {
 }
 
 function readSettings_() {
-  var sh = ss_().getSheetByName(SHEET_SETTINGS_), o = { url: '', estat: '', opts: {} };
+  var sh = ss_().getSheetByName(SHEET_SETTINGS_), o = { url: '', estat: '', pw: '', opts: {} };
   if (!sh) return o;
   var v = sh.getRange(1, 2, 6, 1).getDisplayValues().map(function (r) { return r[0]; });
-  o.url = v[0].trim(); o.estat = v[1].trim();
+  o.url = v[0].trim(); o.estat = v[1].trim(); o.pw = String(v[5] || '').trim();
   var mx = parseNum_(v[2]), th = parseNum_(v[3]), unit = parseNum_(v[4]);
   if (mx) o.opts.franchise = { max: mx };
   if (th !== undefined) o.opts.trend_same_threshold_pt = th;
@@ -133,7 +133,9 @@ function buildProspect_(id, tab) {
 
 // ---------- ウェブアプリ ----------
 function doGet(e) {
+  var page = String((e && e.parameter && e.parameter.page) || '').trim();
   var id = String((e && e.parameter && e.parameter.id) || '').trim();
+  if (page === 'app' || (!id && !page)) return appPage_();
   var p = /^[A-Za-z0-9]{8,40}$/.test(id) ? findProspect_(id) : null;
   if (!p) return errorPage_('ページが見つかりません。URLをご確認ください。');
   try {
@@ -162,21 +164,27 @@ function menuSetup() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   PropertiesService.getScriptProperties().setProperty('SSID', ss.getId());
   setupSheets_(ss);
-  SpreadsheetApp.getUi().alert('初期設定が完了しました。\n\n次の手順:\n1. 拡張機能 → Apps Script → デプロイ → 新しいデプロイ → 種類「ウェブアプリ」\n   (実行ユーザー: 自分 / アクセスできるユーザー: 全員)\n2. 発行されたURLを「設定」シートのB1に貼る\n3. メニュー「② 新しい商談先を追加」');
+  SpreadsheetApp.getUi().alert('初期設定が完了しました。\n入力システムのパスワードは「設定」シートのB6にあります。\n\n次の手順:\n1. 拡張機能 → Apps Script → デプロイ → 新しいデプロイ → 種類「ウェブアプリ」\n   (実行ユーザー: 自分 / アクセスできるユーザー: 全員)\n2. 発行されたURLを「設定」シートのB1に貼る\n3. 発行されたURL(…/exec)を開くと「入力システム」が使えます。\n   (メニュー「② 新しい商談先を追加」でも追加できます)');
 }
 
 function setupSheets_(ss) {
   var st = ss.getSheetByName(SHEET_SETTINGS_) || ss.insertSheet(SHEET_SETTINGS_);
-  st.clear();
-  st.getRange(1, 1, 6, 3).setValues([
+  var defs = [
     ['公開URL(ウェブアプリのURL)', '', 'デプロイで発行されたURL(…/exec)を貼る'],
     ['e-Stat アプリケーションID', '', '任意。入れると世帯数の自動取得を試みる'],
     ['周辺加盟店の最大社数', 3, ''],
     ['県との差が「同程度」とみなす範囲(ポイント)', 1, ''],
     ['POINTの切り上げ単位(件)', 10, '414件→420件'],
-    ['', '', '']]);
-  st.getRange('B1:B6').setNumberFormat('@'); st.getRange('B1:B2').setNumberFormat('@');
-  st.setColumnWidth(1, 300); st.setColumnWidth(2, 360); st.setColumnWidth(3, 320);
+    ['入力システムのパスワード', '', '入力システム(…/exec を開く)に入る時のパスワード。自動で作成。変更も可']];
+  defs.forEach(function (d, i) {
+    st.getRange(i + 1, 1).setValue(d[0]); st.getRange(i + 1, 3).setValue(d[2]);
+    var b = st.getRange(i + 1, 2);
+    if (String(b.getDisplayValue ? b.getDisplayValue() : b.getValue()).trim() === '') b.setValue(d[1]);   // 既存の入力は消さない
+  });
+  var pwCell = st.getRange(6, 2);
+  if (String(pwCell.getValue()).trim() === '') pwCell.setValue(newPassword_());
+  st.getRange('B1:B6').setNumberFormat('@');
+  st.setColumnWidth(1, 300); st.setColumnWidth(2, 360); st.setColumnWidth(3, 420);
   var ls = ss.getSheetByName(SHEET_LIST_) || ss.insertSheet(SHEET_LIST_);
   if (ls.getLastRow() < 1) {
     ls.getRange(1, 1, 1, 5).setValues([['ID', '会社名', 'タブ名', 'LPのURL', '状態']]).setFontWeight('bold');
@@ -231,6 +239,16 @@ function buildProspectTab_(ss, company, pref, city, id) {
   return sh;
 }
 
+/** 商談先タブを作り、一覧に登録する。戻り値: { id, sheet } */
+function createProspect_(ss, company, pref, city) {
+  pref = normalizePrefecture_(pref);
+  var id = newId_(), sh = buildProspectTab_(ss, company, pref, city, id), ls = ss.getSheetByName(SHEET_LIST_), r = ls.getLastRow() + 1, q = "'" + sh.getName() + "'";
+  var companyRow = FIELD_START_ROW_ + FIELDS_.map(function (f) { return f.k; }).indexOf('company');
+  ls.getRange(r, 1, 1, 5).setValues([[id, '=INDIRECT("' + q + '!B' + companyRow + '")', sh.getName(),
+    '=IF(' + SHEET_SETTINGS_ + '!B1="","(設定シートのB1に公開URLを入れてください)",' + SHEET_SETTINGS_ + '!B1&"?id="&A' + r + ')', '=IFERROR(INDIRECT("' + q + '!B1"),"")']]);
+  return { id: id, sheet: sh };
+}
+
 function menuAddProspect() {
   var ui = SpreadsheetApp.getUi(), ss = ss_();
   if (!ss.getSheetByName(SHEET_LIST_)) { ui.alert('先に「① 初期設定」を実行してください。'); return; }
@@ -238,13 +256,8 @@ function menuAddProspect() {
   var company = ask('先方の会社名', '株式会社○○'); if (!company) return;
   var pref = ask('都道府県', '長野県'); if (!pref) return;
   var city = ask('市区町村', '上田市'); if (!city) return;
-  try { pref = normalizePrefecture_(pref); } catch (e) { ui.alert(e.message); return; }
-  var id = newId_(), sh = buildProspectTab_(ss, company, pref, city, id), ls = ss.getSheetByName(SHEET_LIST_), r = ls.getLastRow() + 1, q = "'" + sh.getName() + "'";
-  var companyRow = FIELD_START_ROW_ + FIELDS_.map(function (f) { return f.k; }).indexOf('company');
-  ls.getRange(r, 1, 1, 5).setValues([[id, '=INDIRECT("' + q + '!B' + companyRow + '")', sh.getName(),
-    '=IF(' + SHEET_SETTINGS_ + '!B1="","(設定シートのB1に公開URLを入れてください)",' + SHEET_SETTINGS_ + '!B1&"?id="&A' + r + ')', '=IFERROR(INDIRECT("' + q + '!B1"),"")']]);
-  ss.setActiveSheet(sh);
-  ui.alert('「' + sh.getName() + '」を作成しました。\nタブの「値」欄に入力すると、LPのURLを開き直すだけで反映されます。\n(赤い「未入力」が消えるまで入力してください)');
+  try { var c = createProspect_(ss, company, pref, city); ss.setActiveSheet(c.sheet); } catch (e) { ui.alert(e.message); return; }
+  ui.alert('「' + c.sheet.getName() + '」を作成しました。\nタブの「値」欄、または入力システム(…/exec)で入力すると、LPのURLを開き直すだけで反映されます。');
 }
 
 function currentProspect_() {
