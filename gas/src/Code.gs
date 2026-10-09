@@ -7,7 +7,7 @@
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('エリア調査シート')
     .addItem('初期設定(最初に1回)', 'menuSetup')
-    .addItem('入力システムのURLとパスワードを表示', 'menuShowApp')
+    .addItem('使い方を表示', 'menuShowHelp')
     .addToUi();
 }
 
@@ -76,41 +76,25 @@ function ss_() {
   return a;
 }
 
-/** 設定シート(保存先)の読み取り。公開URLは B1 に入っていればそれ、無ければデプロイ済みウェブアプリのURLを自動で使う */
+/** 設定シート(保存先)の読み取り。LPの公開URLは設定に入力(入力システムの「設定」で変更) */
 function readSettings_() {
-  var sh = ss_().getSheetByName(SHEET_SETTINGS_), o = { url: '', estat: '', pw: '', max: 3, threshold: 1, unit: 10, opts: {} };
+  var sh = ss_().getSheetByName(SHEET_SETTINGS_), o = { url: '', estat: '', max: 3, threshold: 1, unit: 10, opts: {} };
   if (sh) {
-    var v = sh.getRange(1, 2, 6, 1).getDisplayValues().map(function (r) { return r[0]; });
-    o.url = v[0].trim(); o.estat = v[1].trim(); o.pw = String(v[5] || '').trim();
+    var v = sh.getRange(1, 2, 5, 1).getDisplayValues().map(function (r) { return r[0]; });
+    o.url = v[0].trim().replace(/\/+$/, ''); o.estat = v[1].trim();
     var mx = parseNum_(v[2]), th = parseNum_(v[3]), unit = parseNum_(v[4]);
     if (mx) o.max = mx; if (th !== undefined) o.threshold = th; if (unit) o.unit = unit;
   }
-  if (!o.url) { try { o.url = ScriptApp.getService().getUrl() || ''; } catch (e) { o.url = ''; } }
   o.opts.franchise = { max: o.max }; o.opts.trend_same_threshold_pt = o.threshold; o.opts.point_round_unit = o.unit;
   return o;
 }
+
+var ALLOWED_DOMAIN_ = 'bukkenking.com';
 
 function realServices_(settings) {
   var s = { cacheGet: cacheGet_, cachePut: cachePut_, fetchJson: fetchJson_, now: function () { return new Date().toISOString(); } };
   if (settings.estat) s.estatHouseholds = function (code) { return estatHouseholds_(settings.estat, code); };
   return s;
-}
-
-function findProspect_(id) {
-  var sh = ss_().getSheetByName(SHEET_LIST_);
-  if (!sh || sh.getLastRow() < 2) return null;
-  var rows = sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues();
-  for (var i = 0; i < rows.length; i++) if (String(rows[i][0]).trim() === id && id) return { id: id, tab: String(rows[i][2]).trim() };
-  return null;
-}
-
-function readTabValues_(tab) {
-  var sh = ss_().getSheetByName(tab);
-  if (!sh) throw new Error('タブが見つかりません: ' + tab);
-  var last = sh.getLastRow(), vals = {};
-  if (last < FIELD_START_ROW_) return vals;
-  sh.getRange(FIELD_START_ROW_, 1, last - FIELD_START_ROW_ + 1, 5).getDisplayValues().forEach(function (r) { if (r[4]) vals[r[4]] = r[1]; });
-  return vals;
 }
 
 function todayIso_() { return Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd'); }
@@ -137,19 +121,17 @@ function resolveImages_(cfg) {
   });
 }
 
-/** 商談先タブ → { model, report, html, checks } */
-function buildProspect_(id, tab) {
-  var settings = readSettings_(), ss = ss_();
-  var sheet = ss.getSheetByName(tab);
-  if (sheet) syncTabRows_(sheet);
-  var cfg = valuesToConfig_(readTabValues_(tab), todayIso_());
+/** エリア(保存データ) → { model, report, html, checks } */
+function buildArea_(areaId) {
+  var a = areaById_(areaId);
+  if (!a) throw new Error('エリアが見つかりません。');
+  var c = companyById_(a.companyId), settings = readSettings_(), ss = ss_();
+  var vals = Object.assign({}, a.values, { company: c ? c.name : '', prefecture: a.values.prefecture || a.pref, city: a.values.city || a.city });
+  var cfg = valuesToConfig_(vals, todayIso_());
   cfg.options = settings.opts;
   resolveImages_(cfg);
-  var frSh = ss.getSheetByName(SHEET_FR_), liSh = ss.getSheetByName(SHEET_LISTINGS_);
-  var data = {
-    franchiseRows: frSh && frSh.getLastRow() > 1 ? franchiseRowsFrom_(frSh.getRange(2, 1, frSh.getLastRow() - 1, 6).getDisplayValues()) : [],
-    listingRows: liSh && liSh.getLastRow() > 1 ? listingRowsFor_(liSh.getRange(2, 1, liSh.getLastRow() - 1, 8).getDisplayValues(), id) : []
-  };
+  var frSh = ss.getSheetByName(SHEET_FR_);
+  var data = { franchiseRows: frSh && frSh.getLastRow() > 1 ? franchiseRowsFrom_(frSh.getRange(2, 1, frSh.getLastRow() - 1, 6).getDisplayValues()) : [], listingRows: [] };
   var built = buildModel_(cfg, realServices_(settings), data);
   var html = renderPage_(built.model, built.report, ASSETS, STYLE_CSS_);
   return { model: built.model, report: built.report, html: html, checks: runChecks_(built.model, html) };
@@ -160,10 +142,10 @@ function doGet(e) {
   var page = String((e && e.parameter && e.parameter.page) || '').trim();
   var id = String((e && e.parameter && e.parameter.id) || '').trim();
   if (page === 'app' || (!id && !page)) return appPage_();
-  var p = /^[A-Za-z0-9]{8,40}$/.test(id) ? findProspect_(id) : null;
-  if (!p) return errorPage_('ページが見つかりません。URLをご確認ください。');
+  var a = areaById_(id);
+  if (!a) return errorPage_('ページが見つかりません。URLをご確認ください。');
   try {
-    var r = buildProspect_(p.id, p.tab);
+    var r = buildArea_(a.id);
     return HtmlService.createHtmlOutput(r.html).setTitle('エリア調査シート').addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (err) {
@@ -184,88 +166,46 @@ function newId_() {
   return s;
 }
 
+var HELP_TEXT_ = '【使い方】\n\n入力・加盟店の管理・設定は、すべて「入力システム」で行います。このシートはデータの保存先です(直接編集しないでください)。\n\n■ デプロイは2つ作ります(拡張機能 → Apps Script → デプロイ → 新しいデプロイ → ウェブアプリ)\n① LP用(お客様に見せる)\n   実行ユーザー: 自分 / アクセスできるユーザー: 全員\n   → 発行されたURL(…/exec)を、入力システムの「設定」の「LPの公開URL」に入れる\n② 入力システム用(社内)\n   実行ユーザー: 自分 / アクセスできるユーザー: ' + ALLOWED_DOMAIN_ + ' 内の全員(組織内)\n   → このURL(…/exec)を開くと入力システムが使える\n   (ログインは、Googleアカウントのメールアドレスが @' + ALLOWED_DOMAIN_ + ' かどうかで判定)';
+
 function menuSetup() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   PropertiesService.getScriptProperties().setProperty('SSID', ss.getId());
   setupSheets_(ss);
-  SpreadsheetApp.getUi().alert('初期設定が完了しました。\n\n入力システムのパスワード: ' + readSettings_().pw + '\n(「設定」シートのB6。入力システム内でも変更できます)\n\n次の手順:\n1. 拡張機能 → Apps Script → デプロイ → 新しいデプロイ → 種類「ウェブアプリ」\n   (実行ユーザー: 自分 / アクセスできるユーザー: 全員)\n2. 発行されたURL(…/exec)を開くと「入力システム」が使えます。\n   以降の入力・加盟店の管理・設定は、すべて入力システムで行います。このシートは保存先です。');
+  SpreadsheetApp.getUi().alert('初期設定が完了しました。\n\n' + HELP_TEXT_);
 }
 
-function menuShowApp() {
-  var s = readSettings_();
-  SpreadsheetApp.getUi().alert('入力システムのURL:\n' + (s.url || '(未デプロイ。拡張機能 → Apps Script → デプロイ から、ウェブアプリとしてデプロイしてください)') + '\n\nパスワード: ' + s.pw);
-}
+function menuShowHelp() { SpreadsheetApp.getUi().alert(HELP_TEXT_); }
 
+/** 保存先のシートを用意する(再実行しても入力済みのデータは消さない)。加盟店は初回のみ同梱の一覧を取り込む */
 function setupSheets_(ss) {
   var st = ss.getSheetByName(SHEET_SETTINGS_) || ss.insertSheet(SHEET_SETTINGS_);
   var defs = [
-    ['公開URL(通常は空欄でOK)', '', '空欄ならデプロイ済みのウェブアプリのURLを自動で使う。独自のURLを使う場合のみ入力'],
+    ['LPの公開URL', '', 'お客様に見せるLP用デプロイのURL(…/exec)。入力システムの「設定」で入力'],
     ['e-Stat アプリケーションID', '', '任意。入れると世帯数の自動取得を試みる'],
     ['周辺加盟店の最大社数', 3, ''],
     ['県との差が「同程度」とみなす範囲(ポイント)', 1, ''],
-    ['POINTの切り上げ単位(件)', 10, '414件→420件'],
-    ['入力システムのパスワード', '', '入力システム(…/exec を開く)のパスワード。自動で作成。入力システム内でも変更できる']];
+    ['POINTの切り上げ単位(件)', 10, '414件→420件']];
   defs.forEach(function (d, i) {
     st.getRange(i + 1, 1).setValue(d[0]); st.getRange(i + 1, 3).setValue(d[2]);
     var b = st.getRange(i + 1, 2);
-    if (String(b.getDisplayValue ? b.getDisplayValue() : b.getValue()).trim() === '') b.setValue(d[1]);   // 既存の入力は消さない
+    if (String(b.getValue()).trim() === '') b.setValue(d[1]);   // 既存の入力は消さない
   });
-  var pwCell = st.getRange(6, 2);
-  if (String(pwCell.getValue()).trim() === '') pwCell.setValue(newPassword_());
-  st.getRange('B1:B6').setNumberFormat('@');
-  st.setColumnWidth(1, 300); st.setColumnWidth(2, 360); st.setColumnWidth(3, 420);
-  var ls = ss.getSheetByName(SHEET_LIST_) || ss.insertSheet(SHEET_LIST_);
-  if (ls.getLastRow() < 1) {
-    ls.getRange(1, 1, 1, 5).setValues([['ID', '会社名', 'タブ名', '(予備)', '状態']]).setFontWeight('bold');
-    ls.setFrozenRows(1); ls.setColumnWidth(1, 150); ls.setColumnWidth(2, 220); ls.setColumnWidth(3, 200); ls.setColumnWidth(4, 520); ls.setColumnWidth(5, 120);
+  st.getRange('B1:B5').setNumberFormat('@');
+  st.getRange('A7').setValue('※この設定は入力システムの「設定」から変更します。');
+  st.setColumnWidth(1, 300); st.setColumnWidth(2, 360); st.setColumnWidth(3, 460);
+  var co = ss.getSheetByName(SHEET_COMPANY_) || ss.insertSheet(SHEET_COMPANY_);
+  if (co.getLastRow() < 1) { co.getRange(1, 1, 1, 3).setValues([['会社ID', '会社名', '作成日']]).setFontWeight('bold'); co.setFrozenRows(1); co.setColumnWidth(1, 150); co.setColumnWidth(2, 260); }
+  var ar = ss.getSheetByName(SHEET_AREA_) || ss.insertSheet(SHEET_AREA_);
+  if (ar.getLastRow() < 1) {
+    ar.getRange(1, 1, 1, 9).setValues([['エリアID(LPのID)', '会社ID', '会社名', '都道府県', '市区町村', '作成日', '更新日時', '未入力件数', 'データ(入力システムが管理)']]).setFontWeight('bold');
+    ar.setFrozenRows(1); ar.setColumnWidth(1, 150); ar.setColumnWidth(3, 240); ar.setColumnWidth(9, 300);
+    ar.getRange('A1').setNote('このシートは入力システムが管理するデータの保存先です。直接編集しないでください。');
   }
-  var fr = ss.getSheetByName(SHEET_FR_);
-  if (!fr) {
-    fr = ss.insertSheet(SHEET_FR_);
-    fr.getRange(1, 1, 1, 6).setValues([['名称', '都道府県', '市区町村', '住所', 'URL', '有効(×で停止)']]).setFontWeight('bold');
-    fr.getRange(2, 1, 2, 5).setValues([
-      ['リフォームワン株式会社', '長野県', '上田市', '長野県 上田市', 'https://www.one-estate.jp/'],
-      ['ミライズ不動産株式会社', '長野県', '上田市', '長野県 上田市', 'https://www.me-rise-fudosan.jp/']]);
-    fr.setFrozenRows(1); fr.setColumnWidth(1, 240); fr.setColumnWidth(4, 260); fr.setColumnWidth(5, 320);
-    fr.getRange('A1').setNote('加盟店が増えたら、ここに1行ずつ追加してください。LPの「周辺加盟店」は、ここから(同一市→隣接市→同一県の順に)自動で選ばれます。');
+  var fr = ss.getSheetByName(SHEET_FR_) || ss.insertSheet(SHEET_FR_);
+  if (fr.getLastRow() < 1) {
+    fr.getRange(1, 1, 1, 9).setValues([['名称', '都道府県', '市区町村', '住所', 'URL', '有効(×で停止)', '屋号', '対応エリア', '顧客番号']]).setFontWeight('bold');
+    fr.setFrozenRows(1); fr.setColumnWidth(1, 260); fr.setColumnWidth(4, 300); fr.setColumnWidth(5, 280);
   }
-}
-
-function prospectTabName_(ss, company) {
-  var base = ('商談_' + company).replace(/[\[\]\*\?\/\\:]/g, '').slice(0, 40), name = base, n = 2;
-  while (ss.getSheetByName(name)) name = base + '_' + (n++);
-  return name;
-}
-
-function buildProspectTab_(ss, company, pref, city, id) {
-  var sh = ss.insertSheet(prospectTabName_(ss, company));
-  var rows = [], styles = [];
-  FIELDS_.forEach(function (f, i) {
-    var r = FIELD_START_ROW_ + i;
-    if (f.h) { rows.push([f.h, '', '', '', '']); styles.push({ r: r, h: true }); return; }
-    var init = f.k === 'company' ? company : f.k === 'prefecture' ? pref : f.k === 'city' ? city : f.k === 'auto.created' ? todayIso_() : '';
-    rows.push([f.l, init, f.req ? '=IF(B' + r + '="","未入力","")' : '', f.d || '', f.k]);
-  });
-  sh.getRange(FIELD_START_ROW_, 1, rows.length, 5).setValues(rows);
-  sh.getRange(FIELD_START_ROW_, 2, rows.length, 1).setNumberFormat('@');
-  sh.getRange(1, 1, 3, 2).setValues([['状態', '=IF(COUNTIF(C:C,"未入力")=0,"入力完了","未入力 "&COUNTIF(C:C,"未入力")&"件")'], ['ID', id],
-    ['このタブについて', '入力システム(…/exec)のデータ保存先です。入力は入力システムで行ってください。']]);
-  sh.getRange(4, 1, 1, 5).setValues([['項目', '値', '状態', '説明', 'キー']]).setFontWeight('bold').setBackground('#E0F2F4');
-  sh.getRange('A1:A3').setFontWeight('bold');
-  sh.setColumnWidth(1, 330); sh.setColumnWidth(2, 360); sh.setColumnWidth(3, 70); sh.setColumnWidth(4, 520);
-  sh.hideColumns(5);
-  sh.setFrozenRows(4);
-  styles.forEach(function (s) { sh.getRange(s.r, 1, 1, 4).setBackground('#007482').setFontColor('#FFFFFF').setFontWeight('bold'); });
-  sh.getRange(FIELD_START_ROW_, 3, rows.length, 1).setFontColor('#B00020').setFontWeight('bold');
-  sh.getRange(FIELD_START_ROW_, 4, rows.length, 1).setFontColor('#595959');
-  return sh;
-}
-
-/** 商談先タブを作り、一覧に登録する。戻り値: { id, sheet } */
-function createProspect_(ss, company, pref, city) {
-  pref = normalizePrefecture_(pref);
-  var id = newId_(), sh = buildProspectTab_(ss, company, pref, city, id), ls = ss.getSheetByName(SHEET_LIST_), r = ls.getLastRow() + 1, q = "'" + sh.getName() + "'";
-  var companyRow = FIELD_START_ROW_ + FIELDS_.map(function (f) { return f.k; }).indexOf('company');
-  ls.getRange(r, 1, 1, 5).setValues([[id, '=INDIRECT("' + q + '!B' + companyRow + '")', sh.getName(), '', '=IFERROR(INDIRECT("' + q + '!B1"),"")']]);
-  return { id: id, sheet: sh };
+  if (fr.getLastRow() < 2 && typeof SEED_FRANCHISES_CSV_ !== 'undefined') importFranchiseRows_(fr, parseFranchiseAny_(SEED_FRANCHISES_CSV_).rows);
 }

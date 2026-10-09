@@ -117,7 +117,7 @@ def test_no_residue_other_city(tmp_path):
     html = (Path(res["dir"]) / "index.html").read_text("utf8")
     for s in ["上田", "リフォームワン", "ミライズ", "株式会社○○", "ピタットハウス", "長野"]:
         assert s not in html
-    assert "岡崎市" in html and "2026/2/3" in html and "周辺に加盟店なし" in html and "お問い合わせ" in html
+    assert "岡崎市" in html and "2026/2/3" in html and "様</b>" in html
     assert 'class="heat"' in html and "<polyline" in html
 
 

@@ -14,7 +14,7 @@ from PIL import Image
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-ORDER = ["Jp", "Compute", "Geo", "Franchise", "Listings", "Charts", "Pipeline", "Render", "Sheet", "Admin", "Code"]
+ORDER = ["Jp", "Compute", "Geo", "Franchise", "Listings", "Charts", "Pipeline", "Render", "Sheet", "Store", "Admin", "Code"]
 
 
 def data_uri(path: Path, height: int | None = None, fmt: str = "PNG", quality: int = 82) -> str:
@@ -38,7 +38,9 @@ def main() -> None:
     css = (ROOT / "areasheet" / "static" / "style.css").read_text("utf8")
     js = (ROOT / "areasheet" / "static" / "app.js").read_text("utf8")
     app_html = (HERE / "src" / "app.html").read_text("utf8")
-    consts = (f"/** 生成物(gas/build.py)。CSS/JS/入力画面のHTML を文字列定数として保持する */\n"
+    seed = (ROOT / "data" / "franchises.csv").read_text("utf-8-sig")
+    consts = (f"/** 生成物(gas/build.py)。CSS/JS/入力画面のHTML/同梱の加盟店一覧 を文字列定数として保持する */\n"
+              f"var SEED_FRANCHISES_CSV_ = {json.dumps(seed, ensure_ascii=False)};\n"
               f"var APP_HTML_ = {json.dumps(app_html, ensure_ascii=False)};\n"
               f"var STYLE_CSS_ = {json.dumps(css, ensure_ascii=False)};\n"
               f"var APP_JS_ = {json.dumps(js, ensure_ascii=False)};\n")
@@ -55,7 +57,8 @@ def main() -> None:
         "timeZone": "Asia/Tokyo", "exceptionLogging": "STACKDRIVER", "runtimeVersion": "V8",
         "webapp": {"executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS"},
         "oauthScopes": ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/script.external_request",
-                        "https://www.googleapis.com/auth/script.container.ui", "https://www.googleapis.com/auth/drive"],
+                        "https://www.googleapis.com/auth/script.container.ui", "https://www.googleapis.com/auth/drive",
+                        "https://www.googleapis.com/auth/userinfo.email"],
     }, indent=2), "utf8")
     for p in sorted(dist.iterdir()):
         print(f"{p.name}: {p.stat().st_size // 1024} KB")

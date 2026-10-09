@@ -1,8 +1,7 @@
 /** スプレッドシート ⇔ 設定(商談先タブの項目定義・読み取り・初期設定) */
 
-var SHEET_LIST_ = '商談先一覧', SHEET_FR_ = '加盟店一覧', SHEET_LISTINGS_ = '物件データ', SHEET_SETTINGS_ = '設定';
+var SHEET_COMPANY_ = '会社', SHEET_AREA_ = 'エリア', SHEET_FR_ = '加盟店一覧', SHEET_SETTINGS_ = '設定';
 var BRACKET_LABELS_ = ['300万未満', '300万〜500万未満', '500万〜700万未満', '700万〜1000万未満', '1000万以上'];
-var FIELD_START_ROW_ = 5;
 
 /**
  * 入力項目の定義。t: text|num|date|list|image。req: 必須(未入力なら状態に出る)。hidden: 自動記録(画面に出さない)
@@ -13,8 +12,7 @@ var FIXED_SOURCES_ = {
   listings: 'REINS調べ', keywords: 'Google広告調べ'
 };
 var FIELDS_ = [
-  { h: '基本情報' },
-  { k: 'company', l: '会社名', req: 1, d: '例: 株式会社○○(先方の会社名。表紙に表示)' },
+  { h: 'エリア' },
   { k: 'prefecture', l: '都道府県', req: 1, d: '例: 長野県' },
   { k: 'city', l: '市区町村', req: 1, d: '例: 上田市(2021年1月時点の名称)' },
   { k: 'created', l: '作成日', t: 'date', d: '空欄なら、この商談先を追加した日' },
@@ -85,6 +83,7 @@ var FIELDS_ = [
   { k: 'comp.1', l: '近隣不動産会社2', t: 'list', req: 1 },
   { k: 'comp.2', l: '近隣不動産会社3', t: 'list', req: 1 },
   { h: '自動記録(編集不要)' },
+  { k: 'company', l: '(会社名)', hidden: 1 },
   { k: 'auto.created', l: '(自動)追加した日', hidden: 1 },
   { k: 'auto.date.area', l: '(自動)世帯数の入力日', hidden: 1 },
   { k: 'auto.date.income', l: '(自動)年収の入力日', hidden: 1 },
@@ -171,22 +170,11 @@ function valuesToConfig_(vals, today) {
   return cfg;
 }
 
-/** 物件データシートの行(2行目以降)→ 指定IDの行だけ集計用の形に */
-function listingRowsFor_(values, id) {
-  var out = [];
-  values.forEach(function (r) {
-    if (String(r[0]).trim() !== id) return;
-    out.push({ type: String(r[1]).trim(), price_man: parseNum_(r[2]), land_area_m2: parseNum_(r[3]), building_area_m2: parseNum_(r[4]),
-      exclusive_area_m2: parseNum_(r[5]), age_years: parseNum_(r[6]), zone: String(r[7] || '').trim() });
-  });
-  return out;
-}
-
+/** 加盟店一覧シートの行 → 選定用のレコード(有効なものだけ) */
 function franchiseRowsFrom_(values) {
   return values.filter(function (r) { return String(r[0]).trim() && !/^(×|停止|0|無効)$/.test(String(r[5]).trim()); })
     .map(function (r) { return { name: String(r[0]).trim(), prefecture: String(r[1]).trim(), city: String(r[2]).trim(), address: String(r[3]).trim(), url: String(r[4]).trim() }; });
 }
-
 
 /** 入力システム用: 複数項目をカンマで束ねる欄の列見出し */
 function colsFor_(key) {
@@ -228,15 +216,4 @@ function validateValue_(key, value) {
     }
   }
   return '';
-}
-
-
-/** 既存の商談先タブに、新しい項目(画像・自動記録)の行が無ければ末尾に足す */
-function syncTabRows_(sh) {
-  var last = Math.max(sh.getLastRow(), FIELD_START_ROW_ - 1);
-  var keys = last >= FIELD_START_ROW_ ? sh.getRange(FIELD_START_ROW_, 5, last - FIELD_START_ROW_ + 1, 1).getValues().map(function (r) { return String(r[0]); }) : [];
-  var add = [];
-  FIELDS_.forEach(function (f) { if (!f.h && keys.indexOf(f.k) < 0) add.push([f.l, '', '', f.d || '', f.k]); });
-  if (add.length) sh.getRange(last + 1, 1, add.length, 5).setValues(add);
-  return add.length;
 }

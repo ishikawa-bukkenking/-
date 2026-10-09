@@ -157,29 +157,66 @@ def run_node(script, inp, *args):
 
 
 def test_input_system_api(tmp_path):
-    """入力システムのサーバー側: 認証・作成・保存・検証・固定出典・入力日の自動記録・画像・加盟店・設定・URL作り直し"""
+    """入力システムのサーバー側: メールでの利用者確認・会社とエリア・保存・検証・固定出典・入力日の自動記録・画像・加盟店・設定"""
     cfg = _plain(yaml.safe_load((ROOT / "configs" / "example-ueda.yaml").read_text("utf8")))
     vals = {k: v for k, v in sheet_values(cfg).items() if k not in ("company", "prefecture", "city")}
-    r = run_node("api_test.js", dict(values=vals, geoDir=geo_dir("長野県")))
-    assert r["pwLen"] == 12 and r["pwKept"] and r["urlKept"]            # 初期設定の再実行で設定を壊さない
-    assert r["autoUrl"] == "https://script.test/exec"                    # 公開URLはデプロイ済みURLを自動で使う
-    assert all(r["noPwApi"]) and all(r["noPwApi2"])                      # パスワード無しでは全APIが拒否される
-    assert r["login"] and r["createdId"] == 16
-    assert not r["metaHasCta"] and not r["metaHasSource"] and not r["metaHidden"]   # 問い合わせURL・出典・取得日・自動記録は入力欄に出ない
+    fx = ROOT / "tests" / "fixtures"
+    r = run_node("api_test.js", dict(values=vals, geoDir=geo_dir("長野県"), rawCsv1=(fx / "franchise_raw_1.csv").read_text("utf-8"),
+                                     rawCsv2=(fx / "franchise_raw_2.csv").read_text("utf-8")))
+    assert r["sheets0"] == "エリア,会社,加盟店一覧,設定" and r["sheetsAfter"] and r["sheetsEnd"]   # 商談ごとにタブは増えない
+    assert r["seedCount"] == 201                                                   # 添付CSVから作った加盟店一覧が最初から入る
+    # ログイン: メールアドレスが @bukkenking.com のアカウントだけ(取得できない/社外/なりすましは全APIが拒否)
+    assert r["deniedNoEmail"] and r["deniedGmail"] and r["deniedLookalike"] and r["whoami"] == "ishikawa@bukkenking.com"
+    assert r["companies"] == 2 and r["areasOfFirst"] == 2 and r["siblings"] == 2    # 1社に複数のエリア
+    assert all(r["badCreate"]) and r["metaClean"]
     assert r["imageKeys"] == ["inputs.price_trend.image", "inputs.used_house.heatmap_image",
                               "inputs.used_mansion.heatmap_image", "inputs.new_house.heatmap_image"]
-    assert set(r["valErr"]["errors"]) == {"inputs.income.city_avg_man", "bogus", "auto.date.income", "compare.0", "inputs.price_trend.image"}
-    assert r["valErr"]["saved"] == 1                                     # 正しい項目だけ保存される
-    assert r["save"]["errors"] == {} and r["dateAuto"] and r["createdAuto"]
-    assert r["upBad"][0] and r["upBad"][1]                               # 画像以外の項目・画像以外のデータは拒否
-    assert r["imgFlags"]["inputs.price_trend.image"] and r["imgRef"] and r["oldTrashed"] and r["clearedImg"]
-    assert r["lpImgCount"] == 3 and r["lpFixedSources"] and r["lpDate"] and r["lpNoCta"]   # 画像(価格推移・分布表)+固定の加盟店画像
-    assert r["totals"] == {"listings_total": 414, "brokerage": 47} and r["checksNg"] == []
-    assert (r["fr0"], r["fr1"], r["fr2"]) == (2, 3, 2) and r["frBad"] and r["frStopped"]
-    assert r["setBad"] and r["pwShort"] and r["settings"] == [1, 2, 50, "APPID"] and r["oldPwDead"] and r["point50"]
-    assert r["rotated"] and r["lpBadId2"] and r["appPage"]
-    assert r["noOldMenus"] == ["undefined"] * 4                          # 旧メニュー関数は残さない(web公開側から呼べないように)
-    assert "ロック" in r["locked"]                                       # 誤りが続くと正しいパスワードでも拒否
+    assert set(r["valErr"]["errors"]) == {"inputs.income.city_avg_man", "bogus", "auto.date.income", "compare.0", "inputs.price_trend.image", "company"}
+    assert r["valErr"]["saved"] == 1 and r["save"]["errors"] == {} and r["dateAuto"]  # 正しい項目だけ保存/取得日は自動
+    assert r["upBad"][0] and r["upBad"][1] and r["imgRef"] and r["oldTrashed"]
+    assert r["lpImgCount"] == 3 and r["lpFixedSources"] and r["lpHas414"] and r["lpNoCta"] and r["lpAnonOk"]
+    assert r["totals"] == {"listings_total": 414, "brokerage": 47} and r["checksNg"] == [] and r["missingStored"] == 3
+    assert r["area2"] and r["status2"]                                              # 同じ会社の別エリアは別データ・別LP
+    assert r["fr1"] and r["fr2"]                                                    # 上田市=同一市の2社、東御市=木楽ホーム
+    assert r["frAdd"] and r["frBad"] and r["frStopped"] and r["frDel"] and r["frStoppedKept"]
+    assert r["imp1"] == [0, 188, 0] and r["imp2"] == [0, 14, 0]                     # 添付CSVの再取り込みは更新のみ(重複しない)
+    assert r["imp3"][:2] == [1, 0] and r["imp3"][2] == ["住所不明株式会社"] and r["impBad"]
+    assert all(r["setBad"]) and r["settings"] == [1, 2, 50, "APPID", "https://script.google.com/macros/s/AKfycbxTEST/exec"]
+    assert r["listUrl"] and r["point50"] and r["rotated"] and all(r["lpBadId"])
+    assert r["areaDeleted"] and r["imagesTrashed"] and r["renamed"] and r["companyDeleted"]
+    assert r["appPage"] and r["noOldFns"] == ["undefined"] * 6                      # パスワード方式・旧メニューは残さない
+
+
+def test_franchise_csv_import_matches_python(tmp_path):
+    """添付の加盟店CSV: 屋号・対応エリアの分離、改行で分断された行の結合、住所から市区町村の判定(Python版とJS版で一致)"""
+    from areasheet import franchise
+    fx = ROOT / "tests" / "fixtures"
+    dest = tmp_path / "f.csv"
+    for f in ("franchise_raw_1.csv", "franchise_raw_2.csv"):
+        n, bad = franchise.import_file(fx / f, dest)
+        assert bad == []
+    rows = franchise.load(dest)
+    assert len(rows) == 201
+    by = {r["name"]: r for r in rows}
+    assert by["株式会社TRUNK 不動産"]["city"] == "豊田市" and by["株式会社TRUNK 不動産"]["shop"].startswith("TRUNK不動産")   # 分断された名称
+    assert by["株式会社イワベニ（ジオリーブグループ）"]["city"] == "盛岡市"                                                 # 郵便番号だけの住所の続き
+    assert by["株式会社松下建設佐世保支店"]["city"] == "佐世保市" and by["株式会社松下建設佐世保支店"]["shop"] == "トチスマショップ佐世保店"
+    assert by["スヴァーリエヒュース株式会社"]["city"] == "昭和町"                                                           # 郡は落とす
+    assert by["株式会社横浜ホームビルド"]["city"] == "横浜市" and by["グッドハート株式会社"]["prefecture"] == "熊本県"        # 区は市に統合/県の補完
+    assert "旧" not in "".join(r["name"] for r in rows)                                                                      # （旧：…）は表示名から除く
+    # JS版(入力システムの取り込み)と同じ結果
+    js = subprocess.run(["node", "-e", """
+const fs=require('fs'),vm=require('vm');const ctx=vm.createContext({console});
+vm.runInContext(fs.readFileSync(process.argv[1],'utf8'),ctx);
+let all=[];for(const f of process.argv.slice(2)){ctx.t=fs.readFileSync(f,'utf8');all.push(...vm.runInContext('parseFranchiseAny_(t)',ctx).rows);}
+console.log(JSON.stringify(all));""", str(GAS / "dist" / "Bundle.gs"), str(fx / "franchise_raw_1.csv"), str(fx / "franchise_raw_2.csv")],
+        capture_output=True, text=True)
+    assert js.returncode == 0, js.stderr[-500:]
+    jrows = {(r["name"], r["address"]): r for r in json.loads(js.stdout)}
+    assert len(jrows) == 201
+    for r in rows:
+        j = jrows[(r["name"], r["address"])]
+        assert (j["prefecture"], j["city"], j["shop"], j["service_area"]) == (r["prefecture"], r["city"], r["shop"], r["service_area"])
 
 
 def test_input_screen_in_browser(tmp_path):
@@ -194,7 +231,11 @@ def test_input_screen_in_browser(tmp_path):
                        capture_output=True, text=True, env=env)
     assert r.returncode == 0, r.stderr[-800:]
     log = json.loads(r.stdout)
-    assert "パスワードが違" in log["wrongPw"] and log["title"].endswith("岡崎市") and log["errors"] == []
-    assert log["sheet"]["hh"] == "150000" and log["sheet"]["cmp"] == "豊田市,12,80" and log["sheet"]["pref"] == ""  # 不正値は保存されない
-    assert log["badShown"] == 1 and log["hscroll"] == "375/375"
-    assert log["imageSaved"] and log["fieldsNoCta"] == 0 and log["noSourceFields"] == 0 and log["frAdded"] and log["settingMax"] == 2
+    assert "使えません" in log["deniedMsg"] and log["who"] == "ishikawa@bukkenking.com" and log["noLogin"] == 0   # パスワード欄は無い
+    assert log["title"].endswith("岡崎市") and log["errors"] == []
+    assert log["stored"]["hh"] == "150000" and log["stored"]["cmp"] == "豊田市,12,80" and log["stored"]["pref"] == ""  # 不正値は保存されない
+    assert log["stored"]["date"] and log["badShown"] == 1 and log["hscroll"] == "375/375"
+    assert log["imageSaved"] and log["fieldsNoCta"] == 0 and log["noSourceFields"] == 0
+    assert log["sibChips"] == 2 and log["areasOfCompany"] == 2 and log["sheetNames"] == "エリア,会社,加盟店一覧,設定"   # 会社にエリアを追加。タブは増えない
+    assert log["frShown"] == "登録済み(201件)" and log["frSearch"] == 3 and log["frImported"]
+    assert log["settingMax"] == 2 and log["settingUrl"].endswith("/exec")

@@ -44,6 +44,8 @@ function makeEnv(geoDir) {
     CacheService: { getScriptCache: () => ({ get: k => cache.get(k) || null, put: (k, v) => cache.set(k, v), remove: k => cache.delete(k), putAll: kv => Object.keys(kv).forEach(k => cache.set(k, kv[k])) }) },
     Utilities: { formatDate: () => '2026-01-19', base64Decode: b => Array.from(Buffer.from(b, 'base64')), base64Encode: b => Buffer.from(b).toString('base64'),
     newBlob: (bytes, mime, name) => ({ bytes, mime, name, getBytes: () => bytes, getContentType: () => mime }) },
+  LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
+  Session: { getActiveUser: () => ({ getEmail: () => (global.__email === undefined ? 'ishikawa@bukkenking.com' : global.__email) }) },
   ScriptApp: { getService: () => ({ getUrl: () => 'https://script.test/exec' }) },
   DriveApp: (() => { const files = new Map(); let n = 0;
     const mk = blob => { const id = 'file' + (++n); const f = { id, blob, trashed: false, getId: () => id, getBlob: () => ({ getContentType: () => blob.mime, getBytes: () => blob.bytes }), setTrashed(t) { f.trashed = t; } }; files.set(id, f); return f; };
@@ -53,6 +55,8 @@ function makeEnv(geoDir) {
     UrlFetchApp: { fetch: url => { const code = url.match(/N03-21_(\d\d)_/)[1]; const body = fs.readFileSync(input.geoDir + '/geo_' + code + '.json', 'utf8'); return { getResponseCode: () => 200, getContentText: () => body }; } }
   });
 
+  ctx.__sheetNames = () => sheets.map(x => x.name);
+  ctx.__setEmail = e => { global.__email = e; };
   for (const f of ['Bundle.gs', 'Assets.gs']) vm.runInContext(fs.readFileSync(path.join(dist, f), 'utf8'), ctx, { filename: f });
   return ctx;
 }
