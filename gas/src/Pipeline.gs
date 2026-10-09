@@ -25,12 +25,12 @@ function empty_(v) { return v === null || v === undefined || v === '' || (Array.
 
 function status_(rep, key, label, value, hint) {
   if (empty_(value)) rep.add(key, label, 'missing', '', '未入力。' + hint);
-  else rep.add(key, label, 'input', '設定値/シート');
+  else rep.add(key, label, 'input', '入力システム');
 }
 
 function src_(sec, created, rep, key) {
   var s = sec.source;
-  if (!s) { rep.add(key + '.source', key + ' 出典名', 'missing', '', '出典名(source)が未設定。シートに実際の出典を書いてください'); s = '出典未設定'; }
+  if (!s) { rep.add(key + '.source', key + ' 出典名', 'missing', '', '出典名(source)が未設定'); s = '出典未設定'; }
   var d = sec.date;
   if (!d) { d = created; rep.add(key + '.date', key + ' 取得日', 'input', '', 'date未設定のため作成日を表示'); }
   return [s, fmtDate_(d)];
@@ -77,7 +77,7 @@ function buildModel_(cfg, services, data) {
   var areaIn = inputs.area || {}, hh = { value: null };
   if (areaIn.households != null) {
     hh = { value: areaIn.households, source: areaIn.source || '入力値', fetched_at: String(areaIn.date || created) };
-    rep.add('area.households', '世帯数', 'input', 'シート入力');
+    rep.add('area.households', '世帯数', 'input', '入力システム');
   } else {
     try {
       if (!services.estatHouseholds) throw new Error('e-Stat のアプリケーションIDが未設定');
@@ -85,7 +85,7 @@ function buildModel_(cfg, services, data) {
       hh = { value: got.value, source: got.source, fetched_at: now };
       rep.add('area.households', '世帯数', 'auto', got.source);
     } catch (e) {
-      rep.add('area.households', '世帯数', 'missing', '', e.message + '。シートの「世帯数」に入力(出典も記入)');
+      rep.add('area.households', '世帯数', 'missing', '', e.message + '。入力システムの「世帯数」に入力');
     }
   }
   model.area = { households: hh.value, households_source: hh.source || null,
@@ -94,11 +94,11 @@ function buildModel_(cfg, services, data) {
   var frOver = cfg.nearby_franchise, sel;
   if (frOver && frOver.length) {
     sel = { items: frOver.map(function (r) { return { name: r.name, area: r.area || '', url: r.url || '', tier: 'override' }; }), tiers_used: ['override'] };
-    rep.add('area.franchise', '周辺加盟店', 'input', 'シート入力による上書き');
+    rep.add('area.franchise', '周辺加盟店', 'input', '上書き');
   } else {
     var rows = data.franchiseRows || [];
     sel = selectFranchise_(rows, pref, city, neighbors, opts.franchise);
-    rep.add('area.franchise', '周辺加盟店', rows.length ? 'auto' : 'missing', '加盟店一覧シートから選定', rows.length ? '' : '加盟店一覧シートが空です');
+    rep.add('area.franchise', '周辺加盟店', rows.length ? 'auto' : 'missing', '加盟店一覧から選定', rows.length ? '' : '加盟店一覧が空です(入力システムの「加盟店」で追加)');
   }
   model.area.franchise = sel;
 
@@ -110,7 +110,7 @@ function buildModel_(cfg, services, data) {
   model.income = inc;
   [['city_avg_man', '市の平均年収'], ['prefecture_avg_man', '県平均年収'], ['national_avg_man', '全国平均年収'],
    ['rank_in_prefecture', '県内順位'], ['brackets', '年収階級別の世帯構成']].forEach(function (p) {
-    status_(rep, 'income.' + p[0], p[1], inc[p[0]], 'シートの年収欄');
+    status_(rep, 'income.' + p[0], p[1], inc[p[0]], '入力システムの年収');
   });
 
   // --- 価格推移 ---
@@ -120,13 +120,13 @@ function buildModel_(cfg, services, data) {
   tr.ai_note = ['※以下の条件でAI査定した参考価格', '・マンション：築10年/専有面積70㎡', '・一戸建て：築10年/延床面積70㎡', '・土地：敷地面積70㎡'];
   model.price_trend = tr;
   [['city_3y_pct', '市の3年上昇率'], ['prefecture_3y_pct', '県の3年上昇率'], ['yearly_pct', '年ごとの内訳']].forEach(function (p) {
-    status_(rep, 'price_trend.' + p[0], p[1], tr[p[0]], 'シートの価格推移欄');
+    status_(rep, 'price_trend.' + p[0], p[1], tr[p[0]], '入力システムの価格推移');
   });
-  status_(rep, 'price_trend.chart', '価格推移グラフ', tr.series || tr.image, 'シートの価格推移データ(数値)またはグラフ画像URL');
+  status_(rep, 'price_trend.chart', '価格推移グラフ', tr.series || tr.image, '価格推移グラフの画像');
 
   // --- 物件(シートの物件データ → 手入力で上書き) ---
   var csvStats = (data.listingRows && data.listingRows.length) ? summarizeListings_(data.listingRows) : {};
-  if (data.listingRows && data.listingRows.length) rep.add('listings_data', '物件データ', 'csv', '物件データシート(' + data.listingRows.length + '行)');
+  if (data.listingRows && data.listingRows.length) rep.add('listings_data', '物件データ', 'csv', '物件データ(' + data.listingRows.length + '行)');
   [['land', '土地'], ['used_house', '中古戸建て'], ['used_mansion', '中古マンション'], ['new_house', '新築戸建て']].forEach(function (p) {
     var key = p[0], label = p[1], cs = csvStats[key] || {}, secIn = inputs[key] || {};
     var sec = deepMerge_(cs, secIn), fromCsv = !!csvStats[key];
@@ -134,18 +134,18 @@ function buildModel_(cfg, services, data) {
     var date = secIn.date || inputs.listings_date || (fromCsv ? created : null);
     var sd = src_({ source: source, date: date }, created, rep, key); sec.source = sd[0]; sec.date = sd[1];
     model[key] = sec;
-    status_(rep, key + '.price_man', label + ' 売却価格相場', sec.price_man, 'シートの' + label + '欄または物件データ');
-    status_(rep, key + '.listings', label + ' 物件数', sec.listings, 'シートの' + label + '欄または物件データ');
-    if (key !== 'land') status_(rep, key + '.heatmap', label + ' 面積×価格の分布', sec.heatmaps || sec.heatmap_image, '物件データシート、または分布表画像URL');
+    status_(rep, key + '.price_man', label + ' 売却価格相場', sec.price_man, label + 'の入力');
+    status_(rep, key + '.listings', label + ' 物件数', sec.listings, label + 'の入力');
+    if (key !== 'land') status_(rep, key + '.heatmap', label + ' 面積×価格の分布', sec.heatmaps || sec.heatmap_image, '分布表の画像');
   });
   var land = model.land;
   [['tsubo_price_man', '坪単価'], ['tsubo_price_low_rise_residential_man', '低層住居専用地域の坪単価'], ['tsubo_price_other_residential_man', 'その他の住居専用地域の坪単価']].forEach(function (p) {
-    status_(rep, 'land.' + p[0], p[1], land[p[0]], 'シートの土地欄または物件データ(用途地域列)');
+    status_(rep, 'land.' + p[0], p[1], land[p[0]], '土地の入力');
   });
   var lsIn = inputs.land_summary || {};
   ['price_man', 'price_per_m2_man', 'land_area_median_m2'].forEach(function (k) { if (lsIn[k] != null) land[k] = lsIn[k]; });
   [['price_man', '土地 売却価格相場(まとめ用)'], ['price_per_m2_man', '土地 ㎡単価'], ['land_area_median_m2', '土地 土地面積(中央値)']].forEach(function (p) {
-    status_(rep, 'land_summary.' + p[0], p[1], land[p[0]], 'シートの土地欄または物件データ');
+    status_(rep, 'land_summary.' + p[0], p[1], land[p[0]], '土地の入力');
   });
   var low = land.tsubo_price_low_rise_residential_man, oth = land.tsubo_price_other_residential_man, allp = land.tsubo_price_man;
   land.tsubo_note = !!(allp != null && low != null && oth != null && allp < Math.min(low, oth));
@@ -158,7 +158,7 @@ function buildModel_(cfg, services, data) {
   (kwIn.rows || []).forEach(function (r) { given[r.term] = r; });
   var rows2 = terms.map(function (t) {
     var r = given[t] || {};
-    status_(rep, 'keywords.' + t, '検索ボリューム「' + city + ' ' + t + '」', r.monthly_volume, 'シートのキーワード欄。Google広告APIは未接続');
+    status_(rep, 'keywords.' + t, '検索ボリューム「' + city + ' ' + t + '」', r.monthly_volume, '入力システムの検索ボリューム。Google広告APIは未接続');
     return { keyword: city + '　' + t, term: t, monthly_volume: r.monthly_volume == null ? null : r.monthly_volume,
       cpc_low_yen: r.cpc_low_yen == null ? null : r.cpc_low_yen, cpc_high_yen: r.cpc_high_yen == null ? null : r.cpc_high_yen };
   });
@@ -188,10 +188,10 @@ function buildModel_(cfg, services, data) {
   var comps = cfg.competitors || [];
   model.competitors = { items: comps.map(function (c) { return { name: c.name, area: c.area || city, url: c.url || '', listing_count: c.listing_count == null ? null : c.listing_count }; }),
     queries: [city + '　不動産', city + '　土地', city + '　中古'] };
-  rep.add('competitors', '近隣不動産会社3社', comps.length >= 3 ? 'input' : 'missing', comps.length ? 'シート入力' : '',
-    comps.length >= 3 ? '' : '検索結果の自動取得は規約上行わない。シートの「近隣不動産会社」に3社入力(検索語: ' + model.competitors.queries.join(' / ') + ')');
+  rep.add('competitors', '近隣不動産会社3社', comps.length >= 3 ? 'input' : 'missing', comps.length ? '入力システム' : '',
+    comps.length >= 3 ? '' : '検索結果の自動取得は規約上行わない。入力システムの「近隣不動産会社」に3社入力(検索語: ' + model.competitors.queries.join(' / ') + ')');
   model.competitors.items.forEach(function (c) {
-    rep.add('competitors.count.' + c.name, c.name + ' 掲載物件数', c.listing_count != null ? 'input' : 'optional', c.listing_count != null ? 'シート入力' : '',
+    rep.add('competitors.count.' + c.name, c.name + ' 掲載物件数', c.listing_count != null ? 'input' : 'optional', c.listing_count != null ? '入力システム' : '',
       c.listing_count != null ? '' : '各社サイトの構造が異なり自動取得しない。任意(サンプルも空欄)');
   });
   model.cta_url = cfg.cta_url || null;
@@ -220,7 +220,7 @@ function compare_(cfg, land, city, neighbors, rep, opts) {
   });
   if (!items.length) {
     rep.add('land.compare', '土地 比較5市の坪単価・物件数', 'missing', '',
-      '比較市の値が未入力。人口データが未接続のため、隣接市(境界の長い順)を候補として提示: ' + suggestion.join('、') + '。シートの「比較市」に 市名,坪単価,物件数 を入力');
+      '比較市の値が未入力。人口データが未接続のため、隣接市(境界の長い順)を候補として提示: ' + suggestion.join('、') + '。入力システムの「比較市」に 市名・坪単価・物件数 を入力');
   } else {
     var bad = items.filter(function (r) { return r.tsubo_price_man == null || r.listings == null; }).map(function (r) { return r.city; });
     rep.add('land.compare', '土地 比較5市の坪単価・物件数', bad.length ? 'missing' : 'input', '設定値', bad.length ? '値が欠けている市: ' + bad.join('、') : '');

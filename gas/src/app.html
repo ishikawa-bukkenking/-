@@ -38,16 +38,21 @@ details.sec .body{padding:8px 18px 18px}
 .cols span{font-size:.75rem;color:var(--sub);display:block}
 .hint{font-size:.8125rem;color:var(--sub);margin-top:4px}
 .err{font-size:.8125rem;color:var(--err);margin-top:4px}
+.imgbox{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.imgbox img{max-height:90px;max-width:160px;border:1px solid var(--line);border-radius:6px;background:#fff}
+.imgbox input[type=file]{display:none}
+.tbl{width:100%;border-collapse:collapse}.tbl td{padding:10px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+label.chk{display:flex;gap:8px;align-items:center;min-height:44px}label.chk input{width:auto;min-height:0}
 #miss{margin:0;padding-left:1.2em;font-size:.875rem}
 #miss li{margin:2px 0}
 #saved{font-size:.875rem}
 @media (max-width:640px){main{padding:12px 12px 80px}.card{padding:14px}}
 </style></head><body>
 <header class="top"><h1 id="title">エリア調査シート 入力システム</h1><span id="hstat" class="chip" hidden></span><span id="saved"></span>
-<button class="ghost" id="back" hidden>← 一覧</button><button class="ghost" id="logout" hidden>ログアウト</button></header>
+<button class="ghost" id="back" hidden>← 一覧</button><button class="ghost" id="navfr" hidden>加盟店</button><button class="ghost" id="navset" hidden>設定</button><button class="ghost" id="logout" hidden>ログアウト</button></header>
 <main id="main"></main>
 <script>
-var pw = '', cur = null, dirty = {}, timer = null, saving = false, meta = [], vals = {};
+var imgs = {}, pw = '', cur = null, dirty = {}, timer = null, saving = false, meta = [], vals = {};
 var $ = function (id) { return document.getElementById(id); };
 function el(tag, attrs, kids) {
   var e = document.createElement(tag);
@@ -65,9 +70,12 @@ function busy(b) { document.body.style.cursor = b ? 'progress' : ''; }
 function show(msg, bad) { var m = $('msg'); if (m) { m.textContent = msg; m.className = bad ? 'msg' : 'note'; } else if (bad) { alert(msg); } }
 function setSaved(t, bad) { var s = $('saved'); s.textContent = t; s.style.color = bad ? '#ffd0d0' : '#fff'; }
 
+function chrome(inApp, back) {
+  $('hstat').hidden = true; $('back').hidden = !back; $('logout').hidden = !inApp; $('navfr').hidden = !inApp; $('navset').hidden = !inApp;
+}
 /* ---- ログイン ---- */
 function viewLogin() {
-  cur = null; $('hstat').hidden = true; $('back').hidden = true; $('logout').hidden = true; $('title').textContent = 'エリア調査シート 入力システム'; setSaved('');
+  cur = null; chrome(false, false); $('title').textContent = 'エリア調査シート 入力システム'; setSaved('');
   var inp = el('input', { type: 'password', id: 'pw', placeholder: 'パスワード', autocomplete: 'current-password' });
   var btn = el('button', { text: 'ログイン' });
   var go = function () { var p = inp.value; if (!p) return; call('api_login', [p], function () { pw = p; sessionStorage.setItem('pw', p); route(); }); };
@@ -80,7 +88,7 @@ function viewLogin() {
 
 /* ---- 一覧 ---- */
 function viewList() {
-  cur = null; $('hstat').hidden = true; $('back').hidden = true; $('logout').hidden = false; $('title').textContent = '商談先の一覧'; setSaved('');
+  cur = null; chrome(true, false); $('title').textContent = '商談先の一覧'; setSaved('');
   call('api_list', [pw], function (r) {
     var wrap = el('div', {});
     var add = el('div', { class: 'card' }, [el('h2', { text: '新しい商談先を追加', style: 'margin-top:0;font-size:1.1rem' })]);
@@ -106,7 +114,7 @@ function viewList() {
         var cp = el('button', { class: 'ghost', text: 'URLをコピー' }); cp.onclick = function () { copyText(it.url, cp); }; row.appendChild(cp); }
       list.appendChild(row);
     });
-    if (!r.hasUrl) list.appendChild(el('p', { class: 'note', text: '※「設定」シートのB1にウェブアプリのURLを貼ると、LPのURLがここに出ます。' }));
+    if (!r.hasUrl) list.appendChild(el('p', { class: 'note', text: '※ウェブアプリとしてデプロイすると、LPのURLがここに出ます。' }));
     wrap.appendChild(list); $('main').replaceChildren(wrap);
   });
 }
@@ -146,7 +154,7 @@ function refreshNeed() {
 }
 function loadStatus() {
   google.script.run.withSuccessHandler(function (s) {
-    var chip = $('stat'); if (!chip) return;
+    var chip = $('stat'); if (!chip || !cur) return;
     var hs = $('hstat'); hs.hidden = false; hs.textContent = s.missing.length ? '未入力 ' + s.missing.length + '件' : '入力完了'; hs.className = 'chip' + (s.missing.length ? ' need' : '');
     chip.textContent = s.missing.length ? '未入力・未取得 ' + s.missing.length + '件' : '入力完了';
     chip.className = 'chip' + (s.missing.length ? ' need' : '');
@@ -156,10 +164,48 @@ function loadStatus() {
     var t = $('totals'); if (t) t.textContent = s.totals.listings_total != null ? '物件総数 ' + s.totals.listings_total + '件 / 仲介単価 約' + s.totals.brokerage + '万円' : '';
   }).withFailureHandler(function () {}).api_status(pw, cur);
 }
+function shrink(file, cb, fail) {
+  if (!/^image\/(jpeg|png|webp|gif)$/.test(file.type)) { fail('JPEG・PNGなどの画像を選んでください。'); return; }
+  var rd = new FileReader();
+  rd.onerror = function () { fail('画像を読み込めませんでした。'); };
+  rd.onload = function () {
+    var im = new Image();
+    im.onerror = function () { fail('画像を開けませんでした。'); };
+    im.onload = function () {
+      var max = 1800, k = Math.min(1, max / Math.max(im.width, im.height)), cv = document.createElement('canvas');
+      cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k);
+      var cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(im, 0, 0, cv.width, cv.height);
+      cb(cv.toDataURL('image/jpeg', 0.88));
+    };
+    im.src = rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+function imageField(f, wrap) {
+  var st = el('span', { class: 'note' }), th = el('img', { alt: f.l + 'のプレビュー' }), file = el('input', { type: 'file', accept: 'image/*', id: 'f_' + f.k.replace(/\W/g, '_') });
+  th.hidden = true;
+  var pick = el('label', { class: 'btn ghost', for: file.id, text: '画像を選ぶ' }), del = el('button', { class: 'ghost', text: '削除', type: 'button' });
+  var sync = function () { var has = !!imgs[f.k]; st.textContent = has ? 'アップロード済み' : '未登録'; del.hidden = !has; pick.textContent = has ? '画像を差し替える' : '画像を選ぶ'; vals[f.k] = has ? 'drive:set' : ''; refreshNeed(); };
+  file.onchange = function () {
+    var fl = file.files[0]; if (!fl) return; st.textContent = '処理中…'; setSaved('画像をアップロード中…');
+    shrink(fl, function (uri) {
+      th.src = uri; th.hidden = false;
+      google.script.run.withSuccessHandler(function () { imgs[f.k] = true; sync(); setSaved('画像を保存しました'); loadStatus(); })
+        .withFailureHandler(function (e) { st.textContent = '失敗: ' + (e.message || e); setSaved('画像を保存できませんでした', true); }).api_uploadImage(pw, cur, f.k, uri);
+    }, function (m) { st.textContent = m; setSaved(m, true); });
+    file.value = '';
+  };
+  del.onclick = function () {
+    google.script.run.withSuccessHandler(function () { imgs[f.k] = false; th.hidden = true; sync(); setSaved('削除しました'); loadStatus(); })
+      .withFailureHandler(function (e) { setSaved('削除できませんでした: ' + (e.message || e), true); }).api_save(pw, cur, (function () { var o = {}; o[f.k] = ''; return o; })());
+  };
+  wrap.appendChild(el('div', { class: 'imgbox' }, [th, pick, file, del, st])); sync();
+}
 function fieldView(f) {
   var wrap = el('div', { class: 'field', 'data-k': f.k, 'data-req': f.req ? '1' : '0' });
   var lab = el('label', { text: f.l }); if (f.req) lab.appendChild(el('span', { class: 'req', text: '必須' })); wrap.appendChild(lab);
   var v = vals[f.k] || '';
+  if (f.t === 'image') { imageField(f, wrap); if (f.d) wrap.appendChild(el('div', { class: 'hint', text: f.d })); return wrap; }
   if (f.cols) {
     var parts = splitCols(v, f.cols.length), inputs = [], grid = el('div', { class: 'cols' });
     f.cols.forEach(function (c, i) {
@@ -180,7 +226,7 @@ function fieldView(f) {
 function viewEdit(id) {
   call('api_get', [pw, id], function (r) {
     cur = r.id; meta = r.fields; vals = r.values; dirty = {}; window.__prefs = r.prefectures;
-    $('back').hidden = false; $('logout').hidden = false;
+    chrome(true, true); imgs = r.images || {};
     $('title').textContent = (vals.company || '') + '　' + (vals.city || '');
     var top = el('div', { class: 'card' }, [
       el('div', { class: 'row' }, [el('span', { id: 'stat', class: 'chip need', text: '確認中…' }), el('span', { id: 'totals', class: 'note' })]),
@@ -189,7 +235,13 @@ function viewEdit(id) {
     var acts = top.lastChild;
     if (r.url) { acts.appendChild(el('a', { class: 'btn', href: r.url, target: '_blank', rel: 'noopener', text: 'LPを開いて確認' }));
       var cp = el('button', { class: 'ghost', text: 'URLをコピー' }); cp.onclick = function () { copyText(r.url, cp); }; acts.appendChild(cp); }
-    else acts.appendChild(el('span', { class: 'note', text: '※「設定」シートのB1にウェブアプリのURLを貼ると、LPを開くボタンが出ます。' }));
+    else acts.appendChild(el('span', { class: 'note', text: '※ウェブアプリとしてデプロイすると、LPを開くボタンが出ます。' }));
+    var rot = el('button', { class: 'ghost', text: 'URLを作り直す' }), armed = false;
+    rot.onclick = function () {
+      if (!armed) { armed = true; rot.textContent = '旧URLが無効になります。もう一度押すと実行'; setTimeout(function () { armed = false; rot.textContent = 'URLを作り直す'; }, 4000); return; }
+      call('api_rotate', [pw, cur], function (x) { openProspect(x.id); });
+    };
+    acts.appendChild(rot);
     acts.appendChild(el('span', { class: 'note', text: '入力は自動で保存されます。' }));
     var wrap = el('div', {}), sec = null, body = null, n = 0;
     meta.forEach(function (f) {
@@ -201,13 +253,75 @@ function viewEdit(id) {
   });
 }
 
+/* ---- 加盟店 ---- */
+function viewFranchises() {
+  cur = null; chrome(true, true); $('title').textContent = '加盟店の管理'; setSaved('');
+  call('api_fr_list', [pw], function (r) {
+    var wrap = el('div', {});
+    var form = el('div', { class: 'card' }, [el('h2', { text: '加盟店を追加', style: 'margin-top:0;font-size:1.1rem' })]);
+    function formRow(rec, idx) {
+      var nm = el('input', { placeholder: '名称(例: ○○工務店株式会社)', value: rec.name || '' });
+      var sel = el('select', {}); [''].concat(r.prefectures).forEach(function (p) { var o = el('option', { value: p, text: p || '都道府県' }); if (p === rec.prefecture) o.selected = true; sel.appendChild(o); });
+      var ct = el('input', { placeholder: '市区町村', value: rec.city || '' }), ur = el('input', { placeholder: 'URL(https://…)', value: rec.url || '' });
+      var ck = el('input', { type: 'checkbox' }); ck.checked = rec.active !== false;
+      var sv = el('button', { text: idx >= 0 ? '保存' : '追加' }), msg = el('span', { class: 'note' });
+      sv.onclick = function () {
+        call('api_fr_save', [pw, idx, { name: nm.value, prefecture: sel.value, city: ct.value, url: ur.value, active: ck.checked }], function () { viewFranchises(); });
+      };
+      var row = el('div', { class: 'row', style: 'margin:8px 0' }, [el('div', { class: 'grow' }, [nm]), el('div', { style: 'width:150px;flex:none' }, [sel]), el('div', { class: 'grow' }, [ct]), el('div', { class: 'grow' }, [ur]),
+        el('label', { class: 'chk' }, [ck, document.createTextNode('有効')]), sv]);
+      if (idx >= 0) { var dl = el('button', { class: 'ghost', text: '削除' }), a2 = false;
+        dl.onclick = function () { if (!a2) { a2 = true; dl.textContent = 'もう一度押すと削除'; setTimeout(function () { a2 = false; dl.textContent = '削除'; }, 4000); return; }
+          call('api_fr_delete', [pw, idx], function () { viewFranchises(); }); };
+        row.appendChild(dl); }
+      return row;
+    }
+    form.appendChild(formRow({}, -1)); form.appendChild(el('p', { class: 'note', text: 'LPの「周辺加盟店」は、ここから(同一市→隣接市→同一県の順に)自動で選ばれます。「有効」を外すと選ばれなくなります。' }));
+    wrap.appendChild(form);
+    var list = el('div', { class: 'card' }, [el('h2', { text: '登録済み(' + r.items.length + '件)', style: 'margin-top:0;font-size:1.1rem' })]);
+    r.items.forEach(function (it) { list.appendChild(formRow(it, it.i)); });
+    if (!r.items.length) list.appendChild(el('p', { class: 'note', text: 'まだありません。' }));
+    wrap.appendChild(list); $('main').replaceChildren(wrap);
+  });
+}
+
+/* ---- 設定 ---- */
+function viewSettings() {
+  cur = null; chrome(true, true); $('title').textContent = '設定'; setSaved('');
+  call('api_settings_get', [pw], function (r) {
+    var f = {};
+    function line(label, key, val, hint, type) {
+      f[key] = el('input', { type: type || 'text', value: val, id: 's_' + key, autocomplete: 'off' });
+      return el('div', { class: 'field' }, [el('label', { text: label, for: 's_' + key }), f[key], hint ? el('div', { class: 'hint', text: hint }) : '']);
+    }
+    var card = el('div', { class: 'card' }, [
+      line('周辺加盟店の最大社数', 'max', r.max, '1〜10'), line('県との差が「同程度」とみなす範囲(ポイント)', 'threshold', r.threshold, '価格推移の文章で「同程度」と判定する範囲'),
+      line('POINTの切り上げ単位(件)', 'unit', r.unit, '例: 10 なら 414件→420件'),
+      line('e-Stat アプリケーションID(任意)', 'estat', r.estat, '入れると、世帯数が空欄のとき自動取得を試みます(実機未検証)'),
+      line('パスワードを変更する場合のみ入力', 'newPw', '', '8文字以上。空欄なら変更しません', 'password')]);
+    var sv = el('button', { text: '保存する' }), msg = el('p', { id: 'msg', class: 'note' });
+    sv.onclick = function () {
+      var np = f.newPw.value;
+      call('api_settings_set', [pw, { max: f.max.value, threshold: f.threshold.value, unit: f.unit.value, estat: f.estat.value, newPw: np }], function (x) {
+        if (x.pwChanged) { pw = np; try { sessionStorage.setItem('pw', np); } catch (e) {} f.newPw.value = ''; }
+        $('msg').textContent = '保存しました' + (x.pwChanged ? '(パスワードを変更しました)' : ''); $('msg').className = 'note';
+      });
+    };
+    card.appendChild(sv); card.appendChild(msg);
+    card.appendChild(el('p', { class: 'note', text: 'LPのURLの形: ' + (r.url ? r.url + '?id=…' : '(ウェブアプリとしてデプロイすると表示されます)') }));
+    $('main').replaceChildren(card);
+  });
+}
+
 /* ---- ルーティング ---- */
 function route() {
-  var m = /id=([A-Za-z0-9]+)/.exec(location.hash || '');
+  var h = location.hash || '', m = /id=([A-Za-z0-9]+)/.exec(h);
   if (!pw) { viewLogin(); return; }
-  if (m) viewEdit(m[1]); else viewList();
+  if (m) viewEdit(m[1]); else if (h === '#fr') viewFranchises(); else if (h === '#set') viewSettings(); else viewList();
 }
 $('back').onclick = function () { flushNow(function () { location.hash = ''; route(); }); };
+$('navfr').onclick = function () { flushNow(function () { location.hash = 'fr'; route(); }); };
+$('navset').onclick = function () { flushNow(function () { location.hash = 'set'; route(); }); };
 $('logout').onclick = function () { flushNow(function () { pw = ''; sessionStorage.removeItem('pw'); location.hash = ''; viewLogin(); }); };
 function flushNow(next) { clearTimeout(timer); if (Object.keys(dirty).length || saving) { flush(); setTimeout(next, 900); } else next(); }
 window.addEventListener('beforeunload', function (e) { if (Object.keys(dirty).length) { flush(); e.preventDefault(); e.returnValue = ''; } });

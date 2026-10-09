@@ -29,6 +29,7 @@ function makeEnv(geoDir) {
       return new Range(this, a, b, c || 1, d || 1);
     }
     setFrozenRows() {} setColumnWidth() {} hideColumns() {} clear() { this.cells.clear(); }
+  deleteRow(r) { const n = new Map(); for (const [k, v] of this.cells) { const [rr, cc] = k.split(',').map(Number); if (rr < r) n.set(k, v); else if (rr > r) n.set((rr - 1) + ',' + cc, v); } this.cells = n; }
   }
   const sheets = [];
   const ss = {
@@ -40,8 +41,14 @@ function makeEnv(geoDir) {
     console, Math, JSON, Date, Object, Array, String, Number, isNaN, parseInt, parseFloat, RegExp, Error,
     SpreadsheetApp: { getActiveSpreadsheet: () => ss, openById: () => ss, getUi: () => { throw new Error('no ui'); } },
     PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = v; } }) },
-    CacheService: { getScriptCache: () => ({ get: k => cache.get(k) || null, put: (k, v) => cache.set(k, v), putAll: kv => Object.keys(kv).forEach(k => cache.set(k, kv[k])) }) },
-    Utilities: { formatDate: () => '2026-01-19' },
+    CacheService: { getScriptCache: () => ({ get: k => cache.get(k) || null, put: (k, v) => cache.set(k, v), remove: k => cache.delete(k), putAll: kv => Object.keys(kv).forEach(k => cache.set(k, kv[k])) }) },
+    Utilities: { formatDate: () => '2026-01-19', base64Decode: b => Array.from(Buffer.from(b, 'base64')), base64Encode: b => Buffer.from(b).toString('base64'),
+    newBlob: (bytes, mime, name) => ({ bytes, mime, name, getBytes: () => bytes, getContentType: () => mime }) },
+  ScriptApp: { getService: () => ({ getUrl: () => 'https://script.test/exec' }) },
+  DriveApp: (() => { const files = new Map(); let n = 0;
+    const mk = blob => { const id = 'file' + (++n); const f = { id, blob, trashed: false, getId: () => id, getBlob: () => ({ getContentType: () => blob.mime, getBytes: () => blob.bytes }), setTrashed(t) { f.trashed = t; } }; files.set(id, f); return f; };
+    const folder = { getId: () => 'folder1', createFile: mk };
+    return { createFolder: () => folder, getFolderById: () => folder, getFileById: id => { if (!files.has(id)) throw new Error('not found'); return files.get(id); }, __files: files }; })(),
     HtmlService: { XFrameOptionsMode: { ALLOWALL: 1 }, createHtmlOutput: html => { const o = { html, setTitle() { return o; }, addMetaTag() { return o; }, setXFrameOptionsMode() { return o; } }; return o; } },
     UrlFetchApp: { fetch: url => { const code = url.match(/N03-21_(\d\d)_/)[1]; const body = fs.readFileSync(input.geoDir + '/geo_' + code + '.json', 'utf8'); return { getResponseCode: () => 200, getContentText: () => body }; } }
   });

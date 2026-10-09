@@ -157,21 +157,28 @@ def run_node(script, inp, *args):
 
 
 def test_input_system_api(tmp_path):
-    """入力システムのサーバー側: 認証・作成・保存・検証・LP表示・総当たりロック"""
+    """入力システムのサーバー側: 認証・作成・保存・検証・固定出典・入力日の自動記録・画像・加盟店・設定・URL作り直し"""
     cfg = _plain(yaml.safe_load((ROOT / "configs" / "example-ueda.yaml").read_text("utf8")))
     vals = {k: v for k, v in sheet_values(cfg).items() if k not in ("company", "prefecture", "city")}
     r = run_node("api_test.js", dict(values=vals, geoDir=geo_dir("長野県")))
     assert r["pwLen"] == 12 and r["pwKept"] and r["urlKept"]            # 初期設定の再実行で設定を壊さない
-    assert r["badPw"]["err"] and all(r["noPwApi"])                      # パスワード無しでは全APIが拒否される
-    assert r["login"] and r["createdId"] == 16 and r["listLen"] == 1
-    assert r["listUrl"].startswith("https://example.test/exec?id=")
-    assert r["company"] == "株式会社○○" and r["pref"] == "長野県"          # 「長野」でも県名に正規化
-    assert set(r["valErr"]["errors"]) == {"inputs.income.city_avg_man", "bogus", "cta_url", "compare.0"}
+    assert r["autoUrl"] == "https://script.test/exec"                    # 公開URLはデプロイ済みURLを自動で使う
+    assert all(r["noPwApi"]) and all(r["noPwApi2"])                      # パスワード無しでは全APIが拒否される
+    assert r["login"] and r["createdId"] == 16
+    assert not r["metaHasCta"] and not r["metaHasSource"] and not r["metaHidden"]   # 問い合わせURL・出典・取得日・自動記録は入力欄に出ない
+    assert r["imageKeys"] == ["inputs.price_trend.image", "inputs.used_house.heatmap_image",
+                              "inputs.used_mansion.heatmap_image", "inputs.new_house.heatmap_image"]
+    assert set(r["valErr"]["errors"]) == {"inputs.income.city_avg_man", "bogus", "auto.date.income", "compare.0", "inputs.price_trend.image"}
     assert r["valErr"]["saved"] == 1                                     # 正しい項目だけ保存される
-    assert r["save"]["errors"] == {} and r["afterSave"] == "476"
+    assert r["save"]["errors"] == {} and r["dateAuto"] and r["createdAuto"]
+    assert r["upBad"][0] and r["upBad"][1]                               # 画像以外の項目・画像以外のデータは拒否
+    assert r["imgFlags"]["inputs.price_trend.image"] and r["imgRef"] and r["oldTrashed"] and r["clearedImg"]
+    assert r["lpImgCount"] == 3 and r["lpFixedSources"] and r["lpDate"] and r["lpNoCta"]   # 画像(価格推移・分布表)+固定の加盟店画像
     assert r["totals"] == {"listings_total": 414, "brokerage": 47} and r["checksNg"] == []
-    assert r["lpHas414"] and r["lpBadId"] and r["lpBadId2"]
-    assert r["appPage"] and r["appPage2"]                                # 入力画面にパスワードは含まれない
+    assert (r["fr0"], r["fr1"], r["fr2"]) == (2, 3, 2) and r["frBad"] and r["frStopped"]
+    assert r["setBad"] and r["pwShort"] and r["settings"] == [1, 2, 50, "APPID"] and r["oldPwDead"] and r["point50"]
+    assert r["rotated"] and r["lpBadId2"] and r["appPage"]
+    assert r["noOldMenus"] == ["undefined"] * 4                          # 旧メニュー関数は残さない(web公開側から呼べないように)
     assert "ロック" in r["locked"]                                       # 誤りが続くと正しいパスワードでも拒否
 
 
@@ -190,3 +197,4 @@ def test_input_screen_in_browser(tmp_path):
     assert "パスワードが違" in log["wrongPw"] and log["title"].endswith("岡崎市") and log["errors"] == []
     assert log["sheet"]["hh"] == "150000" and log["sheet"]["cmp"] == "豊田市,12,80" and log["sheet"]["pref"] == ""  # 不正値は保存されない
     assert log["badShown"] == 1 and log["hscroll"] == "375/375"
+    assert log["imageSaved"] and log["fieldsNoCta"] == 0 and log["noSourceFields"] == 0 and log["frAdded"] and log["settingMax"] == 2

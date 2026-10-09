@@ -55,7 +55,7 @@ def main() -> None:
         "timeZone": "Asia/Tokyo", "exceptionLogging": "STACKDRIVER", "runtimeVersion": "V8",
         "webapp": {"executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS"},
         "oauthScopes": ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/script.external_request",
-                        "https://www.googleapis.com/auth/script.container.ui"],
+                        "https://www.googleapis.com/auth/script.container.ui", "https://www.googleapis.com/auth/drive"],
     }, indent=2), "utf8")
     for p in sorted(dist.iterdir()):
         print(f"{p.name}: {p.stat().st_size // 1024} KB")

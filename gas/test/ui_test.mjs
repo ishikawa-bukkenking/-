@@ -61,10 +61,33 @@ log.stat = await page.textContent('#stat');
 // 実際にシートへ書かれたか
 log.sheet = JSON.parse(vm.runInContext("JSON.stringify((function(){var id=api_list(readSettings_().pw).items[0].id;var v=api_get(readSettings_().pw,id).values;return {hh:v['inputs.area.households'],inc:v['inputs.income.city_avg_man'],cmp:v['compare.0'],pref:v['inputs.income.prefecture_avg_man']||''};})())", ctx));
 await page.screenshot({ path: outDir + '/ui-edit.png', fullPage: false });
+// 画像アップロード(ブラウザ内で縮小 → サーバーへ)
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+await page.locator('.field[data-k="inputs.price_trend.image"] input[type=file]').setInputFiles({ name: 'g.png', mimeType: 'image/png', buffer: png });
+await page.waitForFunction(() => /アップロード済み/.test(document.querySelector('.field[data-k="inputs.price_trend.image"]').textContent), null, { timeout: 8000 });
+log.imageSaved = vm.runInContext("(function(){var id=api_list(readSettings_().pw).items[0].id;return /^drive:/.test(api_get(readSettings_().pw,id).values['inputs.price_trend.image']);})()", ctx);
+log.fieldsNoCta = await page.locator('.field[data-k="cta_url"]').count();
+log.noSourceFields = await page.locator('.field[data-k$=".source"], .field[data-k$=".date"]').count();
 // 一覧に戻る
 await page.click('#back'); await page.waitForSelector('.item');
 log.list = await page.locator('.item').count();
 await page.screenshot({ path: outDir + '/ui-list.png' });
+// 加盟店の管理
+await page.click('#navfr'); await page.waitForSelector('text=加盟店を追加');
+await page.locator('input[placeholder^="名称"]').first().fill('岡崎工務店');
+await page.locator('select').first().selectOption('愛知県');
+await page.locator('input[placeholder="市区町村"]').first().fill('岡崎市');
+await page.locator('button:has-text("追加")').first().click();
+await page.waitForFunction(() => /登録済み\(3件\)/.test(document.body.textContent), null, { timeout: 8000 });
+log.frAdded = true;
+await page.screenshot({ path: outDir + '/ui-fr.png' });
+// 設定
+await page.click('#navset'); await page.waitForSelector('#s_max');
+await page.fill('#s_max', '2'); await page.click('button:has-text("保存する")');
+await page.waitForFunction(() => /保存しました/.test(document.getElementById('msg').textContent), null, { timeout: 8000 });
+log.settingMax = vm.runInContext("readSettings_().max", ctx);
+await page.screenshot({ path: outDir + '/ui-set.png' });
+await page.click('#back'); await page.waitForSelector('.item');
 // スマホ幅
 await page.setViewportSize({ width: 375, height: 800 });
 await page.click('text=入力する'); await page.waitForSelector('.field');

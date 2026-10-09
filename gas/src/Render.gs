@@ -4,7 +4,7 @@ var TOC_ = [['area', '対象エリア'], ['income', '年収'], ['trend', '価格
   ['used_mansion', '中古マンション'], ['new_house', '新築戸建て'], ['search', '検索ボリューム'], ['summary', 'まとめ'], ['point', 'POINT'], ['competitors', '近隣HP']];
 
 function slot_(label, keys) {
-  return '<div class="slot" role="note"><b>未入力: ' + esc_(label) + '</b>シートに入力してください: ' +
+  return '<div class="slot" role="note"><b>未入力: ' + esc_(label) + '</b>入力システムで入力してください: ' +
     keys.map(function (k) { return '<code>' + esc_(k) + '</code>'; }).join(' / ') + '</div>';
 }
 function kpi_(value, unit, label, cls, nd) {
@@ -32,17 +32,17 @@ function houseSection_(id, no, sec, label) {
   var h2 = ok ? esc_(label) + 'の相場は<span class="em">' + num_(sec.price_man) + '万円</span>、物件数は<span class="em">' + num_(sec.listings) + '件</span>' : esc_(label) + 'の価格相場・物件数';
   var s = '<section class="sec' + (no % 2 === 0 ? ' alt' : '') + '" id="' + id + '"><div class="wrap rv"><p class="sec-no">' + ('0' + no).slice(-2) + '　' + esc_(label) + '</p><h2>' + h2 + '</h2>';
   s += '<div class="grid g2" style="max-width:640px">' + kpi_(sec.price_man, '万円', '売却価格相場') + kpi_(sec.listings, '件', '物件数') + '</div>';
-  if (!ok) s += '<div style="margin-top:16px">' + slot_(label + 'の相場・物件数', ['シートの' + label + '欄', 'または物件データシート']) + '</div>';
+  if (!ok) s += '<div style="margin-top:16px">' + slot_(label + 'の相場・物件数', [label + 'の相場・物件数']) + '</div>';
   s += '<div style="margin-top:28px">';
-  if (sec.heatmaps) {
+  if (sec.heatmap_image) {
+    s += '<figure class="fig"><img src="' + esc_(sec.heatmap_image) + '" alt="' + esc_(label) + 'の面積と価格の分布表" loading="lazy"></figure>';
+  } else if (sec.heatmaps) {
     var keys = Object.keys(sec.heatmaps).filter(function (k) { return sec.heatmaps[k]; });
     s += '<div class="grid' + (keys.length > 1 ? ' g2' : '') + '">' + keys.map(function (k) {
       return heat_html_(sec.heatmaps[k], (k === 'land_area_m2' ? '土地面積' : k === 'building_area_m2' ? '建物面積' : '専有面積') + '×価格');
     }).join('') + '</div>';
-  } else if (sec.heatmap_image) {
-    s += '<figure class="fig"><img src="' + esc_(sec.heatmap_image) + '" alt="' + esc_(label) + 'の面積と価格の分布表" loading="lazy"></figure>';
   } else {
-    s += slot_('面積×価格の分布', ['物件データシート', 'または' + label + 'の分布表画像URL']);
+    s += slot_('面積×価格の分布', [label + 'の分布表(画像)']);
   }
   s += '</div><ul class="notes note">' + PRICE_NOTES.map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul>' + srcline_(sec) + '</div></section>';
   return s;
@@ -77,7 +77,7 @@ function renderPage_(model, report, assets, styleCss) {
     '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
     '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap">' +
     '<style>' + styleCss + '</style><script>document.documentElement.classList.add("js")</script></head><body>');
-  if (missing) h.push('<div class="draft"><div class="wrap"><b>下書き</b><span>未入力の項目が' + missing + '件あります(黄色の枠)。シートの「状態」欄を確認して入力してください。入力すると、このページを再読み込みするだけで反映されます。</span></div></div>');
+  if (missing) h.push('<div class="draft"><div class="wrap"><b>下書き</b><span>未入力の項目が' + missing + '件あります(黄色の枠)。入力システムで入力すると、このページを再読み込みするだけで反映されます。</span></div></div>');
   h.push('<nav class="nav" aria-label="ページ内移動"><div class="wrap"><img src="' + assets.logoTeal + '" alt="物件王">' +
     toc.map(function (x) { return '<a class="i" href="#' + x[0] + '">' + x[1] + '</a>'; }).join('') + '</div></nav>');
   // hero
@@ -92,14 +92,14 @@ function renderPage_(model, report, assets, styleCss) {
   h.push('<section class="sec" id="area"><div class="wrap rv"><p class="sec-no">01　対象エリア</p><h2>' +
     (a.households != null ? esc_(m.city) + 'を商圏に、<span class="em">' + num_(a.households) + '世帯</span>のエリアを調査しました' : esc_(m.city) + 'を商圏としたエリアを調査しました') +
     '</h2><div class="split"><div>' + (model._mapSvg || slot_('地図', ['行政区域データの取得に失敗'])) + '</div><div class="grid">' + kpi_(a.households, '世帯', '世帯数', 'flat') +
-    (a.households == null ? slot_('世帯数', ['シートの「世帯数」']) : '') + '<div class="card"><p class="sub">周辺加盟店</p>' +
+    (a.households == null ? slot_('世帯数', ['世帯数']) : '') + '<div class="card"><p class="sub">周辺加盟店</p>' +
     (a.franchise.items.length ? '<ul class="fr">' + a.franchise.items.map(function (f) {
       return '<li><b>' + esc_(f.name) + '様</b><span>※' + esc_(f.area) + '</span>' + (f.url ? '<br><a href="' + esc_(f.url) + '" rel="noopener noreferrer" target="_blank">' + esc_(f.url) + '</a>' : '') + '</li>';
     }).join('') + '</ul>' : '<p class="empty">周辺に加盟店なし</p>') + '</div></div></div>' +
     (a.households != null ? '<p class="src">（' + esc_(a.households_date) + '　' + esc_(a.households_source) + '）</p>' : '') + '</div></section>');
   // 02 income
   h.push('<section class="sec alt" id="income"><div class="wrap rv"><p class="sec-no">02　年収</p><h2>' + esc_(inc.headline || (m.city + 'の平均世帯年収')) + '</h2>' +
-    (inc.body ? '<p class="lead">' + esc_(inc.body) + '</p>' : slot_('年収の説明文', ['シートの年収欄(平均年収・順位・階級別世帯数)'])) +
+    (inc.body ? '<p class="lead">' + esc_(inc.body) + '</p>' : slot_('年収の説明文', ['平均年収・順位・階級別世帯数'])) +
     '<div class="split"><div class="card"><p class="sub">平均世帯年収</p>' +
     (haveBars ? '<div class="chart-d">' + barsFor(560) + '</div><div class="chart-c">' + barsFor(340) + '</div>' : slot_('平均世帯年収', ['市の平均年収', '県平均', '全国平均'])) + '</div>' +
     '<div class="card"><p class="sub">年収階級別の世帯構成比</p>' +
@@ -111,14 +111,14 @@ function renderPage_(model, report, assets, styleCss) {
   var c3 = tr.city_3y_pct;
   h.push('<section class="sec" id="trend"><div class="wrap rv"><p class="sec-no">03　価格推移</p><h2>' +
     (c3 != null ? '直近3年で価格は<span class="em">' + num_(c3, 2) + '%' + (c3 >= 0 ? '上昇' : '下落') + '</span>' + (tr.judgement_vs_prefecture ? '、' + esc_(m.prefecture) + 'と' + tr.judgement_vs_prefecture : '') : '直近3年間の価格推移') + '</h2>' +
-    (tr.body ? '<p class="lead">' + esc_(tr.body) + '</p>' : slot_('価格推移の説明文', ['市の3年上昇率', '県の3年上昇率', '年ごとの内訳(3年分)'])) +
+    (tr.body ? '<p class="lead">' + esc_(tr.body) + '</p>' : slot_('価格推移の説明文', ['市の3年上昇率(空欄可)', '県の3年上昇率', '年ごとの内訳(3年分)'])) +
     '<div class="grid g4" style="margin-bottom:24px">' + kpi_(tr.city_3y_pct, '%', m.city + ' 3年間', 'accent', 2) + kpi_(tr.prefecture_3y_pct, '%', m.prefecture + ' 3年間', 'flat', 2) +
     (tr.yearly_pct ? '<div class="kpi flat" style="grid-column:span 2"><div style="display:flex;gap:24px;flex-wrap:wrap">' + ['初年度', '2年目', '3年目'].map(function (lab, i) {
       return '<div><div class="kpi-num num" style="font-size:1.75rem">' + num_(tr.yearly_pct[i], 2) + '<span class="u">%</span></div><div class="kpi-label" style="display:block">' + lab + '</div></div>';
     }).join('') + '</div></div>' : '') + '</div><div class="card">' +
-    (trendD ? '<div class="chart-d">' + trendD + '</div><div class="chart-c">' + trendC + '</div>' :
-      tr.image ? '<figure class="fig" style="border:0;padding:0"><img src="' + esc_(tr.image) + '" alt="' + esc_(m.city) + 'の住宅価格推移グラフ"></figure>' :
-        slot_('価格推移グラフ', ['価格推移データ(時期と各種別の数値)', 'またはグラフ画像URL'])) +
+    (tr.image ? '<figure class="fig" style="border:0;padding:0"><img src="' + esc_(tr.image) + '" alt="' + esc_(m.city) + 'の住宅価格推移グラフ"></figure>' :
+      trendD ? '<div class="chart-d">' + trendD + '</div><div class="chart-c">' + trendC + '</div>' :
+        slot_('価格推移グラフ', ['価格推移グラフ(画像)'])) +
     '<ul class="notes note" style="margin-top:14px">' + tr.ai_note.map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul></div>' + srcline_(tr) + '</div></section>');
   // 04 land
   h.push('<section class="sec alt" id="land"><div class="wrap rv"><p class="sec-no">04　土地</p><h2>' +
@@ -126,7 +126,7 @@ function renderPage_(model, report, assets, styleCss) {
     '</h2><div class="grid g4">' + kpi_(land.tsubo_price_man, '万円/坪', '坪単価', 'accent') + kpi_(land.tsubo_price_low_rise_residential_man, '万円/坪', '低層住居専用地域相場', 'flat') +
     kpi_(land.tsubo_price_other_residential_man, '万円/坪', 'それ以外の住居専用地域', 'flat') + kpi_(land.listings, '件', '物件数', 'flat') + '</div>' +
     (land.tsubo_note ? '<p class="note" style="margin-top:12px">※「坪単価」は用途地域を問わず全物件を対象とした中央値のため、用途地域別の相場より低くなる場合があります。</p>' : '') +
-    ((land.tsubo_price_man == null || land.listings == null) ? '<div style="margin-top:14px">' + slot_('土地の坪単価・物件数', ['シートの土地欄', 'または物件データ']) + '</div>' : '') +
+    ((land.tsubo_price_man == null || land.listings == null) ? '<div style="margin-top:14px">' + slot_('土地の坪単価・物件数', ['土地の坪単価・物件数']) + '</div>' : '') +
     '<div class="card" style="margin-top:24px"><p class="sub">' + esc_(m.city) + 'と近隣・県内主要市の比較（坪単価と物件数）</p>' +
     (landOk ? '<div class="chart-d">' + landBarsSvg_(items, false) + '</div><div class="chart-c">' + landBarsSvg_(items, true) + '</div>' :
       slot_('比較5市の坪単価・物件数', ['比較市(市名,坪単価,物件数)'].concat(land.compare.suggested.length ? ['候補(隣接市): ' + land.compare.suggested.join('、')] : []))) + '</div>' + srcline_(land) + '</div></section>');
@@ -140,7 +140,7 @@ function renderPage_(model, report, assets, styleCss) {
       return '<tr><td>' + esc_(r.keyword) + '</td><td class="v num">' + (r.monthly_volume != null ? num_(r.monthly_volume) + '<span class="bar" style="width:' + roundHalfUp_(100 * r.monthly_volume / kwMax, 1) + '%" aria-hidden="true"></span>' : '<span class="note">未入力</span>') +
         '</td><td class="num">' + (r.cpc_low_yen != null && r.cpc_high_yen != null ? '￥' + num_(r.cpc_low_yen) + '～￥' + num_(r.cpc_high_yen) : '<span class="note">未入力</span>') + '</td></tr>';
     }).join('') + '</tbody></table></div>' +
-    (kwMissing ? '<div style="margin-top:14px">' + slot_('検索ボリューム・クリック単価', ['シートのキーワード欄(月間ボリューム,CPC下限,CPC上限)']) + '</div>' : '') +
+    (kwMissing ? '<div style="margin-top:14px">' + slot_('検索ボリューム・クリック単価', ['月間ボリューム・CPC下限・CPC上限']) + '</div>' : '') +
     '<p class="src">（' + esc_(kw.date) + '　' + esc_(kw.source) + '）</p></div></section>');
   // 09 summary
   h.push('<section class="sec" id="summary"><div class="wrap rv"><p class="sec-no">09　物件総数・売却相場まとめ</p><h2>' +
