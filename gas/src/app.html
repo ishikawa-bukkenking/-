@@ -102,7 +102,8 @@ function viewList() {
     add.appendChild(el('div', { class: 'row' }, [el('div', { class: 'grow' }, [c1]), el('div', { style: 'width:150px;flex:none' }, [sel]), el('div', { class: 'grow' }, [c3]), ab]));
     add.appendChild(el('p', { id: 'msg', class: 'msg' }));
     wrap.appendChild(add);
-    if (!r.hasUrl) wrap.appendChild(el('div', { class: 'card' }, [el('p', { class: 'note', text: '※LPのURLを出すには、「設定」で「LPの公開URL」を入力してください(LP用にデプロイしたウェブアプリのURL)。' })]));
+    if (!r.hasUrl) wrap.appendChild(el('div', { class: 'card' }, [el('p', { class: 'msg', text: 'LPのURLを作れません。ウェブアプリとしてデプロイしたあと、「設定」の「LPの公開URL」を入力してください。' })]));
+    else if (r.provisional) wrap.appendChild(el('div', { class: 'card', style: 'border:2px solid #b26a00;background:#fff8ec' }, [el('p', { class: 'note', style: 'color:#5a3600', text: '※いま表示しているLPのURLは「仮」です(この入力システム自身のURLで作っています)。社内の人しか開けない場合があります。お客様に見せるURLにするには、「設定」で「LPの公開URL」(LP用に「全員」でデプロイしたウェブアプリのURL)を入力してください。' })]));
     if (!r.companies.length) wrap.appendChild(el('div', { class: 'card' }, [el('p', { class: 'note', text: 'まだありません。上のフォームから追加してください。' })]));
     r.companies.forEach(function (c) { wrap.appendChild(companyCard(c, r)); });
     $('main').replaceChildren(wrap);
@@ -123,7 +124,8 @@ function companyCard(c, r) {
     var row = el('div', { class: 'item' }, [el('div', { class: 'grow' }, [el('b', { text: a.city }), el('span', { class: 'note', text: '　' + a.pref + '　' }), el('span', { class: 'chip' + (a.done ? '' : ' need'), text: a.status })])]);
     var ed = el('button', { text: '入力する' }); ed.onclick = function () { openArea(a.id); }; row.appendChild(ed);
     if (a.url) { row.appendChild(el('a', { class: 'btn ghost', href: a.url, target: '_blank', rel: 'noopener', text: 'LPを開く' }));
-      var cp = el('button', { class: 'ghost', text: 'URLをコピー' }); cp.onclick = function () { copyText(a.url, cp); }; row.appendChild(cp); }
+      var cp = el('button', { class: 'ghost', text: 'URLをコピー' }); cp.onclick = function () { copyText(a.url, cp); }; row.appendChild(cp);
+      row.appendChild(el('div', { style: 'flex-basis:100%;word-break:break-all;order:5' }, [el('span', { class: 'note', text: 'LPのURL' + (r.provisional ? '(仮)' : '') + '：' }), el('a', { href: a.url, target: '_blank', rel: 'noopener', style: 'font-size:.875rem', text: a.url })])); }
     var dl = el('button', { class: 'ghost', text: '削除' }); armed(dl, 'もう一度押すと削除', function () { call('api_delete_area', [a.id], function () { viewList(); }); }); row.appendChild(dl);
     card.appendChild(row);
   });
@@ -282,8 +284,9 @@ function viewEdit(id) {
     }
     var acts = el('div', { class: 'row', style: 'margin-top:12px' }); top.appendChild(acts);
     if (r.url) { acts.appendChild(el('a', { class: 'btn', href: r.url, target: '_blank', rel: 'noopener', text: 'LPを開いて確認' }));
-      var cp = el('button', { class: 'ghost', text: 'URLをコピー' }); cp.onclick = function () { copyText(r.url, cp); }; acts.appendChild(cp); }
-    else acts.appendChild(el('span', { class: 'note', text: '※「設定」でLPの公開URLを入力すると、LPを開くボタンが出ます。' }));
+      var cp = el('button', { class: 'ghost', text: 'URLをコピー' }); cp.onclick = function () { copyText(r.url, cp); }; acts.appendChild(cp);
+      top.appendChild(el('p', { style: 'margin:10px 0 0;word-break:break-all' }, [el('span', { class: 'note', text: 'LPのURL' + (r.provisional ? '(仮。社内でしか開けない場合があります。「設定」でLPの公開URLを入力してください)' : '') + '：' }), el('a', { href: r.url, target: '_blank', rel: 'noopener', style: 'font-size:.875rem', text: r.url })])); }
+    else acts.appendChild(el('span', { class: 'msg', text: 'LPのURLを作れません。ウェブアプリとしてデプロイしてください。' }));
     var rot = el('button', { class: 'ghost', text: 'URLを作り直す' }); armed(rot, '旧URLが無効になります。もう一度押すと実行', function () { call('api_rotate', [cur], function (x) { openArea(x.id); }); });
     acts.appendChild(rot); acts.appendChild(el('span', { class: 'note', text: '入力は自動で保存されます。' }));
     var wrap = el('div', {}), sec = null, body = null;

@@ -94,6 +94,7 @@ log.pasted = vm.runInContext("/^drive:/.test(areaById_(listAreas_()[0].id).value
 log.imageSaved = vm.runInContext("/^drive:/.test(areaById_(listAreas_()[0].id).values['inputs.price_trend.image'])", ctx);
 log.fieldsNoCta = await page.locator('.field[data-k="cta_url"], .field[data-k="company"]').count();
 log.noSourceFields = await page.locator('.field[data-k$=".source"], .field[data-k$=".date"]').count();
+log.editUrlText = (await page.locator('.card').first().textContent()).replace(/.*(LPのURL\(仮[^：]*：).*/, '$1');
 await page.screenshot({ path: outDir + '/ui-edit.png' });
 // 一覧に戻り、同じ会社にエリアを追加
 await page.click('#navlist'); await page.waitForSelector('.item');
@@ -104,6 +105,7 @@ await page.waitForSelector('.field');
 log.sibChips = await page.locator('button:has-text("愛知県 岡崎市"), button:has-text("愛知県 豊田市")').count();
 await page.click('#navlist'); await page.waitForSelector('.item');
 log.areasOfCompany = await page.locator('.card', { hasText: '株式会社テスト工務店' }).locator('.item').count();
+log.listUrlText = (await page.locator('.card', { hasText: '株式会社テスト工務店' }).locator('.item').first().textContent()).replace(/.*(LPのURL\(仮\)：https:\/\/script\.test\/exec\?id=\w+).*/, '$1');
 log.sheetNames = vm.runInContext("__sheetNames().sort().join(',')", ctx);   // 会社ごとにタブは増えない
 await page.screenshot({ path: outDir + '/ui-list.png' });
 // 加盟店の管理(CSV取り込みと検索)

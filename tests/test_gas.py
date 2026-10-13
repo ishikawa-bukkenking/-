@@ -192,6 +192,7 @@ def test_input_system_api(tmp_path):
     assert r["imp1"] == [0, 188, 0] and r["imp2"] == [0, 14, 0]                     # 添付CSVの再取り込みは更新のみ(重複しない)
     assert r["imp3"][:2] == [1, 0] and r["imp3"][2] == ["住所不明株式会社"] and r["impBad"]
     assert all(r["setBad"]) and r["settings"] == [1, 2, "APPID", "https://script.google.com/macros/s/AKfycbxTEST/exec", None]   # POINTの切り上げ単位の設定は無い
+    assert r["urlProvisional"] and r["provisionalGone"]                              # 設定が未入力でもLPのURLが出る(仮)。入力すれば本URLになる
     assert r["listUrl"] and r["point420"] and r["rotated"] and all(r["lpBadId"])
     # 今回の変更
     assert r["heroNoTotals"] and r["heroNoKpi"]                                       # 物件総数・仲介単価はトップに出さない(まとめには残る)
@@ -259,6 +260,7 @@ def test_input_screen_in_browser(tmp_path):
     assert log["sibChips"] == 2 and log["areasOfCompany"] == 2 and log["sheetNames"] == "エリア,会社,加盟店一覧,設定"   # 会社にエリアを追加。タブは増えない
     assert log["frShown"] == "登録済み(201件)" and log["frSearch"] == 3 and log["frImported"]
     assert log["settingMax"] == 2 and log["settingUrl"].endswith("/exec")
+    assert log["listUrlText"].startswith("LPのURL(仮)：https://script.test/exec?id=") and log["editUrlText"].startswith("LPのURL(仮")   # 一覧・入力画面にURLが文字でも出る
     assert log["pct"] == "39.0" and log["noHhInputs"] == 0 and "世帯数の構成比" in log["pctLabel"]       # 構成比は1つだけ・小数点第1位まで
     assert log["trendDefaultOn"] and log["trendDisabled"] == 0 and log["trendNeedGone"] and log["trendStored"] == "0" and log["trendOnAgain"]
     assert log["pasted"] and "接続できました" in log["estatTest"] and log["noUnitField"] == 0 and log["noHpListed"]

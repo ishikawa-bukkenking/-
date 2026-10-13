@@ -20,7 +20,9 @@ function requireUser_() {
   return e;
 }
 
-function lpUrl_(settings, id) { return settings.url ? settings.url + '?id=' + id : ''; }
+/** LPのURL。「設定」でLPの公開URLを入れていれば、それを使う。未設定のときは、いま開いているウェブアプリ自身のURLで仮に作る(社内でしか開けない場合がある) */
+function lpBase_(settings) { return settings.url || settings.urlAuto || ''; }
+function lpUrl_(settings, id) { var b = lpBase_(settings); return b ? b + '?id=' + id : ''; }
 function todayStr_() { return todayIso_(); }
 
 function api_whoami() { return { email: requireUser_(), url: readSettings_().url }; }
@@ -37,7 +39,7 @@ function api_list() {
     }) };
   });
   companies.reverse();
-  return { companies: companies, hasUrl: !!st.url };
+  return { companies: companies, hasUrl: !!lpBase_(st), provisional: !st.url };
 }
 
 function api_create_company(name, pref, city) {
@@ -62,7 +64,7 @@ function api_get(areaId) {
   var siblings = listAreas_().filter(function (x) { return x.companyId === a.companyId; }).map(function (x) { return { id: x.id, label: x.pref + ' ' + x.city }; });
   return { id: a.id, company: c ? { id: c.id, name: c.name } : { id: '', name: '' }, fields: fieldsMeta_(), values: a.values, images: images,
     autoHouseholds: a.values['auto.households'] ? Number(a.values['auto.households']) : null, hasEstat: !!st.estat,
-    url: lpUrl_(st, a.id), prefectures: PREFECTURES, siblings: siblings };
+    url: lpUrl_(st, a.id), provisional: !st.url, prefectures: PREFECTURES, siblings: siblings };
 }
 
 /** changes: { キー: 値 }。検証に通った項目だけ書き込み、エラーは項目ごとに返す。区分ごとの取得日(入力日)を自動で更新 */

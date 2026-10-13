@@ -87,15 +87,16 @@ function ss_() {
   return a;
 }
 
-/** 設定シート(保存先)の読み取り。LPの公開URLは設定に入力(入力システムの「設定」で変更) */
+/** 設定シート(保存先)の読み取り。LPの公開URLは設定に入力(入力システムの「設定」で変更)。未設定でもURLが出るよう、動いているウェブアプリ自身のURLを仮に使う */
 function readSettings_() {
-  var sh = ss_().getSheetByName(SHEET_SETTINGS_), o = { url: '', estat: '', max: 3, threshold: 1, opts: {} };
+  var sh = ss_().getSheetByName(SHEET_SETTINGS_), o = { url: '', urlAuto: '', estat: '', max: 3, threshold: 1, opts: {} };
   if (sh) {
     var v = sh.getRange(1, 2, 5, 1).getDisplayValues().map(function (r) { return r[0]; });
     o.url = v[0].trim().replace(/\/+$/, ''); o.estat = v[1].trim();
     var mx = parseNum_(v[2]), th = parseNum_(v[3]);
     if (mx) o.max = mx; if (th !== undefined) o.threshold = th;
   }
+  try { o.urlAuto = String(ScriptApp.getService().getUrl() || '').replace(/\/+$/, ''); } catch (e) { o.urlAuto = ''; }   // いま動いているウェブアプリ自身のURL(仮のURL用)
   o.opts.franchise = { max: o.max }; o.opts.trend_same_threshold_pt = o.threshold;
   return o;
 }

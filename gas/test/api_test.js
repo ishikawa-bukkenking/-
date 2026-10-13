@@ -30,6 +30,7 @@ const res = vm.runInContext(`
   var c = api_create_company('株式会社○○', '長野', '上田市'); var a1 = c.areaId;
   var a2 = api_add_area(c.companyId, '長野県', '東御市').areaId;
   var c2 = api_create_company('株式会社テスト', '愛知県', '岡崎市');
+  var l0 = api_list(); r.urlProvisional = l0.provisional === true && l0.hasUrl === true && l0.companies.filter(function (x) { return x.name === '株式会社○○'; })[0].areas[0].url === 'https://script.test/exec?id=' + a1 && api_get(a1).provisional === true;   // 設定が未入力でもLPのURLは出る(仮)
   r.sheetsAfter = sheetNames() === r.sheets0;
   var list = api_list(); r.companies = list.companies.length; r.areasOfFirst = list.companies.filter(function (x) { return x.name === '株式会社○○'; })[0].areas.length;
   r.badCreate = [tryCall(function () { return api_create_company('x', '存在しない県', '上田市'); }).err, tryCall(function () { return api_create_company('', '長野県', '上田市'); }).err, tryCall(function () { return api_add_area('nope', '長野県', '上田市'); }).err];
@@ -82,6 +83,7 @@ const res = vm.runInContext(`
   r.setBad = [tryCall(function () { return api_settings_set({ max: 99, threshold: 1 }); }).err, tryCall(function () { return api_settings_set({ max: 3, threshold: 1, url: 'http://evil.example/' }); }).err];
   api_settings_set({ max: 1, threshold: 2, estat: 'APPID', url: 'https://script.google.com/macros/s/AKfycbxTEST/exec' });
   var s2 = api_settings_get(); r.settings = [s2.max, s2.threshold, s2.estat, s2.url, s2.unit];
+  r.provisionalGone = api_list().provisional === false && api_get(a1).provisional === false;
   r.listUrl = api_list().companies.filter(function (x) { return x.name === '株式会社○○'; })[0].areas[0].url === 'https://script.google.com/macros/s/AKfycbxTEST/exec?id=' + a1;
   r.point420 = doGet({ parameter: { id: a1 } }).html.indexOf('約420件') >= 0;
   // --- 今回の変更 ---
