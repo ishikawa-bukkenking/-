@@ -64,10 +64,33 @@ log.badShown = await page.locator('.field.bad .err').count();
 log.stat = await page.textContent('#stat');
 const area1 = vm.runInContext("listAreas_()[0].id", ctx);
 log.stored = JSON.parse(vm.runInContext("JSON.stringify((function(){var v=areaById_(listAreas_()[0].id).values;return {hh:v['inputs.area.households'],inc:v['inputs.income.city_avg_man'],cmp:v['compare.0'],pref:v['inputs.income.prefecture_avg_man']||'',date:v['auto.date.area']};})())", ctx));
+// 構成比(%)は小数点第1位まで表示(39 → 39.0)
+const pct0 = page.locator('.field[data-k="bracket_sh.0"] input');
+await pct0.fill('39'); await pct0.blur();
+log.pct = await pct0.inputValue();
+log.noHhInputs = await page.locator('.field[data-k^="bracket_hh"], .field[data-k="inputs.income.municipalities_in_prefecture"]').count();
+log.pctLabel = await page.locator('.field[data-k="bracket_sh.0"] label').first().textContent();
+// 価格推移の表示チェック(既定はオン。外すと入力不要になる)
+log.trendDefaultOn = await page.locator('#b_show_price_trend').isChecked();
+const needBefore = await page.locator('.field.need').count();
+await page.locator('#b_show_price_trend').uncheck();
+log.trendDisabled = await page.locator('.field[data-grp="trend"] input:not([disabled])').count();
+log.trendNeedGone = (await page.locator('.field[data-grp="trend"].need').count()) === 0 && (await page.locator('.field.need').count()) < needBefore;
+await page.waitForFunction(() => /保存しました/.test(document.getElementById('saved').textContent), null, { timeout: 8000 });
+log.trendStored = vm.runInContext("areaById_(listAreas_()[0].id).values['show.price_trend']", ctx);
+await page.locator('#b_show_price_trend').check(); await page.waitForTimeout(900);
+log.trendOnAgain = (await page.locator('.field[data-grp="trend"] input:not([disabled])').count()) > 0;
 // 画像アップロード
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 await page.locator('.field[data-k="inputs.price_trend.image"] input[type=file]').setInputFiles({ name: 'g.png', mimeType: 'image/png', buffer: png });
 await page.waitForFunction(() => /アップロード済み/.test(document.querySelector('.field[data-k="inputs.price_trend.image"]').textContent), null, { timeout: 8000 });
+// 画像はペーストでも貼れる(クリップボードの画像)
+await page.locator('.field[data-k="inputs.used_house.heatmap_image"] .paste').click();
+await page.evaluate(() => { const b = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
+  const dt = new DataTransfer(); dt.items.add(new File([b], 'p.png', { type: 'image/png' }));
+  document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); });
+await page.waitForFunction(() => /アップロード済み/.test(document.querySelector('.field[data-k="inputs.used_house.heatmap_image"]').textContent), null, { timeout: 8000 });
+log.pasted = vm.runInContext("/^drive:/.test(areaById_(listAreas_()[0].id).values['inputs.used_house.heatmap_image'])", ctx);
 log.imageSaved = vm.runInContext("/^drive:/.test(areaById_(listAreas_()[0].id).values['inputs.price_trend.image'])", ctx);
 log.fieldsNoCta = await page.locator('.field[data-k="cta_url"], .field[data-k="company"]').count();
 log.noSourceFields = await page.locator('.field[data-k$=".source"], .field[data-k$=".date"]').count();
@@ -93,9 +116,17 @@ const csv = Buffer.from('会社名,住所\n新規工務店株式会社【新規�
 await page.locator('#frcsv').setInputFiles({ name: 'f.csv', mimeType: 'text/csv', buffer: csv });
 await page.waitForFunction(() => /1件追加/.test(document.getElementById('msg') ? document.getElementById('msg').textContent : ''), null, { timeout: 8000 });
 log.frImported = true;
+log.noHpCount = await page.locator('label:has-text("HP未登録のみ")').textContent();
+await page.check('#nohp'); await page.waitForTimeout(200);
+log.noHpListed = await page.locator('.chip:has-text("HP未登録")').count() > 0 && await page.locator('a:has-text("不動産HP")').count() === 0;
+await page.uncheck('#nohp');
 await page.screenshot({ path: outDir + '/ui-fr.png' });
 // 設定
 await page.click('#navset'); await page.waitForSelector('#s_max');
+await page.fill('#s_estat', 'APPID'); await page.click('button:has-text("e-Statの接続テスト")');
+await page.waitForFunction(() => /接続できました/.test(document.getElementById('msg').textContent), null, { timeout: 8000 });
+log.estatTest = await page.textContent('#msg');
+log.noUnitField = await page.locator('#s_unit').count();
 await page.fill('#s_url', 'https://script.google.com/macros/s/AKfycbxTEST/exec'); await page.fill('#s_max', '2'); await page.click('button:has-text("保存する")');
 await page.waitForFunction(() => /保存しました/.test(document.getElementById('msg').textContent), null, { timeout: 8000 });
 log.settingMax = vm.runInContext("readSettings_().max", ctx); log.settingUrl = vm.runInContext("readSettings_().url", ctx);

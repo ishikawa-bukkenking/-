@@ -42,6 +42,9 @@ details.sec .body{padding:8px 18px 18px}
 .imgbox{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .imgbox img{max-height:90px;max-width:160px;border:1px solid var(--line);border-radius:6px;background:#fff}
 .imgbox input[type=file]{display:none}
+.field.off{opacity:.45}
+.imgbox .paste{border:2px dashed var(--teal);border-radius:10px;padding:10px 14px;font-size:.875rem;color:var(--teal);background:var(--teal-l);cursor:pointer;min-height:44px;display:flex;align-items:center}
+.imgbox .paste:focus{outline:3px solid var(--teal)}
 .tbl{width:100%;border-collapse:collapse}.tbl td{padding:10px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
 label.chk{display:flex;gap:8px;align-items:center;min-height:44px}label.chk input{width:auto;min-height:0}
 #miss{margin:0;padding-left:1.2em;font-size:.875rem}
@@ -54,7 +57,7 @@ label.chk{display:flex;gap:8px;align-items:center;min-height:44px}label.chk inpu
 <button class="ghost" id="navlist" hidden>一覧</button><button class="ghost" id="navfr" hidden>加盟店</button><button class="ghost" id="navset" hidden>設定</button></header>
 <main id="main"><div class="card"><p class="note">読み込み中…</p></div></main>
 <script>
-var imgs = {}, cur = null, dirty = {}, timer = null, saving = false, meta = [], vals = {}, PREFS = [];
+var imgs = {}, autoHouseholds = null, lastImg = null, cur = null, dirty = {}, timer = null, saving = false, meta = [], vals = {}, PREFS = [];
 var $ = function (id) { return document.getElementById(id); };
 function el(tag, attrs, kids) {
   var e = document.createElement(tag);
@@ -151,7 +154,8 @@ function flush() {
 }
 function refreshNeed() {
   document.querySelectorAll('.field[data-req="1"]').forEach(function (f) {
-    var v = vals[f.getAttribute('data-k')]; f.classList.toggle('need', !v || !String(v).replace(/[,，\s]/g, ''));
+    var v = vals[f.getAttribute('data-k')], off = f.getAttribute('data-grp') === 'trend' && !trendOn();
+    f.classList.toggle('need', !off && (!v || !String(v).replace(/[,，\s]/g, '')));
   });
   document.querySelectorAll('details.sec').forEach(function (d) {
     var n = d.querySelectorAll('.field.need').length, c = d.querySelector('.cnt');
@@ -187,31 +191,60 @@ function shrink(file, cb, fail) {
   };
   rd.readAsDataURL(file);
 }
+function uploadImageFile(f, fl, st, th, sync) {
+  st.textContent = '処理中…'; setSaved('画像をアップロード中…');
+  shrink(fl, function (uri) {
+    th.src = uri; th.hidden = false;
+    google.script.run.withSuccessHandler(function () { imgs[f.k] = true; sync(); setSaved('画像を保存しました'); loadStatus(); })
+      .withFailureHandler(function (e) { st.textContent = '失敗: ' + (e.message || e); setSaved('画像を保存できませんでした', true); }).api_uploadImage(cur, f.k, uri);
+  }, function (m) { st.textContent = m; setSaved(m, true); });
+}
 function imageField(f, wrap) {
   var st = el('span', { class: 'note' }), th = el('img', { alt: f.l + 'のプレビュー' }), file = el('input', { type: 'file', accept: 'image/*', id: 'f_' + f.k.replace(/\W/g, '_') });
   th.hidden = true;
   var pick = el('label', { class: 'btn ghost', for: file.id, text: '画像を選ぶ' }), del = el('button', { class: 'ghost', text: '削除', type: 'button' });
+  var paste = el('div', { class: 'paste', tabindex: '0', role: 'button', text: 'ここをクリックして Ctrl+V(Macは ⌘V)で貼り付け' });
   var sync = function () { var has = !!imgs[f.k]; st.textContent = has ? 'アップロード済み' : '未登録'; del.hidden = !has; pick.textContent = has ? '画像を差し替える' : '画像を選ぶ'; vals[f.k] = has ? 'drive:set' : ''; refreshNeed(); };
-  file.onchange = function () {
-    var fl = file.files[0]; if (!fl) return; st.textContent = '処理中…'; setSaved('画像をアップロード中…');
-    shrink(fl, function (uri) {
-      th.src = uri; th.hidden = false;
-      google.script.run.withSuccessHandler(function () { imgs[f.k] = true; sync(); setSaved('画像を保存しました'); loadStatus(); })
-        .withFailureHandler(function (e) { st.textContent = '失敗: ' + (e.message || e); setSaved('画像を保存できませんでした', true); }).api_uploadImage(cur, f.k, uri);
-    }, function (m) { st.textContent = m; setSaved(m, true); });
-    file.value = '';
-  };
+  file.onchange = function () { var fl = file.files[0]; if (fl) uploadImageFile(f, fl, st, th, sync); file.value = ''; };
+  paste.onfocus = paste.onclick = function () { lastImg = { f: f, st: st, th: th, sync: sync, box: paste }; paste.style.background = '#fff'; };
+  paste.onblur = function () { paste.style.background = ''; };
+  wrap.addEventListener('click', function () { lastImg = { f: f, st: st, th: th, sync: sync, box: paste }; });
   del.onclick = function () {
     var o = {}; o[f.k] = '';
     google.script.run.withSuccessHandler(function () { imgs[f.k] = false; th.hidden = true; sync(); setSaved('削除しました'); loadStatus(); })
       .withFailureHandler(function (e) { setSaved('削除できませんでした: ' + (e.message || e), true); }).api_save(cur, o);
   };
-  wrap.appendChild(el('div', { class: 'imgbox' }, [th, pick, file, del, st])); sync();
+  wrap.appendChild(el('div', { class: 'imgbox' }, [th, pick, file, paste, del, st])); sync();
+}
+// クリップボードの画像を、最後に選んだ(クリック/フォーカスした)画像欄へ貼り付ける
+document.addEventListener('paste', function (e) {
+  if (!lastImg || !cur) return;
+  var items = (e.clipboardData && e.clipboardData.items) || [], file = null;
+  for (var i = 0; i < items.length; i++) if (items[i].kind === 'file' && /^image\//.test(items[i].type)) { file = items[i].getAsFile(); break; }
+  if (!file) return;
+  if (lastImg.f.grp === 'trend' && !trendOn()) return;
+  e.preventDefault(); uploadImageFile(lastImg.f, file, lastImg.st, lastImg.th, lastImg.sync);
+});
+function fmt1(v) { var n = parseFloat(String(v).replace(/[,，％%\s]/g, '')); return isNaN(n) ? v : n.toFixed(1); }
+function trendOn() { return vals['show.price_trend'] !== '0'; }
+function applyGroups() {
+  var on = trendOn();
+  document.querySelectorAll('.field[data-grp="trend"]').forEach(function (f) {
+    f.classList.toggle('off', !on); f.querySelectorAll('input,button,label.btn').forEach(function (x) { if (x.tagName === 'LABEL') x.style.pointerEvents = on ? '' : 'none'; else x.disabled = !on; });
+  });
+  refreshNeed();
 }
 function fieldView(f) {
-  var wrap = el('div', { class: 'field', 'data-k': f.k, 'data-req': f.req ? '1' : '0' });
-  var lab = el('label', { text: f.l }); if (f.req) lab.appendChild(el('span', { class: 'req', text: '必須' })); wrap.appendChild(lab);
+  var wrap = el('div', { class: 'field', 'data-k': f.k, 'data-req': f.req ? '1' : '0', 'data-grp': f.grp || '' });
   var v = vals[f.k] || '';
+  if (f.t === 'bool') {
+    var ck = el('input', { type: 'checkbox', id: 'b_' + f.k.replace(/\W/g, '_') }); ck.checked = v !== '0';
+    ck.onchange = function () { markDirty(f.k, ck.checked ? '1' : '0'); applyGroups(); };
+    wrap.appendChild(el('label', { class: 'chk', for: ck.id, style: 'font-weight:700' }, [ck, document.createTextNode(f.l)]));
+    if (f.d) wrap.appendChild(el('div', { class: 'hint', text: f.d }));
+    return wrap;
+  }
+  var lab = el('label', { text: f.l }); if (f.req) lab.appendChild(el('span', { class: 'req', text: '必須' })); wrap.appendChild(lab);
   if (f.t === 'image') { imageField(f, wrap); if (f.d) wrap.appendChild(el('div', { class: 'hint', text: f.d })); return wrap; }
   if (f.cols) {
     var parts = splitCols(v, f.cols.length), inputs = [], grid = el('div', { class: 'cols' });
@@ -224,7 +257,12 @@ function fieldView(f) {
   } else {
     var inp;
     if (f.k === 'prefecture') { inp = prefSelect(v); inp.onchange = function () { markDirty(f.k, inp.value); }; }
-    else { inp = el('input', { type: f.t === 'date' ? 'date' : 'text', value: v, inputmode: f.t === 'num' ? 'decimal' : 'text' }); inp.oninput = function () { markDirty(f.k, inp.value); }; }
+    else {
+      inp = el('input', { type: f.t === 'date' ? 'date' : 'text', value: f.t === 'pct1' ? (v ? fmt1(v) : '') : v, inputmode: (f.t === 'num' || f.t === 'pct1') ? 'decimal' : 'text' });
+      inp.oninput = function () { markDirty(f.k, inp.value); };
+      if (f.t === 'pct1') { inp.placeholder = '例: 38.9'; inp.onblur = function () { if (inp.value.trim()) { var t = fmt1(inp.value); if (t !== inp.value) { inp.value = t; markDirty(f.k, t); } } }; }
+      if (f.k === 'inputs.area.households' && autoHouseholds) inp.placeholder = '自動取得: ' + autoHouseholds.toLocaleString('ja-JP') + '(入力すると、その値を使います)';
+    }
     inp.setAttribute('aria-label', f.l); wrap.appendChild(inp);
   }
   if (f.d) wrap.appendChild(el('div', { class: 'hint', text: f.d }));
@@ -232,7 +270,7 @@ function fieldView(f) {
 }
 function viewEdit(id) {
   call('api_get', [id], function (r) {
-    cur = r.id; meta = r.fields; vals = r.values; dirty = {}; imgs = r.images || {};
+    cur = r.id; meta = r.fields; vals = r.values; dirty = {}; imgs = r.images || {}; autoHouseholds = r.autoHouseholds; lastImg = null;
     chrome(r.company.name + '　' + (vals.city || ''), true);
     var top = el('div', { class: 'card' }, [
       el('div', { class: 'row' }, [el('span', { id: 'stat', class: 'chip need', text: '確認中…' }), el('span', { id: 'totals', class: 'note' })]),
@@ -253,7 +291,7 @@ function viewEdit(id) {
       if (f.h) { sec = el('details', { class: 'sec' }); sec.appendChild(el('summary', {}, [el('span', { text: f.h }), el('span', { class: 'cnt' })])); body = el('div', { class: 'body' }); sec.appendChild(body); wrap.appendChild(sec); }
       else if (body) body.appendChild(fieldView(f));
     });
-    $('main').replaceChildren(top, wrap); refreshNeed(); loadStatus();
+    $('main').replaceChildren(top, wrap); applyGroups(); loadStatus();
     document.querySelectorAll('details.sec').forEach(function (d, i) { d.open = i < 2 || !!d.querySelector('.field.need'); });
   });
 }
@@ -273,7 +311,7 @@ function viewFranchises() {
     var wrap = el('div', {}), shown = 50, list = el('div', { class: 'card' });
     // 取り込み
     var imp = el('div', { class: 'card' }, [el('h2', { text: 'CSVから取り込む', style: 'margin-top:0;font-size:1.1rem' })]);
-    var fi = el('input', { type: 'file', accept: '.csv,text/csv', id: 'frcsv' }), imsg = el('p', { class: 'note', id: 'msg', text: '列は「会社名,住所」または「顧客番号,会社名,住所」。会社名の【屋号】《対応エリア》は自動で分けます。名称+住所が同じものは更新、無ければ追加します。' });
+    var fi = el('input', { type: 'file', accept: '.csv,text/csv', id: 'frcsv' }), imsg = el('p', { class: 'note', id: 'msg', text: '列は「会社名,住所」または「顧客番号,会社名,住所」(末尾に「URL」列を足すと、不動産HPも一緒に登録されます)。会社名の【屋号】《対応エリア》は自動で分けます。名称+住所が同じものは更新、無ければ追加します。' });
     fi.onchange = function () {
       var fl = fi.files[0]; if (!fl) return; imsg.textContent = '取り込み中…';
       readCsvFile(fl, function (txt) {
@@ -291,21 +329,22 @@ function viewFranchises() {
     wrap.appendChild(form);
     // 一覧(検索つき)
     var q = el('input', { placeholder: '名称・市区町村で検索', id: 'frq' }), ps = prefSelect(''); ps.firstChild.textContent = 'すべての都道府県';
-    var head = el('div', { class: 'row', style: 'margin-bottom:8px' }, [el('div', { class: 'grow' }, [q]), el('div', { style: 'width:170px;flex:none' }, [ps])]);
+    var nohp = el('input', { type: 'checkbox', id: 'nohp' }), nohpLab = el('label', { class: 'chk', for: 'nohp' }, [nohp, document.createTextNode('HP未登録のみ(' + r.items.filter(function (x) { return !x.url; }).length + '件)')]);
+    var head = el('div', { class: 'row', style: 'margin-bottom:8px' }, [el('div', { class: 'grow' }, [q]), el('div', { style: 'width:170px;flex:none' }, [ps]), nohpLab]);
     var count = el('h2', { style: 'margin:0 0 8px;font-size:1.1rem' }), body = el('div', {});
     function render() {
       var kw = q.value.trim(), p = ps.value;
-      var rows = r.items.filter(function (it) { return (!p || it.prefecture === p) && (!kw || (it.name + it.city + it.shop).indexOf(kw) >= 0); });
+      var rows = r.items.filter(function (it) { return (!p || it.prefecture === p) && (!nohp.checked || !it.url) && (!kw || (it.name + it.city + it.shop).indexOf(kw) >= 0); });
       count.textContent = '登録済み(' + rows.length + '件' + (rows.length !== r.items.length ? ' / 全' + r.items.length + '件' : '') + ')';
       body.replaceChildren();
       rows.slice(0, shown).forEach(function (it) { body.appendChild(summaryRow(it)); });
       if (rows.length > shown) { var more = el('button', { class: 'ghost', text: 'もっと見る(残り' + (rows.length - shown) + '件)' }); more.onclick = function () { shown += 100; render(); }; body.appendChild(more); }
       if (!rows.length) body.appendChild(el('p', { class: 'note', text: '該当なし' }));
     }
-    q.oninput = function () { shown = 50; render(); }; ps.onchange = function () { shown = 50; render(); };
+    q.oninput = function () { shown = 50; render(); }; ps.onchange = function () { shown = 50; render(); }; nohp.onchange = function () { shown = 50; render(); };
     list.appendChild(count); list.appendChild(head); list.appendChild(body); wrap.appendChild(list); render();
     function summaryRow(it) {
-      var row = el('div', { class: 'item' }, [el('div', { class: 'grow' }, [el('b', { text: it.name }), el('br'), el('span', { class: 'note', text: it.prefecture + ' ' + it.city + (it.shop ? '　屋号: ' + it.shop : '') }), '　', el('span', { class: 'chip' + (it.active ? '' : ' need'), text: it.active ? '有効' : '停止' })])]);
+      var row = el('div', { class: 'item' }, [el('div', { class: 'grow' }, [el('b', { text: it.name }), el('br'), el('span', { class: 'note', text: it.prefecture + ' ' + it.city + (it.shop ? '　屋号: ' + it.shop : '') }), '　', el('span', { class: 'chip' + (it.active ? '' : ' need'), text: it.active ? '有効' : '停止' }), '　', it.url ? el('a', { href: it.url, target: '_blank', rel: 'noopener', text: '不動産HP', style: 'font-size:.875rem' }) : el('span', { class: 'chip need', text: 'HP未登録' })])]);
       var eb = el('button', { class: 'ghost', text: '編集' });
       eb.onclick = function () { row.replaceChildren(editRow(it, it.i, false)); };
       row.appendChild(eb); return row;
@@ -337,13 +376,17 @@ function viewSettings() {
     var card = el('div', { class: 'card' }, [
       line('LPの公開URL', 'url', r.url, 'お客様に見せる「LP用」にデプロイしたウェブアプリのURL(https://script.google.com/macros/s/…/exec)。各エリアのLPのURLは、これに ?id=… を付けたものになります'),
       line('周辺加盟店の最大社数', 'max', r.max, '1〜10'), line('県との差が「同程度」とみなす範囲(ポイント)', 'threshold', r.threshold, '価格推移の文章で「同程度」と判定する範囲'),
-      line('POINTの切り上げ単位(件)', 'unit', r.unit, '例: 10 なら 414件→420件'),
-      line('e-Stat アプリケーションID(任意)', 'estat', r.estat, '入れると、世帯数が空欄のとき自動取得を試みます(実機未検証)')]);
+      line('e-Stat アプリケーションID', 'estat', r.estat, '入れると、世帯数が空欄のエリアで国勢調査から自動取得します')]);
     var sv = el('button', { text: '保存する' });
     sv.onclick = function () {
-      call('api_settings_set', [{ url: f.url.value, max: f.max.value, threshold: f.threshold.value, unit: f.unit.value, estat: f.estat.value }], function () { $('msg').textContent = '保存しました'; $('msg').className = 'note'; });
+      call('api_settings_set', [{ url: f.url.value, max: f.max.value, threshold: f.threshold.value, estat: f.estat.value }], function () { $('msg').textContent = '保存しました'; $('msg').className = 'note'; });
     };
-    card.appendChild(sv); card.appendChild(el('p', { id: 'msg', class: 'note' }));
+    var tb = el('button', { class: 'ghost', text: 'e-Statの接続テスト', style: 'margin-left:8px' });
+    tb.onclick = function () {
+      $('msg').textContent = 'テスト中…'; $('msg').className = 'note';
+      call('api_estat_test', [f.estat.value], function (x) { $('msg').textContent = x.message; $('msg').className = x.ok ? 'note' : 'msg'; });
+    };
+    card.appendChild(sv); card.appendChild(tb); card.appendChild(el('p', { id: 'msg', class: 'note' }));
     card.appendChild(el('p', { class: 'note', text: 'ログイン中: ' + r.email }));
     $('main').replaceChildren(card);
   });

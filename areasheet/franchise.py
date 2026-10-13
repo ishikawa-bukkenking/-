@@ -91,8 +91,11 @@ def parse_raw_csv(text: str) -> list[dict]:
         return []
     head = rows[0]
     has_no = "顧客番号" in head
+    url_col = next((i for i, h in enumerate(head) if h.replace(" ", "") in ("URL", "url", "HP", "ＨＰ", "ホームページ")), None)
+    if url_col is not None and has_no:
+        url_col -= 1   # 顧客番号の列を除いた位置
     body = rows[1:]
-    merged: list[list[str]] = []
+    merged: list[list[str]] = []   # [顧客番号, 名称, 住所, URL]
     pending_name = ""
     for r in body:
         no, rest = (r[0], r[1:]) if has_no and len(r) >= 2 and re.match(r"^[A-Za-z]\d+$", r[0]) else ("", r)
@@ -105,20 +108,21 @@ def parse_raw_csv(text: str) -> list[dict]:
                 pending_name += rest[0]                         # 名称の前半(次の行と結合)
             continue
         name, addr = rest[0], rest[1] if len(rest) > 1 else ""
+        url = rest[url_col] if url_col is not None and len(rest) > url_col else ""
         if merged and merged[-1][1].count("【") > merged[-1][1].count("】") and name.startswith("】") and not merged[-1][2]:
             merged[-1][1] += name                               # 【…】の途中で改行された名称
             merged[-1][2] = addr
             continue
         if pending_name:
             name, pending_name = pending_name + name, ""
-        merged.append([no, name, addr])
+        merged.append([no, name, addr, url])
     out = []
-    for no, name, addr in merged:
+    for no, name, addr, url in merged:
         if name.count("【") > name.count("】") and not addr:
             continue
         c = clean_company(name)
         pref, city = split_address(addr)
-        out.append({**c, "customer_no": no, "address": unicodedata.normalize("NFKC", addr).strip(), "prefecture": pref, "city": city})
+        out.append({**c, "customer_no": no, "url": url if re.match(r"https?://", url) else "", "address": unicodedata.normalize("NFKC", addr).strip(), "prefecture": pref, "city": city})
     return out
 
 
@@ -159,12 +163,12 @@ def import_file(src: Path, dest: Path, replace: bool = False) -> tuple[int, list
     elif text.splitlines()[0].replace(" ", "").startswith(("会社名,", "顧客番号,")):
         parsed = parse_raw_csv(text)
         unresolved = [r["name"] for r in parsed if not r["prefecture"] or not r["city"]]
-        new = [{**r, "url": "", "active": "1"} for r in parsed if r["prefecture"] and r["city"]]
+        new = [{**r, "active": "1"} for r in parsed if r["prefecture"] and r["city"]]
         cur = [] if replace else _all(dest)
         index = {(r["name"], r.get("address", "")): r for r in cur}
         for r in new:
             old = index.get((r["name"], r["address"]), {})
-            index[(r["name"], r["address"])] = {**r, "url": old.get("url", "") or r["url"]}
+            index[(r["name"], r["address"])] = {**r, "url": r["url"] or old.get("url", "")}
         save(dest, list(index.values()))
         return len(new), unresolved
     else:

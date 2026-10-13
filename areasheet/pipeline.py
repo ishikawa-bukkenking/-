@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULTS = {
     "options": {
         "trend_same_threshold_pt": 1.0,     # 県との差がこの範囲内なら「同程度」
-        "point_round_unit": 10,             # POINTの切り上げ単位(414→420)
+        "point_round_unit": None,           # None=上位2桁で切り上げ(414→420、1,898→1,900)。数値を指定すればその単位
         "compare_city_count": 5,
         "franchise": {"max": 3, "tiers": ["same_city", "adjacent", "same_prefecture"], "stop_at_first_tier": True},
     },

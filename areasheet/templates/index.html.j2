@@ -48,11 +48,6 @@
 <h1>{{ m.company }}<small>御中</small></h1>
 <p><span class="pill">{{ m.prefecture }}　{{ m.city }}</span><span class="date">{{ m.created_display }} 作成</span></p></div>
 <img class="king" src="assets/brand/king.png" alt="物件王の王様キャラクター">
-<div class="conclusions rv">
-{{ kpi(t.listings_total, '件', '物件総数', 'accent') }}
-{{ kpi(t.brokerage_unit_display_man, '万円', '仲介単価(約)', 'accent') }}
-<div class="kpi"><div class="kpi-num">{{ m.city }}</div><div class="kpi-label">調査した商圏({{ m.prefecture }})</div></div>
-</div>
 <nav class="anchors" aria-label="セクション">{% for id, lab in toc if id != 'top' %}<a href="#{{ id }}">{{ lab }}</a>{% endfor %}</nav>
 {% if cta_url %}<div><a class="btn" href="{{ cta_url }}">お問い合わせ・資料請求</a></div>{% endif %}
 </div></header>
@@ -67,7 +62,7 @@
 {{ kpi(a.households, '世帯', '世帯数', 'flat') }}
 {% if a.households is none %}{{ slot('世帯数', ['inputs.area.households', '環境変数 ESTAT_APP_ID(e-Stat自動取得)']) }}{% endif %}
 <div class="card"><p class="sub">周辺加盟店</p>
-{% if a.franchise['items'] %}<ul class="fr">{% for f in a.franchise['items'] %}<li><b>{{ f.name }}様</b><span>※{{ f.area }}</span>{% if f.url %}<br><a href="{{ f.url }}" rel="noopener noreferrer" target="_blank">{{ f.url }}</a>{% endif %}</li>{% endfor %}</ul>
+{% if a.franchise['items'] %}<ul class="fr">{% for f in a.franchise['items'] %}<li><b>{{ f.name }}様</b><span>※{{ f.area }}</span>{% if f.url %}<br><span class="note">不動産HP：</span><a href="{{ f.url }}" rel="noopener noreferrer" target="_blank">{{ f.url }}</a>{% endif %}</li>{% endfor %}</ul>
 {% else %}<p class="empty">周辺に加盟店なし</p>{% endif %}</div>
 </div></div>
 {% if a.households is not none %}<p class="src">（{{ a.households_date }}　{{ a.households_source }}）</p>{% endif %}
@@ -88,7 +83,7 @@
 
 <section class="sec" id="trend"><div class="wrap rv">
 <p class="sec-no">03　価格推移</p>
-<h2>{% if tr.city_3y_pct is not none %}直近3年で価格は<span class="em">{{ tr.city_3y_pct|num(2) }}%{{ '上昇' if tr.city_3y_pct >= 0 else '下落' }}</span>{% if tr.judgement_vs_prefecture %}、{{ m.prefecture }}と{{ tr.judgement_vs_prefecture }}{% endif %}{% else %}直近3年間の価格推移{% endif %}</h2>
+<h2>{% if tr.city_3y_pct is not none %}{% if tr.city_3y_pct|abs < 0.005 %}直近3年間の価格は、ほぼ横ばいです{% else %}直近3年間で、価格は<span class="em">{{ tr.city_3y_pct|abs|num(2) }}%{{ '上昇' if tr.city_3y_pct > 0 else '下落' }}</span>しています{% endif %}{% else %}直近3年間の価格推移{% endif %}</h2>
 {% if tr.body %}<p class="lead">{{ tr.body }}</p>{% else %}{{ slot('価格推移の説明文', ['inputs.price_trend.city_3y_pct(または yearly_pct)', 'prefecture_3y_pct', 'yearly_pct(3年分)']) }}{% endif %}
 <div class="grid g4" style="margin-bottom:24px">
 {{ kpi(tr.city_3y_pct, '%', m.city ~ ' 3年間', 'accent', 2) }}{{ kpi(tr.prefecture_3y_pct, '%', m.prefecture ~ ' 3年間', 'flat', 2) }}
@@ -154,7 +149,7 @@
 <section class="point" id="point"><div class="wrap rv">
 <img src="assets/brand/king.png" alt="物件王の王様キャラクター">
 <div><span class="tag">POINT</span>
-{% if t.point_listings_rounded is not none %}<p class="t">商圏で<b class="num">{{ t.point_listings_rounded|num }}件</b>前後の物件情報数を担保できれば、商圏No.1の情報量を担保するHPを作り上げることが実証される</p>
+{% if t.point_listings_rounded is not none %}<p class="t">商圏で<b class="num">約{{ t.point_listings_rounded|num }}件</b>の物件情報数を担保できれば、商圏No.1の情報量を担保するHPを作り上げることが実証される</p>
 {% else %}<div class="slot"><b>未入力: 物件総数</b>4種別の物件数が揃うと自動で表示されます。</div>{% endif %}</div>
 </div></section>
 

@@ -31,7 +31,31 @@ def test_texts_match_sample():
                                                       {"label": "700万〜1000万未満", "share": .106}, {"label": "1000万以上", "share": .053}]})
     assert v["headline"] == inc["headline"] and v["body"] == inc["body"]
     t = C.trend_view("上田市", "長野県", {"prefecture_3y_pct": 7.28, "yearly_pct": [0.83, 0.01, 6.38]})
-    assert t["body"] == SAMPLE["price_trend"]["body"] and t["judgement_vs_prefecture"] == "同程度"
+    assert t["judgement_vs_prefecture"] == "同程度"
+    assert t["body"] == ("上田市の標準的な物件の価格は、直近3年間で7.22%の上昇となりました。長野県全体の変動（+7.28%）と比べると、おおむね同程度の水準です。"
+                         "年ごとにみると、1年目は0.83%、2年目は0.01%、3年目は6.38%の上昇でした。")
+
+
+def test_trend_text_is_considerate():
+    """下落・上昇混在でも、断定的な表現(高い/低い)を避け、事実を穏やかに伝える"""
+    down = C.trend_view("○○市", "愛知県", {"prefecture_3y_pct": 1.2, "yearly_pct": [-1.0, -0.5, -1.4]})["body"]
+    assert "2.90%の下落となりました" in down and "やや下回る水準です" in down and "1年目は1.00%、2年目は0.50%、3年目は1.40%の下落でした" in down
+    mixed = C.trend_view("○○市", "愛知県", {"prefecture_3y_pct": -1.2, "yearly_pct": [-1.0, 0.5, -1.4]})["body"]
+    assert "1年目は1.00%の下落、2年目は0.50%の上昇、3年目は1.40%の下落でした" in mixed and "−1.20%" in mixed
+    flat = C.trend_view("○○市", "愛知県", {"prefecture_3y_pct": 0.0, "yearly_pct": [0.0, 0.0, 0.0]})["body"]
+    assert "ほぼ横ばいとなりました" in flat
+
+
+def test_point_rounds_up_to_two_digits():
+    assert [C.point_rounded(n) for n in (414, 1898, 1901, 90, 100)] == [420, 1900, 2000, 90, 100]
+    assert C.point_text(1898).startswith("商圏で約1,900件の物件情報数を担保できれば")
+
+
+def test_income_body_without_households():
+    """構成比(%)だけの入力でも文章が作れる(世帯数の件数は載せない)"""
+    br = [{"label": l, "share": s_} for l, s_ in zip(["300万未満", "300万〜500万未満", "500万〜700万未満", "700万〜1000万未満", "1000万以上"], [.389, .285, .167, .106, .053])]
+    v = C.income_view("上田市", "長野県", {"city_avg_man": 476, "national_avg_man": 503, "rank_in_prefecture": 72, "municipalities_in_prefecture": 77, "brackets": br})
+    assert v["body"].endswith("年収階級別にみると、年収300万円未満の世帯が最も多く、全体の38.9%を占めています。")
 
 
 def test_trend_judge_threshold():
@@ -124,3 +148,15 @@ def test_no_residue_other_city(tmp_path):
 def test_unknown_city_is_rejected(tmp_path):
     with pytest.raises(Exception, match="見つかりません"):
         _gen(tmp_path, {"company": "x", "prefecture": "愛知県", "city": "存在しない市"}, "bad")
+
+
+def test_franchise_url_column_in_csv(tmp_path):
+    src = tmp_path / "f.csv"
+    src.write_text("会社名,住所,URL\n株式会社テスト【てすと】《愛知県岡崎市》,愛知県岡崎市康生町1-1,https://example.com/\n株式会社無し,愛知県岡崎市康生町2-2,\n", "utf-8")
+    dest = tmp_path / "out.csv"
+    n, bad = franchise.import_file(src, dest)
+    rows = {r["name"]: r for r in franchise.load(dest)}
+    assert n == 2 and rows["株式会社テスト"]["url"] == "https://example.com/" and rows["株式会社無し"]["url"] == ""
+    src.write_text("会社名,住所\n株式会社テスト【てすと】《愛知県岡崎市》,愛知県岡崎市康生町1-1\n", "utf-8")
+    franchise.import_file(src, dest)   # URL列の無いCSVで再取り込みしても、登録済みのURLは消えない
+    assert {r["name"]: r for r in franchise.load(dest)}["株式会社テスト"]["url"] == "https://example.com/"

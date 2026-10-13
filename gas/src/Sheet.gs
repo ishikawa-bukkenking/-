@@ -17,30 +17,25 @@ var FIELDS_ = [
   { k: 'city', l: '市区町村', req: 1, d: '例: 上田市(2021年1月時点の名称)' },
   { k: 'created', l: '作成日', t: 'date', d: '空欄なら、この商談先を追加した日' },
   { h: '対象エリア(出典: 総務省統計局 令和2年国勢調査)' },
-  { k: 'inputs.area.households', l: '世帯数', t: 'num', req: 1, d: '空欄のまま、設定にe-StatのアプリケーションIDがあれば自動取得を試みる' },
+  { k: 'inputs.area.households', l: '世帯数', t: 'num', d: '空欄なら、国勢調査(e-Stat)から自動で取得します(設定にe-StatのアプリケーションIDが必要)。入力した場合はその値を使います' },
   { h: '年収(出典: LIFULL HOME\'S調べ)' },
   { k: 'inputs.income.city_avg_man', l: '市の平均世帯年収(万円)', t: 'num', req: 1 },
   { k: 'inputs.income.prefecture_avg_man', l: '県の平均世帯年収(万円)', t: 'num', req: 1 },
   { k: 'inputs.income.national_avg_man', l: '全国の平均世帯年収(万円)', t: 'num', req: 1 },
   { k: 'inputs.income.rank_in_prefecture', l: '県内順位(位)', t: 'num', req: 1 },
-  { k: 'inputs.income.municipalities_in_prefecture', l: '県内の市町村数', t: 'num', d: '空欄なら行政区域データから自動' },
-  { k: 'bracket_hh.0', l: '世帯数: 300万未満', t: 'num', d: '世帯数か構成比(%)のどちらか(両方でも可)を5区分すべてに' },
-  { k: 'bracket_hh.1', l: '世帯数: 300万〜500万未満', t: 'num' },
-  { k: 'bracket_hh.2', l: '世帯数: 500万〜700万未満', t: 'num' },
-  { k: 'bracket_hh.3', l: '世帯数: 700万〜1000万未満', t: 'num' },
-  { k: 'bracket_hh.4', l: '世帯数: 1000万以上', t: 'num' },
-  { k: 'bracket_sh.0', l: '構成比(%): 300万未満', t: 'num', d: '例: 38.9' },
-  { k: 'bracket_sh.1', l: '構成比(%): 300万〜500万未満', t: 'num' },
-  { k: 'bracket_sh.2', l: '構成比(%): 500万〜700万未満', t: 'num' },
-  { k: 'bracket_sh.3', l: '構成比(%): 700万〜1000万未満', t: 'num' },
-  { k: 'bracket_sh.4', l: '構成比(%): 1000万以上', t: 'num' },
+  { k: 'bracket_sh.0', l: '世帯数の構成比(%): 300万未満', t: 'pct1', req: 1, d: '小数点第1位まで(例: 38.9)。5区分の合計が100%になるように' },
+  { k: 'bracket_sh.1', l: '世帯数の構成比(%): 300万〜500万未満', t: 'pct1', req: 1 },
+  { k: 'bracket_sh.2', l: '世帯数の構成比(%): 500万〜700万未満', t: 'pct1', req: 1 },
+  { k: 'bracket_sh.3', l: '世帯数の構成比(%): 700万〜1000万未満', t: 'pct1', req: 1 },
+  { k: 'bracket_sh.4', l: '世帯数の構成比(%): 1000万以上', t: 'pct1', req: 1 },
   { h: '価格推移(出典: LIFULL HOME\'S調べ)' },
-  { k: 'inputs.price_trend.city_3y_pct', l: '市の3年上昇率(%)', t: 'num', d: '空欄なら内訳の合計' },
-  { k: 'inputs.price_trend.prefecture_3y_pct', l: '県の3年上昇率(%)', t: 'num', req: 1 },
-  { k: 'yearly.0', l: '内訳: 初年度(%)', t: 'num', req: 1 },
-  { k: 'yearly.1', l: '内訳: 2年目(%)', t: 'num', req: 1 },
-  { k: 'yearly.2', l: '内訳: 3年目(%)', t: 'num', req: 1 },
-  { k: 'inputs.price_trend.image', l: '価格推移グラフ(画像)', t: 'image', req: 1, d: 'グラフのスクリーンショットなどの画像' },
+  { k: 'show.price_trend', l: 'LPに価格推移を表示する', t: 'bool', d: 'チェックを外すと、LPの価格推移の部分を表示しません(下の項目は入力不要になります)' },
+  { k: 'inputs.price_trend.city_3y_pct', grp: 'trend', l: '市の3年上昇率(%)', t: 'num', d: '空欄なら内訳の合計' },
+  { k: 'inputs.price_trend.prefecture_3y_pct', grp: 'trend', l: '県の3年上昇率(%)', t: 'num', req: 1 },
+  { k: 'yearly.0', grp: 'trend', l: '内訳: 初年度(%)', t: 'num', req: 1 },
+  { k: 'yearly.1', grp: 'trend', l: '内訳: 2年目(%)', t: 'num', req: 1 },
+  { k: 'yearly.2', grp: 'trend', l: '内訳: 3年目(%)', t: 'num', req: 1 },
+  { k: 'inputs.price_trend.image', grp: 'trend', l: '価格推移グラフ(画像)', t: 'image', req: 1, d: 'グラフのスクリーンショットなどの画像' },
   { h: '土地(出典: REINS調べ)' },
   { k: 'inputs.land.tsubo_price_man', l: '坪単価(万円/坪)', t: 'num', req: 1 },
   { k: 'inputs.land.tsubo_price_low_rise_residential_man', l: '低層住居専用地域の相場(万円/坪)', t: 'num', req: 1 },
@@ -125,22 +120,22 @@ function setPath_(obj, path, val) {
 
 /** 商談先タブの値(キー→表示文字列)を設定オブジェクトに変換する。純粋関数(テスト可) */
 function valuesToConfig_(vals, today) {
-  var cfg = { inputs: {} }, hh = [], sh = [], yearly = [], series = {}, compare = [], comp = [], kw = [];
+  var cfg = { inputs: {} }, sh = [], yearly = [], series = {}, compare = [], comp = [], kw = [];
   FIELDS_.forEach(function (f) {
     if (f.h) return;
     var raw = vals[f.k];
     if (raw === undefined || String(raw).trim() === '') return;
     var k = f.k, v;
-    if (f.t === 'image') v = String(raw).trim(); else if (f.t === 'num') v = parseNum_(raw); else if (f.t === 'date') v = parseDate_(raw); else if (f.t === 'list') v = splitList_(raw); else v = String(raw).trim();
+    if (f.t === 'image') v = String(raw).trim(); else if (f.t === 'bool') v = String(raw).trim() !== '0'; else if (f.t === 'num' || f.t === 'pct1') v = parseNum_(raw); else if (f.t === 'date') v = parseDate_(raw); else if (f.t === 'list') v = splitList_(raw); else v = String(raw).trim();
     if (v === undefined) return;
     var m;
-    if ((m = k.match(/^bracket_hh\.(\d)$/))) hh[+m[1]] = v;
-    else if ((m = k.match(/^bracket_sh\.(\d)$/))) sh[+m[1]] = v;
+    if ((m = k.match(/^bracket_sh\.(\d)$/))) sh[+m[1]] = v;
     else if ((m = k.match(/^yearly\.(\d)$/))) yearly[+m[1]] = v;
     else if ((m = k.match(/^series\.(.+)$/))) series[m[1]] = m[1] === 'labels' ? v : v.map(parseNum_);
     else if ((m = k.match(/^compare\.(\d)$/))) { if (v[0]) compare.push({ city: v[0], tsubo_price_man: parseNum_(v[1]), listings: parseNum_(v[2]) }); }
     else if ((m = k.match(/^comp\.(\d)$/))) { if (v[0]) comp.push({ name: v[0], area: v[1] || undefined, url: v[2] || undefined, listing_count: parseNum_(v[3]) }); }
     else if ((m = k.match(/^kw\.(.+)$/))) kw.push({ term: m[1], monthly_volume: parseNum_(v[0]), cpc_low_yen: parseNum_(v[1]), cpc_high_yen: parseNum_(v[2]) });
+    else if (k === 'show.price_trend') { cfg.sections = cfg.sections || {}; cfg.sections.price_trend = v; }
     else if (k.indexOf('auto.') === 0) { /* 下で処理 */ }
     else setPath_(cfg, k, v);
   });
@@ -156,7 +151,6 @@ function valuesToConfig_(vals, today) {
   var any = false, brackets = [];
   for (var i = 0; i < 5; i++) {
     var b = { label: BRACKET_LABELS_[i] };
-    if (hh[i] !== undefined) { b.households = hh[i]; any = true; }
     if (sh[i] !== undefined) { b.share = sh[i] / 100; any = true; }
     brackets.push(b);
   }
@@ -190,7 +184,7 @@ function fieldsMeta_() {
   FIELDS_.forEach(function (f) {
     if (f.hidden) return;
     if (f.h) { if (f.h !== '自動記録(編集不要)') out.push({ h: f.h.replace(/\{市\}/g, '○○市') }); return; }
-    out.push({ k: f.k, l: f.l.replace('{市}', '○○市'), t: f.t || 'text', req: f.req ? 1 : 0, d: f.d || '', cols: colsFor_(f.k) });
+    out.push({ k: f.k, l: f.l.replace('{市}', '○○市'), t: f.t || 'text', req: f.req ? 1 : 0, d: f.d || '', cols: colsFor_(f.k), grp: f.grp || '' });
   });
   return out;
 }
@@ -205,6 +199,8 @@ function validateValue_(key, value) {
   if (value.length > 600) return '長すぎます(600文字まで)';
   if (value.trim() === '') return '';
   if (key === 'prefecture') { try { normalizePrefecture_(value); } catch (e) { return e.message; } return ''; }
+  if (f.t === 'bool') return (value === '0' || value === '1') ? '' : '不正な値です';
+  if (f.t === 'pct1') { var pv = parseNum_(value); return (pv === undefined || pv < 0 || pv > 100) ? '0〜100の数値(%)で入力してください' : ''; }
   if (f.t === 'num' && parseNum_(value) === undefined) return '数値で入力してください';
   if (f.t === 'date' && parseDate_(value) === undefined) return '日付は 2026-01-19 の形で入力してください';
   if (f.t === 'list' && colsFor_(key)) {

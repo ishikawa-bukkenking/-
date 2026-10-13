@@ -31,41 +31,52 @@ function fetchJson_(url) {
   return JSON.parse(r.getContentText());
 }
 
-/** e-Stat API から令和2年国勢調査の世帯数を取得(実機未検証。失敗時は入力欄へ) */
+/** e-Stat API(政府統計の総合窓口)から令和2年国勢調査の市区町村別の世帯数を取得する。失敗時は、試した表と理由をメッセージにして投げる */
 function estatHouseholds_(appId, areaCode) {
-  var base = 'https://api.e-stat.go.jp/rest/3.0/app/json/';
+  var base = 'https://api.e-stat.go.jp/rest/3.0/app/json/', log = [];
   function get(path, params) {
     var q = Object.keys(params).map(function (k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
-    return fetchJson_(base + path + '?' + q);
+    var r = UrlFetchApp.fetch(base + path + '?' + q, { muteHttpExceptions: true });
+    if (r.getResponseCode() !== 200) throw new Error('HTTP ' + r.getResponseCode());
+    var j = JSON.parse(r.getContentText()), root = j[Object.keys(j)[0]] || {}, res = root.RESULT || {};
+    if (res.STATUS !== undefined && Number(res.STATUS) !== 0 && Number(res.STATUS) !== 1) throw new Error('e-Stat: ' + (res.ERROR_MSG || ('STATUS ' + res.STATUS)));
+    return root;
   }
-  var lst = get('getStatsList', { appId: appId, statsCode: '00200521', surveyYears: '2020', searchWord: '世帯 市区町村', limit: 20 });
-  var tabs = ((lst.GET_STATS_LIST || {}).DATALIST_INF || {}).TABLE_INF || [];
-  tabs = Array.isArray(tabs) ? tabs : [tabs];
-  var ids = tabs.filter(function (t) { return /市区町村/.test(String(t.TITLE && (t.TITLE.$ || t.TITLE))); }).map(function (t) { return t['@id']; }).slice(0, 5);
-  for (var i = 0; i < ids.length; i++) {
-    var d = get('getStatsData', { appId: appId, statsDataId: ids[i], cdArea: areaCode, metaGetFlg: 'Y', limit: 200 });
-    var inf = (d.GET_STATS_DATA || {}).STATISTICAL_DATA || {};
-    var objs = ((inf.CLASS_INF || {}).CLASS_OBJ) || [];
-    objs = Array.isArray(objs) ? objs : [objs];
-    var want = {};
-    objs.forEach(function (o) {
-      var cls = Array.isArray(o.CLASS) ? o.CLASS : [o.CLASS];
-      cls.forEach(function (c) {
-        var nm = (c && c['@name']) || '';
-        if ((nm.indexOf('世帯') >= 0 && nm.indexOf('一般') >= 0) || nm === '世帯数' || nm === '総世帯数') { want[o['@id']] = want[o['@id']] || []; want[o['@id']].push(c['@code']); }
-      });
-    });
-    var vals = (inf.DATA_INF || {}).VALUE || [];
-    vals = Array.isArray(vals) ? vals : [vals];
-    for (var j = 0; j < vals.length; j++) {
-      var v = vals[j];
-      if (Object.keys(want).length && Object.keys(want).every(function (k) { return want[k].indexOf(v['@' + k]) >= 0; })) {
+  function arr(x) { return x === undefined || x === null ? [] : Array.isArray(x) ? x : [x]; }
+  function txt(x) { return x && typeof x === 'object' ? String(x.$ || '') : String(x || ''); }
+  var tabs;
+  try {
+    var lst = get('getStatsList', { appId: appId, lang: 'J', statsCode: '00200521', surveyYears: '2020', searchWord: '世帯', limit: 100 });
+    tabs = arr((lst.DATALIST_INF || {}).TABLE_INF);
+  } catch (e) { throw new Error('表の一覧を取得できません(' + e.message + ')。アプリケーションIDとネットワークを確認してください。'); }
+  if (!tabs.length) throw new Error('国勢調査(令和2年)の表が見つかりませんでした。');
+  var scored = tabs.map(function (t) {
+    var title = txt(t.TITLE) + ' ' + txt(t.STATISTICS_NAME);
+    var sc = (/市区町村/.test(title) ? 4 : 0) + (/世帯/.test(title) ? 3 : 0) + (/基本集計|人口等基本集計/.test(title) ? 2 : 0) - (/男女|年齢|配偶|産業|職業|就業|従業|外国|移動|住居|教育|在学/.test(title) ? 3 : 0);
+    return { id: t['@id'], title: txt(t.TITLE), sc: sc };
+  }).sort(function (a, b) { return b.sc - a.sc; }).slice(0, 8);
+  for (var i = 0; i < scored.length; i++) {
+    var t = scored[i];
+    try {
+      var d = get('getStatsData', { appId: appId, lang: 'J', statsDataId: t.id, cdArea: areaCode, metaGetFlg: 'Y', limit: 300 });
+      var inf = d.STATISTICAL_DATA || {}, names = {};
+      arr((inf.CLASS_INF || {}).CLASS_OBJ).forEach(function (o) { arr(o.CLASS).forEach(function (c) { names[o['@id'] + ':' + c['@code']] = String(c['@name'] || ''); }); });
+      var best = null;
+      arr((inf.DATA_INF || {}).VALUE).forEach(function (v) {
+        var cats = Object.keys(v).filter(function (k) { return /^@(cat\d+|tab)$/.test(k); }).map(function (k) { return names[k.slice(1) + ':' + v[k]] || ''; });
+        var joined = cats.join(' / ');
+        if (!/世帯/.test(joined) || /当たり|人員|割合|率|増減|比/.test(joined)) return;
+        if (v['@area'] && v['@area'] !== areaCode) return;
         var n = parseInt(String(v.$).replace(/,/g, ''), 10);
-        if (n) return { value: n, source: '総務省統計局 令和2年国勢調査(e-Stat)' };
-      }
-    }
+        if (!n) return;
+        var score = (/^(一般)?世帯数$|総世帯|世帯総数|^一般世帯$/.test(cats.join(''))) ? 2 : 1;
+        if (!best || score > best.score) best = { value: n, score: score, label: joined };
+      });
+      if (best) return { value: best.value, source: '総務省統計局 令和2年国勢調査(e-Stat)', table: t.id + ' ' + t.title, label: best.label };
+      log.push(t.id + '「' + t.title.slice(0, 30) + '」: 世帯数の値なし');
+    } catch (e) { log.push(t.id + ': ' + e.message); }
   }
-  throw new Error('該当する世帯数の表・値が見つからなかった');
+  throw new Error('世帯数を取得できませんでした。試した表: ' + log.join(' / '));
 }
 
 function ss_() {
@@ -78,22 +89,37 @@ function ss_() {
 
 /** 設定シート(保存先)の読み取り。LPの公開URLは設定に入力(入力システムの「設定」で変更) */
 function readSettings_() {
-  var sh = ss_().getSheetByName(SHEET_SETTINGS_), o = { url: '', estat: '', max: 3, threshold: 1, unit: 10, opts: {} };
+  var sh = ss_().getSheetByName(SHEET_SETTINGS_), o = { url: '', estat: '', max: 3, threshold: 1, opts: {} };
   if (sh) {
     var v = sh.getRange(1, 2, 5, 1).getDisplayValues().map(function (r) { return r[0]; });
     o.url = v[0].trim().replace(/\/+$/, ''); o.estat = v[1].trim();
-    var mx = parseNum_(v[2]), th = parseNum_(v[3]), unit = parseNum_(v[4]);
-    if (mx) o.max = mx; if (th !== undefined) o.threshold = th; if (unit) o.unit = unit;
+    var mx = parseNum_(v[2]), th = parseNum_(v[3]);
+    if (mx) o.max = mx; if (th !== undefined) o.threshold = th;
   }
-  o.opts.franchise = { max: o.max }; o.opts.trend_same_threshold_pt = o.threshold; o.opts.point_round_unit = o.unit;
+  o.opts.franchise = { max: o.max }; o.opts.trend_same_threshold_pt = o.threshold;
   return o;
+}
+
+/** 世帯数の自動取得。取得できたらエリアのデータに保存し、以後はAPIを呼ばない(市区町村が変わったら取り直す)。失敗は10分間だけ覚えて連打を避ける */
+function householdsFor_(settings, areaId, code) {
+  var a = areaId ? areaById_(areaId) : null;
+  if (a && a.values['auto.households'] && a.values['auto.households_code'] === code)
+    return { value: Number(a.values['auto.households']), source: '総務省統計局 令和2年国勢調査(e-Stat)', date: a.values['auto.date.households'] };
+  var failKey = 'estatfail:' + code, hit = cacheGet_(failKey);
+  if (hit) throw new Error(hit);
+  try {
+    var got = estatHouseholds_(settings.estat, code);
+    if (a) writeAreaValues_(areaId, function (v) { v['auto.households'] = String(got.value); v['auto.households_code'] = code; v['auto.date.households'] = todayIso_(); });
+    got.date = todayIso_();
+    return got;
+  } catch (e) { cachePut_(failKey, e.message, 600); throw e; }
 }
 
 var ALLOWED_DOMAIN_ = 'bukkenking.com';
 
-function realServices_(settings) {
+function realServices_(settings, areaId) {
   var s = { cacheGet: cacheGet_, cachePut: cachePut_, fetchJson: fetchJson_, now: function () { return new Date().toISOString(); } };
-  if (settings.estat) s.estatHouseholds = function (code) { return estatHouseholds_(settings.estat, code); };
+  if (settings.estat) s.estatHouseholds = function (code) { return householdsFor_(settings, areaId, code); };
   return s;
 }
 
@@ -132,7 +158,7 @@ function buildArea_(areaId) {
   resolveImages_(cfg);
   var frSh = ss.getSheetByName(SHEET_FR_);
   var data = { franchiseRows: frSh && frSh.getLastRow() > 1 ? franchiseRowsFrom_(frSh.getRange(2, 1, frSh.getLastRow() - 1, 6).getDisplayValues()) : [], listingRows: [] };
-  var built = buildModel_(cfg, realServices_(settings), data);
+  var built = buildModel_(cfg, realServices_(settings, a.id), data);
   var html = renderPage_(built.model, built.report, ASSETS, STYLE_CSS_);
   return { model: built.model, report: built.report, html: html, checks: runChecks_(built.model, html) };
 }
@@ -185,7 +211,7 @@ function setupSheets_(ss) {
     ['e-Stat アプリケーションID', '', '任意。入れると世帯数の自動取得を試みる'],
     ['周辺加盟店の最大社数', 3, ''],
     ['県との差が「同程度」とみなす範囲(ポイント)', 1, ''],
-    ['POINTの切り上げ単位(件)', 10, '414件→420件']];
+    ['(未使用)', '', 'POINTの件数は上位2桁で自動的に切り上げます(414件→420件、1,898件→1,900件)']];
   defs.forEach(function (d, i) {
     st.getRange(i + 1, 1).setValue(d[0]); st.getRange(i + 1, 3).setValue(d[2]);
     var b = st.getRange(i + 1, 2);

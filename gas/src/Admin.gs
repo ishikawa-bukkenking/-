@@ -61,6 +61,7 @@ function api_get(areaId) {
   FIELDS_.forEach(function (f) { if (f.t === 'image') images[f.k] = /^drive:/.test(a.values[f.k] || ''); });
   var siblings = listAreas_().filter(function (x) { return x.companyId === a.companyId; }).map(function (x) { return { id: x.id, label: x.pref + ' ' + x.city }; });
   return { id: a.id, company: c ? { id: c.id, name: c.name } : { id: '', name: '' }, fields: fieldsMeta_(), values: a.values, images: images,
+    autoHouseholds: a.values['auto.households'] ? Number(a.values['auto.households']) : null, hasEstat: !!st.estat,
     url: lpUrl_(st, a.id), prefectures: PREFECTURES, siblings: siblings };
 }
 
@@ -119,7 +120,7 @@ function api_status(areaId) {
     return {
       missing: miss.map(function (i) { return { key: i.key, label: i.label, reason: i.reason }; }),
       checksNg: r.checks.filter(function (c) { return !c.ok; }).map(function (c) { return c.name + (c.detail ? '(' + c.detail + ')' : ''); }),
-      city: r.model.meta.city, households: r.model.area.households,
+      city: r.model.meta.city, households: r.model.area.households, householdsAuto: r.model.area.households_source && /e-Stat/.test(r.model.area.households_source),
       totals: { listings_total: r.model.totals.listings_total, brokerage: r.model.totals.brokerage_unit_display_man }
     };
   } catch (e) {
@@ -175,20 +176,30 @@ function api_fr_import(text) {
 function api_settings_get() {
   requireUser_();
   var s = readSettings_();
-  return { estat: s.estat, max: s.max, threshold: s.threshold, unit: s.unit, url: s.url, email: currentEmail_() };
+  return { estat: s.estat, max: s.max, threshold: s.threshold, url: s.url, email: currentEmail_() };
 }
 
 function api_settings_set(v) {
   requireUser_();
   v = v || {};
-  var max = parseNum_(v.max), th = parseNum_(v.threshold), unit = parseNum_(v.unit), url = String(v.url || '').trim();
+  var max = parseNum_(v.max), th = parseNum_(v.threshold), url = String(v.url || '').trim();
   if (!(max >= 1 && max <= 10)) throw new Error('周辺加盟店の最大社数は1〜10で入力してください。');
   if (th === undefined || th < 0) throw new Error('「同程度」の範囲は0以上の数で入力してください。');
-  if (!(unit >= 1)) throw new Error('切り上げ単位は1以上で入力してください。');
   if (url && !/^https:\/\/script\.google\.com\/(macros\/s\/[A-Za-z0-9_-]+\/exec|a\/macros\/[^\/]+\/s\/[A-Za-z0-9_-]+\/exec)$/.test(url.replace(/\/+$/, '')))
     throw new Error('LPの公開URLは https://script.google.com/macros/s/…/exec の形で入力してください。');
   var sh = sheetOrThrow_(SHEET_SETTINGS_);
   sh.getRange('B1').setValue(url.replace(/\/+$/, '')); sh.getRange('B2').setValue(String(v.estat || '').trim());
-  sh.getRange('B3').setValue(String(max)); sh.getRange('B4').setValue(String(th)); sh.getRange('B5').setValue(String(unit));
+  sh.getRange('B3').setValue(String(max)); sh.getRange('B4').setValue(String(th));
   return { ok: true };
+}
+
+/** e-Statの接続テスト(設定画面のボタン用)。長野県上田市の世帯数を取得してみて、結果または失敗の理由を返す */
+function api_estat_test(appId) {
+  requireUser_();
+  var id = String(appId || readSettings_().estat || '').trim();
+  if (!id) throw new Error('アプリケーションIDを入力してください。');
+  try {
+    var r = estatHouseholds_(id, '20203');
+    return { ok: true, message: '接続できました。上田市の世帯数: ' + num_(r.value) + '(表: ' + r.table + ' / 項目: ' + r.label + ')' };
+  } catch (e) { return { ok: false, message: String(e.message || e) }; }
 }

@@ -54,7 +54,7 @@ function buildModel_(cfg, services, data) {
   var rep = new Report_();
   var pref = normalizePrefecture_(cfg.prefecture), city = cfg.city, created = cfg.created;
   var inputs = cfg.inputs || {}, opts = deepMerge_({
-    trend_same_threshold_pt: 1.0, point_round_unit: 10, compare_city_count: 5,
+    trend_same_threshold_pt: 1.0, compare_city_count: 5,
     franchise: { max: 3, tiers: ['same_city', 'adjacent', 'same_prefecture'], stop_at_first_tier: true }
   }, cfg.options || {});
   var now = services.now ? services.now() : new Date().toISOString();
@@ -82,7 +82,7 @@ function buildModel_(cfg, services, data) {
     try {
       if (!services.estatHouseholds) throw new Error('e-Stat のアプリケーションIDが未設定');
       var got = services.estatHouseholds(areaCode);
-      hh = { value: got.value, source: got.source, fetched_at: now };
+      hh = { value: got.value, source: got.source, fetched_at: got.date || now };
       rep.add('area.households', '世帯数', 'auto', got.source);
     } catch (e) {
       rep.add('area.households', '世帯数', 'missing', '', e.message + '。入力システムの「世帯数」に入力');
@@ -101,6 +101,9 @@ function buildModel_(cfg, services, data) {
     rep.add('area.franchise', '周辺加盟店', rows.length ? 'auto' : 'missing', '加盟店一覧から選定', rows.length ? '' : '加盟店一覧が空です(入力システムの「加盟店」で追加)');
   }
   model.area.franchise = sel;
+  var noHp = sel.items.filter(function (f) { return !f.url; }).map(function (f) { return f.name; });
+  rep.add('area.franchise_hp', '周辺加盟店の不動産HP', noHp.length ? 'optional' : 'input', '加盟店一覧のURL',
+    noHp.length ? 'HP(URL)が未登録: ' + noHp.join('、') + '。入力システムの「加盟店」で登録するとLPに表示されます' : '');
 
   // --- 年収 ---
   var incIn = JSON.parse(JSON.stringify(inputs.income || {}));
@@ -114,15 +117,19 @@ function buildModel_(cfg, services, data) {
   });
 
   // --- 価格推移 ---
+  var trendOn = !(cfg.sections && cfg.sections.price_trend === false);   // 価格推移を表示しない設定にできる
   var trIn = JSON.parse(JSON.stringify(inputs.price_trend || {}));
   var tr = trendView_(city, pref, trIn, opts.trend_same_threshold_pt);
-  var s2 = src_(trIn, created, rep, 'price_trend'); tr.source = s2[0]; tr.date = s2[1];
+  tr.hidden = !trendOn;
+  var s2 = trendOn ? src_(trIn, created, rep, 'price_trend') : ['', '']; tr.source = s2[0]; tr.date = s2[1];
   tr.ai_note = ['※以下の条件でAI査定した参考価格', '・マンション：築10年/専有面積70㎡', '・一戸建て：築10年/延床面積70㎡', '・土地：敷地面積70㎡'];
   model.price_trend = tr;
-  [['city_3y_pct', '市の3年上昇率'], ['prefecture_3y_pct', '県の3年上昇率'], ['yearly_pct', '年ごとの内訳']].forEach(function (p) {
-    status_(rep, 'price_trend.' + p[0], p[1], tr[p[0]], '入力システムの価格推移');
-  });
-  status_(rep, 'price_trend.chart', '価格推移グラフ', tr.series || tr.image, '価格推移グラフの画像');
+  if (trendOn) {
+    [['city_3y_pct', '市の3年上昇率'], ['prefecture_3y_pct', '県の3年上昇率'], ['yearly_pct', '年ごとの内訳']].forEach(function (p) {
+      status_(rep, 'price_trend.' + p[0], p[1], tr[p[0]], '入力システムの価格推移');
+    });
+    status_(rep, 'price_trend.chart', '価格推移グラフ', tr.series || tr.image, '価格推移グラフの画像');
+  } else rep.add('price_trend', '価格推移', 'optional', '', 'LPに表示しない設定');
 
   // --- 物件(シートの物件データ → 手入力で上書き) ---
   var csvStats = (data.listingRows && data.listingRows.length) ? summarizeListings_(data.listingRows) : {};
@@ -177,8 +184,8 @@ function buildModel_(cfg, services, data) {
   model.totals = {
     listings_total: total, brokerage_unit_man: bu == null ? null : roundHalfUp_(bu, 2),
     brokerage_unit_display_man: bu == null ? null : roundHalfUp_(bu, 0),
-    point_listings_rounded: total == null ? null : ceilTo_(total, opts.point_round_unit),
-    point_text: total == null ? null : pointText_(total, opts.point_round_unit),
+    point_listings_rounded: total == null ? null : pointRounded_(total),
+    point_text: total == null ? null : pointText_(total),
     source: srcs.join('・'), date: uniq.length === 1 ? sdates[0] : sdates.slice().sort(function (a, b) { return new Date(a.replace(/\//g, '-')) - new Date(b.replace(/\//g, '-')); }).pop()
   };
   rep.add('totals.listings_total', '物件総数', total != null ? 'calc' : 'missing', '4種別の物件数の合計', total != null ? '' : '4種別すべての物件数が必要');

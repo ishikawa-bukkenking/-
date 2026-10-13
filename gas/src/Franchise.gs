@@ -88,7 +88,10 @@ function cleanCompany_(raw) {
 function parseFranchiseRaw_(text) {
   var rows = parseCsv_(text).map(function (r) { return r.map(function (c) { return c.trim(); }); }).filter(function (r) { return r.some(function (c) { return c; }); });
   if (!rows.length) return [];
-  var hasNo = rows[0].indexOf('顧客番号') >= 0, merged = [], pending = '';
+  var head = rows[0].map(function (h) { return h.replace(/\s/g, ''); });
+  var hasNo = head.indexOf('顧客番号') >= 0, merged = [], pending = '';
+  var urlCol = -1;
+  head.forEach(function (h, i) { if (urlCol < 0 && ['URL', 'url', 'HP', 'ＨＰ', 'ホームページ'].indexOf(h) >= 0) urlCol = hasNo ? i - 1 : i; });
   var PREF_RE = /^(北海道|東京都|京都府|大阪府|.{2,3}県)/;
   rows.slice(1).forEach(function (r) {
     var no = '', rest = r;
@@ -99,16 +102,16 @@ function parseFranchiseRaw_(text) {
       else pending += rest[0];
       return;
     }
-    var name = rest[0], addr = rest[1] || '', prev = merged[merged.length - 1];
+    var name = rest[0], addr = rest[1] || '', url = urlCol >= 0 ? (rest[urlCol] || '') : '', prev = merged[merged.length - 1];
     if (prev && (prev[1].split('【').length > prev[1].split('】').length) && name.indexOf('】') === 0 && !prev[2]) { prev[1] += name; prev[2] = addr; return; }
     if (pending) { name = pending + name; pending = ''; }
-    merged.push([no, name, addr]);
+    merged.push([no, name, addr, url]);
   });
   var out = [];
   merged.forEach(function (m) {
     if (m[1].split('【').length > m[1].split('】').length && !m[2]) return;
     var c = cleanCompany_(m[1]), a = splitAddress_(m[2]);
-    out.push({ name: c.name, shop: c.shop, service_area: c.service_area, customer_no: m[0], address: String(m[2]).normalize('NFKC').trim(), prefecture: a.prefecture, city: a.city });
+    out.push({ name: c.name, shop: c.shop, service_area: c.service_area, customer_no: m[0], url: /^https?:\/\//.test(m[3] || '') ? m[3] : '', address: String(m[2]).normalize('NFKC').trim(), prefecture: a.prefecture, city: a.city });
   });
   return out;
 }

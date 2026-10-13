@@ -79,11 +79,53 @@ const res = vm.runInContext(`
   r.impBad = tryCall(function () { return api_fr_import('a,b\\n1,2'); }).err;
   r.frStoppedKept = (function () { var x = api_fr_list().items.filter(function (y) { return y.name === 'リフォームワン株式会社'; })[0]; return x.active === false && x.url === 'https://www.one-estate.jp/'; })();
   // 設定
-  r.setBad = [tryCall(function () { return api_settings_set({ max: 99, threshold: 1, unit: 10 }); }).err, tryCall(function () { return api_settings_set({ max: 3, threshold: 1, unit: 10, url: 'http://evil.example/' }); }).err];
-  api_settings_set({ max: 1, threshold: 2, unit: 50, estat: 'APPID', url: 'https://script.google.com/macros/s/AKfycbxTEST/exec' });
-  var s2 = api_settings_get(); r.settings = [s2.max, s2.threshold, s2.unit, s2.estat, s2.url];
+  r.setBad = [tryCall(function () { return api_settings_set({ max: 99, threshold: 1 }); }).err, tryCall(function () { return api_settings_set({ max: 3, threshold: 1, url: 'http://evil.example/' }); }).err];
+  api_settings_set({ max: 1, threshold: 2, estat: 'APPID', url: 'https://script.google.com/macros/s/AKfycbxTEST/exec' });
+  var s2 = api_settings_get(); r.settings = [s2.max, s2.threshold, s2.estat, s2.url, s2.unit];
   r.listUrl = api_list().companies.filter(function (x) { return x.name === '株式会社○○'; })[0].areas[0].url === 'https://script.google.com/macros/s/AKfycbxTEST/exec?id=' + a1;
-  r.point50 = doGet({ parameter: { id: a1 } }).html.indexOf('450件') >= 0;
+  r.point420 = doGet({ parameter: { id: a1 } }).html.indexOf('約420件') >= 0;
+  // --- 今回の変更 ---
+  var lpx = doGet({ parameter: { id: a1 } }).html;
+  var heroPart = lpx.slice(lpx.indexOf('id="top"'), lpx.indexOf('<main>'));
+  r.heroNoTotals = heroPart.indexOf('物件総数') < 0 && heroPart.indexOf('仲介単価') < 0 && lpx.indexOf('物件総数・売却相場まとめ') >= 0;   // トップには出さず、まとめには残る
+  r.heroNoKpi = heroPart.indexOf('conclusions') < 0;
+  r.hpShown = lpx.indexOf('不動産HP：') >= 0 && lpx.indexOf('https://www.me-rise-fudosan.jp/') >= 0;                         // 周辺加盟店の不動産HP
+  r.hpMissingReported = api_status(a1).missing.length >= 0 && buildArea_(a1).report.items.filter(function (i) { return i.key === 'area.franchise_hp'; })[0].status;
+  r.trendText = lpx.indexOf('直近3年間で7.22%の上昇となりました。長野県全体の変動（+7.28%）と比べると、おおむね同程度の水準です。') >= 0 && lpx.indexOf('直近3年間で、価格は<span class="em">7.22%上昇</span>しています') >= 0;
+  r.pctErr = [api_save(a1, { 'bracket_sh.0': '101' }).errors['bracket_sh.0'], api_save(a1, { 'bracket_sh.0': 'x' }).errors['bracket_sh.0']];
+  r.pctOk = api_save(a1, { 'bracket_sh.0': '38.9' }).saved === 1;
+  r.noHhFields = !keys.some(function (k) { return k.indexOf('bracket_hh') === 0 || k === 'inputs.income.municipalities_in_prefecture'; }) && keys.filter(function (k) { return k.indexOf('bracket_sh') === 0; }).length === 5;
+  r.incomeBody = lpx.indexOf('全体の38.9%を占めています') >= 0 && lpx.indexOf('世帯（') < 0;
+  r.munis = lpx.indexOf('77市町村中') >= 0;
+  // 価格推移の表示/非表示(既定は表示)
+  r.trendDefault = lpx.indexOf('id="trend"') >= 0 && lpx.indexOf('<a class="i" href="#trend">') >= 0;
+  var missBefore = api_status(a1).missing.map(function (m) { return m.key; });
+  api_save(a1, { 'show.price_trend': '0' });
+  var lph = doGet({ parameter: { id: a1 } }).html;
+  r.trendHidden = lph.indexOf('id="trend"') < 0 && lph.indexOf('href="#trend"') < 0 && lph.indexOf('AI査定した参考価格') < 0;
+  var nums = lph.split('sec-no">').slice(1).map(function (x) { return x.slice(0, 2); });
+  r.numbering = nums.join(',');
+  r.trendMissingGone = api_status(a1).missing.every(function (m) { return m.key.indexOf('price_trend') !== 0; });
+  r.showBad = api_save(a1, { 'show.price_trend': 'maybe' }).errors['show.price_trend'];
+  api_save(a1, { 'show.price_trend': '1' }); r.trendBack = doGet({ parameter: { id: a1 } }).html.indexOf('id="trend"') >= 0;
+  // 世帯数の自動取得(e-Stat。応答の形は想定。取得できたら保存して以後は呼ばない)
+  api_settings_set({ max: 3, threshold: 1, estat: 'APPID', url: 'https://script.google.com/macros/s/AKfycbxTEST/exec' });
+  var auto = api_create_company('自動取得テスト', '長野県', '上田市').areaId;
+  var calls0 = __estatCalls();
+  var stA = api_status(auto); var vA = areaById_(auto).values;
+  r.estat = { hh: stA.households, auto: stA.householdsAuto, stored: vA['auto.households'], code: vA['auto.households_code'], date: vA['auto.date.households'] };
+  var calls1 = __estatCalls(); api_status(auto); api_get(auto); doGet({ parameter: { id: auto } });
+  r.estatNoRefetch = __estatCalls() === calls1 && calls1 > calls0;
+  r.estatLp = doGet({ parameter: { id: auto } }).html.indexOf('70,809世帯') >= 0 && doGet({ parameter: { id: auto } }).html.indexOf('国勢調査(e-Stat)') >= 0;
+  r.estatField = api_get(auto).autoHouseholds;
+  api_save(auto, { 'inputs.area.households': '12345' }); r.estatManualWins = doGet({ parameter: { id: auto } }).html.indexOf('12,345世帯') >= 0;
+  api_save(auto, { 'inputs.area.households': '' }); r.estatBackToAuto = api_status(auto).households === 70809;
+  r.estatTest = api_estat_test('APPID');
+  r.estatBadId = api_estat_test('BADID');
+  __estatMode('empty'); var autoB = api_create_company('失敗テスト', '長野県', '松本市').areaId;
+  var stB = api_status(autoB); r.estatFail = stB.missing.filter(function (m) { return m.key === 'area.households'; })[0].reason;
+  var callsB = __estatCalls(); api_status(autoB); r.estatFailCached = __estatCalls() === callsB;   // 失敗は10分間だけ覚えて連打しない
+  __estatMode('');
   // URL作り直し・削除
   var nid = api_rotate(a1).id; r.rotated = nid !== a1 && doGet({ parameter: { id: a1 } }).html.indexOf('見つかりません') >= 0 && doGet({ parameter: { id: nid } }).html.indexOf('414') >= 0;
   r.lpBadId = ['nope', '../../x', ''].map(function (id) { return id ? doGet({ parameter: { id: id } }).html.indexOf('見つかりません') >= 0 : true; });
@@ -91,7 +133,7 @@ const res = vm.runInContext(`
   api_delete_area(nid); r.areaDeleted = api_list().companies.filter(function (x) { return x.name === '株式会社○○'; })[0].areas.length === 1 && doGet({ parameter: { id: nid } }).html.indexOf('見つかりません') >= 0;
   r.imagesTrashed = Array.from(DriveApp.__files.values()).every(function (f) { return f.trashed; });
   api_rename_company(c.companyId, '株式会社□□'); r.renamed = api_list().companies.filter(function (x) { return x.name === '株式会社□□'; }).length === 1 && doGet({ parameter: { id: a2 } }).html.indexOf('株式会社□□') >= 0;
-  api_delete_company(c.companyId); r.companyDeleted = api_list().companies.length === 1 && listAreas_().length === 1;
+  api_delete_company(c.companyId); r.companyDeleted = api_list().companies.every(function (x) { return x.name !== '株式会社□□'; }) && listAreas_().every(function (x) { return x.company !== '株式会社□□'; });
   r.sheetsEnd = sheetNames() === r.sheets0;
   var app = doGet({ parameter: {} }).html; r.appPage = app.indexOf('入力システム') >= 0 && doGet({ parameter: { page: 'app' } }).html === app;
   r.noOldFns = ['menuAddProspect', 'menuShowUrl', 'menuReport', 'menuRotateId', 'api_login', 'api_create'].map(function (n) { return typeof this[n]; }, this);

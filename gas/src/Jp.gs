@@ -27,6 +27,14 @@ function roundHalfUp_(x, nd) {
 
 function ceilTo_(x, unit) { return Math.ceil(x / unit) * unit; }
 
+/** 上位 digits 桁で切り上げる(414→420、1,898→1,900、1,901→2,000) */
+function ceilSig_(x, digits) {
+  var n = Math.ceil(x);
+  if (n <= 0) return 0;
+  var mag = Math.pow(10, Math.max(0, String(n).length - (digits || 2)));
+  return Math.ceil(n / mag) * mag;
+}
+
 function commas_(s) { return s.replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
 
 /** 桁区切りカンマ。nd 未指定時は小数の末尾0を落とす */

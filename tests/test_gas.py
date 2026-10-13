@@ -31,6 +31,14 @@ def run_js(**inp):
     return json.loads(r.stdout)
 
 
+def no_households(cfg):
+    """入力システムは構成比(%)だけを入力する(世帯数の件数は載せない)ので、Python版の比較用にも件数を外す"""
+    cfg = json.loads(json.dumps(cfg))
+    for b in cfg["inputs"]["income"]["brackets"]:
+        b.pop("households", None)
+    return cfg
+
+
 def py_model(tmp_path, cfg, name):
     p = tmp_path / f"{name}.yaml"
     p.write_text(yaml.safe_dump(cfg, allow_unicode=True), "utf8")
@@ -48,7 +56,9 @@ def franchises():
 
 def same(a, b):
     if isinstance(b, dict):
-        return a.keys() == b.keys() and all(same(a[k], b[k]) for k in b)
+        bn = {k: v for k, v in b.items() if v is not None}   # 値の無い項目は、キーが無いのと同じ扱い
+        an = {k: v for k, v in a.items() if v is not None}
+        return an.keys() == bn.keys() and all(same(an[k], bn[k]) for k in bn)
     if isinstance(b, list):
         return len(a) == len(b) and all(same(x, y) for x, y in zip(a, b))
     return a == pytest.approx(b) if isinstance(b, (int, float)) and not isinstance(b, bool) else a == b
@@ -73,6 +83,7 @@ def compare_models(py, js):
 
 def test_ueda_parity(tmp_path):
     cfg = _plain(yaml.safe_load((ROOT / "configs" / "example-ueda.yaml").read_text("utf8")))
+    cfg = no_households(cfg)
     py = py_model(tmp_path, cfg, "ueda")
     js = run_js(cfg=cfg, franchiseRows=franchises(), listingRows=[], geoDir=geo_dir("長野県"))
     compare_models(py, js)
@@ -114,8 +125,6 @@ def sheet_values(cfg):
     put("inputs.area", i["area"])
     put("inputs.income", {k: x for k, x in i["income"].items() if k != "brackets"})
     for n, b in enumerate(i["income"]["brackets"]):
-        if "households" in b:
-            v[f"bracket_hh.{n}"] = str(b["households"])
         v[f"bracket_sh.{n}"] = str(round(b["share"] * 100, 1))
     put("inputs.price_trend", {k: x for k, x in i["price_trend"].items() if k != "yearly_pct"})
     for n, y in enumerate(i["price_trend"]["yearly_pct"]):
@@ -135,6 +144,7 @@ def sheet_values(cfg):
 
 def test_sheet_input_gives_same_result_as_config(tmp_path):
     cfg = _plain(yaml.safe_load((ROOT / "configs" / "example-ueda.yaml").read_text("utf8")))
+    cfg = no_households(cfg)
     py = py_model(tmp_path, cfg, "ueda")
     js = run_js(vals=sheet_values(cfg), franchiseRows=franchises(), listingRows=[], geoDir=geo_dir("長野県"))
     compare_models(py, js)
@@ -181,8 +191,18 @@ def test_input_system_api(tmp_path):
     assert r["frAdd"] and r["frBad"] and r["frStopped"] and r["frDel"] and r["frStoppedKept"]
     assert r["imp1"] == [0, 188, 0] and r["imp2"] == [0, 14, 0]                     # 添付CSVの再取り込みは更新のみ(重複しない)
     assert r["imp3"][:2] == [1, 0] and r["imp3"][2] == ["住所不明株式会社"] and r["impBad"]
-    assert all(r["setBad"]) and r["settings"] == [1, 2, 50, "APPID", "https://script.google.com/macros/s/AKfycbxTEST/exec"]
-    assert r["listUrl"] and r["point50"] and r["rotated"] and all(r["lpBadId"])
+    assert all(r["setBad"]) and r["settings"] == [1, 2, "APPID", "https://script.google.com/macros/s/AKfycbxTEST/exec", None]   # POINTの切り上げ単位の設定は無い
+    assert r["listUrl"] and r["point420"] and r["rotated"] and all(r["lpBadId"])
+    # 今回の変更
+    assert r["heroNoTotals"] and r["heroNoKpi"]                                       # 物件総数・仲介単価はトップに出さない(まとめには残る)
+    assert r["hpShown"] and r["trendText"] and r["incomeBody"] and r["munis"]         # 周辺加盟店の不動産HP / 価格推移の文章 / 構成比だけの年収文 / 市町村数は自動
+    assert r["pctErr"][0] and r["pctErr"][1] and r["pctOk"] and r["noHhFields"]       # 構成比は0〜100の数値。世帯数の入力欄と市町村数の入力欄は無い
+    assert r["trendDefault"] and r["trendHidden"] and r["trendMissingGone"] and r["trendBack"] and r["showBad"]   # 価格推移の表示/非表示(既定は表示)
+    assert r["numbering"] == "01,02,03,04,05,06,07,08,09,10"                         # 非表示でも連番が詰まる
+    assert r["estat"] == {"hh": 70809, "auto": True, "stored": "70809", "code": "20203", "date": "2026-01-19"}   # 世帯数の自動取得と保存
+    assert r["estatNoRefetch"] and r["estatLp"] and r["estatField"] == 70809 and r["estatManualWins"] and r["estatBackToAuto"]
+    assert r["estatTest"]["ok"] and not r["estatBadId"]["ok"] and "アプリケーションIDが無効" in r["estatBadId"]["message"]
+    assert "試した表" in r["estatFail"] and r["estatFailCached"]                      # 失敗の理由を出し、連打しない
     assert r["areaDeleted"] and r["imagesTrashed"] and r["renamed"] and r["companyDeleted"]
     assert r["appPage"] and r["noOldFns"] == ["undefined"] * 6                      # パスワード方式・旧メニューは残さない
 
@@ -239,3 +259,6 @@ def test_input_screen_in_browser(tmp_path):
     assert log["sibChips"] == 2 and log["areasOfCompany"] == 2 and log["sheetNames"] == "エリア,会社,加盟店一覧,設定"   # 会社にエリアを追加。タブは増えない
     assert log["frShown"] == "登録済み(201件)" and log["frSearch"] == 3 and log["frImported"]
     assert log["settingMax"] == 2 and log["settingUrl"].endswith("/exec")
+    assert log["pct"] == "39.0" and log["noHhInputs"] == 0 and "世帯数の構成比" in log["pctLabel"]       # 構成比は1つだけ・小数点第1位まで
+    assert log["trendDefaultOn"] and log["trendDisabled"] == 0 and log["trendNeedGone"] and log["trendStored"] == "0" and log["trendOnAgain"]
+    assert log["pasted"] and "接続できました" in log["estatTest"] and log["noUnitField"] == 0 and log["noHpListed"]

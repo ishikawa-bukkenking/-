@@ -34,6 +34,15 @@ def ceil_to(x: float, unit: int) -> int:
     return int(math.ceil(x / unit) * unit)
 
 
+def ceil_sig(x: float, digits: int = 2) -> int:
+    """上位 digits 桁で切り上げる(414→420、1,898→1,900、1,901→2,000)。"""
+    n = int(math.ceil(x))
+    if n <= 0:
+        return 0
+    mag = 10 ** max(0, len(str(n)) - digits)
+    return int(math.ceil(n / mag) * mag)
+
+
 def num(x, ndigits: int | None = None) -> str:
     """桁区切りカンマ。小数は ndigits 指定時のみ固定桁、未指定は末尾0を落とす。"""
     if x is None:

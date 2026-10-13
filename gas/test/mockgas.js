@@ -52,10 +52,23 @@ function makeEnv(geoDir) {
     const folder = { getId: () => 'folder1', createFile: mk };
     return { createFolder: () => folder, getFolderById: () => folder, getFileById: id => { if (!files.has(id)) throw new Error('not found'); return files.get(id); }, __files: files }; })(),
     HtmlService: { XFrameOptionsMode: { ALLOWALL: 1 }, createHtmlOutput: html => { const o = { html, setTitle() { return o; }, addMetaTag() { return o; }, setXFrameOptionsMode() { return o; } }; return o; } },
-    UrlFetchApp: { fetch: url => { const code = url.match(/N03-21_(\d\d)_/)[1]; const body = fs.readFileSync(input.geoDir + '/geo_' + code + '.json', 'utf8'); return { getResponseCode: () => 200, getContentText: () => body }; } }
+    UrlFetchApp: { fetch: url => {
+    if (url.indexOf('api.e-stat.go.jp') >= 0) {   // e-Stat APIの模擬(応答の形は公開仕様に基づく想定。実機での検証は未実施)
+      global.__estatCalls = (global.__estatCalls || 0) + 1;
+      const q = Object.fromEntries(new URL(url).searchParams), path = new URL(url).pathname.split('/').pop();
+      const ok = body => ({ getResponseCode: () => 200, getContentText: () => JSON.stringify(body) });
+      if (q.appId === 'BADID') return ok({ [path.replace('get', 'GET_').replace('StatsList', 'STATS_LIST').replace('StatsData', 'STATS_DATA')]: { RESULT: { STATUS: 100, ERROR_MSG: 'アプリケーションIDが無効です' } } });
+      if (global.__estatMode === 'empty') return ok({ GET_STATS_LIST: { RESULT: { STATUS: 0 }, DATALIST_INF: { TABLE_INF: [{ '@id': '0009', TITLE: '男女別 年齢 市区町村' }] } }, GET_STATS_DATA: { RESULT: { STATUS: 0 }, STATISTICAL_DATA: { CLASS_INF: { CLASS_OBJ: [] }, DATA_INF: { VALUE: [] } } } });
+      if (path === 'getStatsList') return ok({ GET_STATS_LIST: { RESULT: { STATUS: 0 }, DATALIST_INF: { TABLE_INF: [
+        { '@id': '0001', TITLE: { '@no': '1', $: '男女別 年齢 市区町村' } }, { '@id': '0003445078', TITLE: { '@no': '2', $: '人口等基本集計 男女別人口,外国人人口及び世帯の種類別世帯数 市区町村' } }] } } });
+      return ok({ GET_STATS_DATA: { RESULT: { STATUS: 0 }, STATISTICAL_DATA: {
+        CLASS_INF: { CLASS_OBJ: [{ '@id': 'cat01', '@name': '項目', CLASS: [{ '@code': '001', '@name': '総人口' }, { '@code': '002', '@name': '世帯数' }, { '@code': '003', '@name': '1世帯当たり人員' }] }, { '@id': 'area', '@name': '地域', CLASS: { '@code': q.cdArea, '@name': '上田市' } }] },
+        DATA_INF: { VALUE: [{ '@cat01': '001', '@area': q.cdArea, '$': '153,000' }, { '@cat01': '002', '@area': q.cdArea, '$': '70,809' }, { '@cat01': '003', '@area': q.cdArea, '$': '2' }] } } } });
+    } const code = url.match(/N03-21_(\d\d)_/)[1]; const body = fs.readFileSync(input.geoDir + '/geo_' + code + '.json', 'utf8'); return { getResponseCode: () => 200, getContentText: () => body }; } }
   });
 
   ctx.__sheetNames = () => sheets.map(x => x.name);
+  ctx.__estatMode = m => { global.__estatMode = m; }; ctx.__estatCalls = () => global.__estatCalls || 0;
   ctx.__setEmail = e => { global.__email = e; };
   for (const f of ['Bundle.gs', 'Assets.gs']) vm.runInContext(fs.readFileSync(path.join(dist, f), 'utf8'), ctx, { filename: f });
   return ctx;
