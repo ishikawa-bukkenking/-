@@ -11,7 +11,7 @@ PL1="'PL（1年目）'"; PL2="'PL（2年目以降）'"
 MCOLS=['D','E','F','G','H','I','K','L','M','N','O','P']
 REL='http://schemas.openxmlformats.org/officeDocument/2006/relationships'
 Y='#,##0"円";[Red]-#,##0"円";"―"'
-FMT=dict(yen=Y,cnt='#,##0"件";[Red]-#,##0"件";"―"',nin='#,##0"名";[Red]-#,##0"名";"―"',set='#,##0"世帯";[Red]-#,##0"世帯";"―"',
+FMT=dict(are='#,##0"エリア";-#,##0"エリア";"―"',yen=Y,cnt='#,##0"件";[Red]-#,##0"件";"―"',nin='#,##0"名";[Red]-#,##0"名";"―"',set='#,##0"世帯";[Red]-#,##0"世帯";"―"',
          buk='#,##0"物件";[Red]-#,##0"物件";"―"',pct='0%;-0%;"―"',num='#,##0;[Red]-#,##0;"―"',mon='0"ヶ月"',date='yyyy/m/d',man='#,##0.0;[Red]-#,##0.0;"―"',gen='General')
 
 def build_cells():
@@ -33,8 +33,8 @@ def build_cells():
     r=8; band(r,'01  入力内容のまとめ')
     left=[('会社名','f','IFERROR(IF(社名!C15="","―",社名!C15),"―")','gen'),
           ('免許の有無','f','IFERROR(IF(免許!D3="","―",免許!D3),"―")','gen'),
-          ('対象エリア①','f','IFERROR(IF(ターゲットエリア!C6="","―",ターゲットエリア!C6),"―")','gen'),
-          ('対象エリア②','f','IFERROR(IF(ターゲットエリア!C7="","―",ターゲットエリア!C7),"―")','gen'),
+          ('対象エリア数','f','IFERROR(COUNTIF(ターゲットエリア!C6:C11,"?*"),0)','are'),
+          ('対象エリア','f','IFERROR(IF(COUNTIF(ターゲットエリア!C6:C11,"?*")=0,"―",MID(IF(ターゲットエリア!C6<>"","、"&ターゲットエリア!C6,"")&IF(ターゲットエリア!C7<>"","、"&ターゲットエリア!C7,"")&IF(ターゲットエリア!C8<>"","、"&ターゲットエリア!C8,"")&IF(ターゲットエリア!C9<>"","、"&ターゲットエリア!C9,"")&IF(ターゲットエリア!C10<>"","、"&ターゲットエリア!C10,"")&IF(ターゲットエリア!C11<>"","、"&ターゲットエリア!C11,""),2,200)),"―")','genw'),
           ('世帯数 合計','f','IFERROR(ターゲットエリア!K12,0)','set'),
           ('予測物件数(エリア)','f','IFERROR(事業検討!D4,0)','buk'),
           ('手数料/件','f','IFERROR(事業検討!E4,0)','yen'),
@@ -50,7 +50,8 @@ def build_cells():
     for i,(l,k,f,fm) in enumerate(left):
         rr=r+1+i; H[rr]=20
         put(f'B{rr}','s',l,'lbl'); put(f'C{rr}','e','','lbl'); put(f'D{rr}','e','','lbl'); merge(f'B{rr}',f'D{rr}')
-        put(f'E{rr}',k,f,'val_r',fm); put(f'F{rr}','e','','val_r'); put(f'G{rr}','e','','val_r'); merge(f'E{rr}',f'G{rr}')
+        put(f'E{rr}',k,f,'val_rw' if fm=='genw' else 'val_r','gen' if fm=='genw' else fm); put(f'F{rr}','e','','val_rw' if fm=='genw' else 'val_r'); put(f'G{rr}','e','','val_rw' if fm=='genw' else 'val_r'); merge(f'E{rr}',f'G{rr}')
+        if fm=='genw': H[rr]=34
     for i,(l,k,f,fm) in enumerate(right):
         rr=r+1+i
         put(f'H{rr}','s',l,'lbl'); put(f'I{rr}','e','','lbl'); put(f'J{rr}','e','','lbl'); merge(f'H{rr}',f'J{rr}')
@@ -186,6 +187,7 @@ def styles(st):
     S['company']=xf(font(20,True,'1A1A1A'),None,h='center'); S['date']=xf(font(10,False,GRAY),None,h='center')
     S['sec']=xf(font(12,True,'FFFFFF'),B,indent=1)
     S['lbl']=xf(font(10,False,GRAY),'F5F8F8',('bottom',),indent=1,bcolor='D0D7D7'); S['val_r']=xf(font(10,True,'1A1A1A'),None,('bottom',),h='right',bcolor='D0D7D7')
+    S['val_rw']=xf(font(10,True,'1A1A1A'),None,('bottom',),h='right',wrap=True,bcolor='D0D7D7')
     S['tile_lbl']=xf(font(9,False,GRAY),'F5F8F8',('left','right','top'),h='center',bcolor='D0D7D7'); S['tile_val']=xf(font(18,True,B),'F5F8F8',('left','right','bottom'),h='center',bcolor='D0D7D7')
     S['sub']=xf(font(10,True,B),None,('bottom',),indent=0,bcolor=B)
     S['th']=xf(font(10,True,'FFFFFF'),B,allb,h='center'); S['td']=xf(font(10),None,allb,indent=1); S['td_r']=xf(font(10),None,allb,h='right'); S['td_c']=xf(font(10),None,allb,h='center'); S['td_rb']=xf(font(10,True),None,allb,h='right')
