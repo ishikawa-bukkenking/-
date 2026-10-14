@@ -219,6 +219,10 @@ def test_input_system_api(tmp_path):
     assert all(r["aiSaveBad"]) and r["aiSaved"] and r["aiLpTable"] and r["aiStatusOk"]    # 確認・修正して保存 → LPは表を表示(画像は出さない)
     assert r["aiClearedOnUpload"] and r["aiDeleted"] and r["aiClearedOnImgDelete"]       # 画像を差し替え/削除したら古い表は消す
     assert "読み取れ" in r["aiJunk"] and "手入力" in r["aiRefusal"] and "APIキーが正しくない" in r["aiWrongKey"] and r["aiKeyRemoved"] and r["aiDenied"]
+    # 価格推移のグラフもAIで(貼ったら自動で保存→折れ線グラフ)/ 自動保存
+    assert r["trendAi"] == ["中古マンション/土地", 3, 3100.5, None, 1, True] and r["trendLine"] and r["trendEdit"] and r["trendNegBlockedForDist"] and r["autoSaveStale"]
+    # 地図のピン: 商談先の住所と周辺加盟店(位置はジオコーダで求め、キャッシュする。範囲外・特定不可・上限超過はピンなしで落ちない)
+    assert r["pinNone"] and r["pinClient"] and r["pinFr"] and r["pinCached"] and r["pinOutOfMap"] and r["pinNotFound"] and r["pinGeoFail"] and r["pinRemoved"] and r["pinSvgValid"]
     assert r["appPage"] and r["noOldFns"] == ["undefined"] * 6                      # パスワード方式・旧メニューは残さない
 
 
@@ -278,5 +282,5 @@ def test_input_screen_in_browser(tmp_path):
     assert log["listUrlText"].startswith("LPのURL(仮)：https://script.test/exec?id=") and log["editUrlText"].startswith("LPのURL(仮")   # 一覧・入力画面にURLが文字でも出る
     assert log["pct"] == "39.0" and log["noHhInputs"] == 0 and "世帯数の構成比" in log["pctLabel"]       # 構成比は1つだけ・小数点第1位まで
     assert log["trendDefaultOn"] and log["trendDisabled"] == 0 and log["trendNeedGone"] and log["trendStored"] == "0" and log["trendOnAgain"]
-    assert log["aiDraftShown"] and log["aiCells"] == "3,12,,5,8,1" and log["aiSaved"] == 9 and log["aiPersisted"]   # 貼る→AIが表に→直して保存
+    assert log["aiAuto"] and log["aiAutoStored"] and log["trendAuto"] and log["aiCells"] == "3,12,,5,8,1" and log["aiSaved"] == 9 and log["aiPersisted"]   # 貼る→AIが表に→直して保存
     assert log["pasted"] and "接続できました" in log["estatTest"] and log["noUnitField"] == 0 and log["noHpListed"]

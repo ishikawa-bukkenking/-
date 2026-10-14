@@ -118,8 +118,24 @@ function householdsFor_(settings, areaId, code) {
 
 var ALLOWED_DOMAIN_ = 'bukkenking.com';
 
+/** 住所 → {lat, lng}。Googleマップのジオコーダを使い、結果は6時間キャッシュ。特定できなければnull */
+function geocode_(addr) {
+  addr = String(addr || '').trim();
+  if (!addr) return null;
+  var key = 'gc:' + addr.slice(0, 100), hit = cacheGet_(key);
+  if (hit) return hit === 'none' ? null : JSON.parse(hit);
+  var res = null;
+  try {
+    var r = Maps.newGeocoder().setLanguage('ja').setRegion('jp').geocode(addr);
+    if (r && r.status === 'OK' && r.results && r.results.length) { var l = r.results[0].geometry.location; res = { lat: l.lat, lng: l.lng }; }
+  } catch (e) { return null; }   // 上限超過などは覚えない(次回やり直す)
+  cachePut_(key, res ? JSON.stringify(res) : 'none');
+  return res;
+}
+
 function realServices_(settings, areaId) {
   var s = { cacheGet: cacheGet_, cachePut: cachePut_, fetchJson: fetchJson_, now: function () { return new Date().toISOString(); } };
+  s.geocode = geocode_;
   if (settings.estat) s.estatHouseholds = function (code) { return householdsFor_(settings, areaId, code); };
   return s;
 }
@@ -156,7 +172,12 @@ function buildArea_(areaId) {
   var vals = Object.assign({}, a.values, { company: c ? c.name : '', prefecture: a.values.prefecture || a.pref, city: a.values.city || a.city });
   var cfg = valuesToConfig_(vals, todayIso_());
   cfg.options = settings.opts;
-  TABLE_KEYS_.forEach(function (k) { var t = savedTable_(vals, k); if (t) setPath_(cfg, k.replace(/heatmap_image$/, 'table'), t); });
+  TABLE_KEYS_.forEach(function (k) {
+    var t = savedTable_(vals, k);
+    if (!t) return;
+    if (k === TREND_KEY_) { cfg.inputs.price_trend = cfg.inputs.price_trend || {}; if (!cfg.inputs.price_trend.series) cfg.inputs.price_trend.series = trendTableToSeries_(t); }
+    else setPath_(cfg, k.replace(/heatmap_image$/, 'table'), t);
+  });
   resolveImages_(cfg);
   var frSh = ss.getSheetByName(SHEET_FR_);
   var data = { franchiseRows: frSh && frSh.getLastRow() > 1 ? franchiseRowsFrom_(frSh.getRange(2, 1, frSh.getLastRow() - 1, 6).getDisplayValues()) : [], listingRows: [] };

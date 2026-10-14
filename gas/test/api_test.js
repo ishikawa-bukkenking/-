@@ -136,7 +136,7 @@ const res = vm.runInContext(`
   r.aiKeyBad = tryCall(function () { return api_ai_set('hello'); }).err;
   r.aiKeySet = api_ai_set('sk-ant-testtesttesttesttesttest').set && api_settings_get().aiKeySet === true && !JSON.stringify(api_settings_get()).match(/sk-ant/) && !JSON.stringify(api_get(a1)).match(/sk-ant/);
   r.aiKeyNotInSheet = !JSON.stringify(__sheetNames().map(function (n) { var sh = ss.getSheetByName(n); return sh.getLastRow() ? sh.getRange(1, 1, sh.getLastRow(), 12).getValues() : []; })).match(/sk-ant/);
-  r.aiBadKind = [tryCall(function () { return api_readTable(a1, 'inputs.price_trend.image'); }).err, tryCall(function () { return api_saveTable(a1, 'inputs.price_trend.image', {}); }).err];
+  r.aiBadKind = [tryCall(function () { return api_readTable(a1, 'inputs.income.city_avg_man'); }).err, tryCall(function () { return api_saveTable(a1, 'inputs.income.city_avg_man', {}); }).err];
   var t1 = api_readTable(a1, HK);
   var call0 = __aiCalls()[__aiCalls().length - 1];
   r.aiCall = call0.url === 'https://api.anthropic.com/v1/messages' && call0.body.model === 'claude-opus-5-5' && call0.body.messages[0].content[0].type === 'image' && call0.body.messages[0].content[0].source.type === 'base64' && !('temperature' in call0.body) && !('thinking' in call0.body);
@@ -157,9 +157,37 @@ const res = vm.runInContext(`
   __aiMode('junk'); r.aiJunk = tryCall(function () { return api_readTable(a1, HK); }).err;
   __aiMode('refusal'); r.aiRefusal = tryCall(function () { return api_readTable(a1, HK); }).err;
   __aiMode('');
+  // 価格推移のグラフも同様に、貼ったら自動でAIが読み取って保存 → 折れ線グラフで描画
+  var TK = 'inputs.price_trend.image';
+  api_uploadImage(a1, TK, PX);
+  var tt = api_readTable(a1, TK, true);
+  r.trendAi = [tt.rows.join('/'), tt.cols.length, tt.cells[0][2], tt.cells[1][1], tt.warnings.length, !!areaById_(a1).values['tbl.' + TK]];
+  var lpT = doGet({ parameter: { id: a1 } }).html;
+  r.trendLine = lpT.indexOf('直近3年間の価格推移(万円)') >= 0 && lpT.indexOf('中古マンション') >= 0 && lpT.indexOf('の住宅価格推移グラフ"') < 0 && api_status(a1).missing.filter(function (m) { return m.key === 'price_trend.chart'; }).length === 0;
+  r.trendEdit = api_saveTable(a1, TK, { cols: ['2023', '2024'], rows: ['土地'], cells: [[-1.5, '2']] }).ok && api_get(a1).tables[TK].cells[0][0] === -1.5;
+  r.trendNegBlockedForDist = !!tryCall(function () { return api_saveTable(a1, HK, { cols: ['a'], rows: ['b'], cells: [[-3]] }); }).err;
+  r.autoSaveStale = (function () { api_uploadImage(a1, HK, PX); var t = api_readTable(a1, HK, true); return !!areaById_(a1).values['tbl.' + HK] && t.total === 29; })();
   api_ai_set('sk-ant-wrongwrongwrongwrongwrong'); r.aiWrongKey = tryCall(function () { return api_readTable(a1, HK); }).err;
   api_ai_set(''); r.aiKeyRemoved = api_settings_get().aiKeySet === false;
   r.aiDenied = (function () { __setEmail('x@gmail.com'); var e = ['api_readTable', 'api_saveTable', 'api_deleteTable', 'api_ai_set'].map(function (n) { var m = tryCall(function () { return this[n](a1, HK, {}); }.bind(this)).err; return !!m && (m.indexOf('メールアドレス') >= 0 || m.indexOf('使えません') >= 0); }, this); __setEmail('ishikawa@bukkenking.com'); return e.every(Boolean); }).call(this);
+  // --- 地図のピン(商談先の住所・周辺加盟店) ---
+  var pinA = api_create_company('ピンテスト', '長野県', '上田市').areaId;
+  var g0 = __geoCalls();
+  var noPin = doGet({ parameter: { id: pinA } }).html;
+  r.pinNone = noPin.indexOf('pin-client') < 0 && __geoCalls() > g0 - 1 && buildArea_(pinA).report.missing().some(function (i) { return i.key === 'area.pin_client'; }) === false;
+  api_save(pinA, { 'inputs.client.address': '長野県上田市中央1-1-1' });
+  var bp = buildArea_(pinA), pm = bp.model.area.pins;
+  r.pinClient = pm.filter(function (x) { return x.kind === 'client'; }).length === 1 && pm[0].on_map === true && bp.html.indexOf('class="pin pin-client"') >= 0 && bp.html.indexOf('map-legend') >= 0 && bp.html.indexOf('商談先') >= 0;
+  var frPins = pm.filter(function (x) { return x.kind === 'fr' && x.on_map; });
+  r.pinFr = frPins.length >= 1 && bp.html.split('class="pin pin-fr"').length - 1 === frPins.length && bp.html.indexOf('class="pinno"') >= 0 && frPins.every(function (x) { return x.n >= 1 && x.n <= 3; });
+  var gc = __geoCalls(); buildArea_(pinA); doGet({ parameter: { id: pinA } }); r.pinCached = __geoCalls() === gc;   // 住所の位置はキャッシュ(連打しない)
+  api_save(pinA, { 'inputs.client.address': '大阪府大阪市北区1-1' }); var far = buildArea_(pinA);
+  r.pinOutOfMap = far.model.area.pins[0].on_map === false && far.html.indexOf('pin-client') < 0 && far.report.missing().length >= 0;
+  api_save(pinA, { 'inputs.client.address': 'ZZZ' }); r.pinNotFound = buildArea_(pinA).model.area.pins[0].why === undefined && buildArea_(pinA).model.area.pins[0].lat === null;
+  __geoMode('fail'); api_save(pinA, { 'inputs.client.address': '長野県上田市テスト失敗' }); r.pinGeoFail = buildArea_(pinA).html.indexOf('pin-client') < 0; __geoMode('');
+  api_save(pinA, { 'inputs.client.address': '' }); r.pinRemoved = buildArea_(pinA).html.indexOf('pin-client') < 0;
+  r.pinSvgValid = (function () { var h = bp.html, i = h.indexOf('<svg class="area-map"'), seg = h.slice(i, h.indexOf('</svg>', i)); return i > 0 && seg.split('<g ').length === seg.split('</g>').length; })();
+  api_delete_company(api_list().companies.filter(function (x) { return x.name === 'ピンテスト'; })[0].id);
   // --- 商談先一覧(自動で記載・更新) ---
   function idxRows() { var sh = ss.getSheetByName('商談先一覧'); var last = sh.getLastRow(); return { head: sh.getRange(1, 1, 1, 9).getValues()[0], rows: last > 1 ? sh.getRange(2, 1, last - 1, 9).getValues() : [] }; }
   function idxOf(id) { return idxRows().rows.filter(function (x) { return x[8] === id; })[0]; }

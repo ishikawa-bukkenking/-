@@ -53,6 +53,16 @@ function makeEnv(geoDir) {
     const folder = { getId: () => 'folder1', createFile: mk };
     return { createFolder: () => folder, getFolderById: () => folder, getFileById: id => { if (!files.has(id)) throw new Error('not found'); return files.get(id); }, __files: files }; })(),
     HtmlService: { XFrameOptionsMode: { ALLOWALL: 1 }, createHtmlOutput: html => { const o = { html, setTitle() { return o; }, addMetaTag() { return o; }, setXFrameOptionsMode() { return o; } }; return o; } },
+    Maps: { newGeocoder: () => ({ setLanguage() { return this; }, setRegion() { return this; }, geocode: addr => {   // ジオコーダの模擬(上田市付近の座標を住所の文字から決める)
+      global.__geoCalls = (global.__geoCalls || 0) + 1;
+      const ok = (lat, lng) => ({ status: 'OK', results: [{ geometry: { location: { lat, lng } } }] });
+      if (global.__geoMode === 'fail') return { status: 'OVER_QUERY_LIMIT', results: [] };
+      if (/ZZZ/.test(addr)) return { status: 'ZERO_RESULTS', results: [] };
+      if (/大阪/.test(addr)) return ok(34.69, 135.5);
+      if (/中央1-1-1/.test(addr)) return ok(36.4019, 138.249);
+      let h = 0; for (const c of addr) h = (h * 31 + c.charCodeAt(0)) % 1000;
+      return ok(36.36 + (h % 50) / 1000, 138.2 + (h % 70) / 1000);
+    } }) },
     UrlFetchApp: { fetch: function (url) {
     if (url.indexOf('api.anthropic.com') >= 0) {   // Claude APIの模擬(応答の形は公開仕様どおり)
       const o = arguments[1] || {}; global.__aiCalls = (global.__aiCalls || []).concat([{ url, key: (o.headers || {})['x-api-key'], body: JSON.parse(o.payload) }]);
@@ -60,6 +70,8 @@ function makeEnv(geoDir) {
       if ((o.headers || {})['x-api-key'] !== 'sk-ant-testtesttesttesttesttest') return reply(401, { error: { message: 'invalid x-api-key' } });
       if (global.__aiMode === 'refusal') return reply(200, { stop_reason: 'refusal', content: [] });
       if (global.__aiMode === 'junk') return reply(200, { stop_reason: 'end_turn', content: [{ type: 'text', text: '読み取れません' }] });
+      if (JSON.parse(o.payload).messages[0].content[1].text.indexOf('折れ線グラフ') >= 0)
+        return reply(200, { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ caption: '', cols: ['2023', '2024', '2025'], rows: ['中古マンション', '土地'], cells: [[2800, '2900', 3100.5], [900, null, 950]], warnings: ['グラフの値は目盛りからの概算です'] }) }] });
       const t = { caption: '土地面積×価格', cols: ['〜1000', '1000〜2000', '2000〜'], rows: ['〜100㎡', '100〜150㎡'], cells: [[3, 12, null], [5, '8', 1]], warnings: ['左下の数字がやや不鮮明'] };
       return reply(200, { stop_reason: 'end_turn', content: [{ type: 'text', text: '```json\n' + JSON.stringify(t) + '\n```' }] });
     }
@@ -78,6 +90,7 @@ function makeEnv(geoDir) {
   });
 
   ctx.__sheetNames = () => sheets.map(x => x.name);
+  ctx.__geoMode = m => { global.__geoMode = m; }; ctx.__geoCalls = () => global.__geoCalls || 0;
   ctx.__aiMode = m => { global.__aiMode = m; }; ctx.__aiCalls = () => global.__aiCalls || [];
   ctx.__estatMode = m => { global.__estatMode = m; }; ctx.__estatCalls = () => global.__estatCalls || 0;
   ctx.__setEmail = e => { global.__email = e; };

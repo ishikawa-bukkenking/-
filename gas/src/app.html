@@ -216,11 +216,11 @@ function uploadImageFile(f, fl, st, th, sync) {
   }, function (m) { st.textContent = m; setSaved(m, true); });
 }
 var tables = {}, aiReady = false;
-function isTbl(k) { return /^inputs\.(used_house|used_mansion|new_house)\.heatmap_image$/.test(k); }
+function isTbl(k) { return /^inputs\.(used_house|used_mansion|new_house)\.heatmap_image$|^inputs\.price_trend\.image$/.test(k); }
 function readTableAI(f) {
   f.tb.replaceChildren(el('p', { class: 'note', text: 'AIで画像から表を読み取っています…(10〜30秒ほどかかります)' }));
-  google.script.run.withSuccessHandler(function (t) { f.draft = t; renderTable(f); })
-    .withFailureHandler(function (e) { f.draft = null; renderTable(f, 'AIで読み取れませんでした: ' + (e.message || e) + '。画像のままLPに表示されます。'); }).api_readTable(cur, f.k);
+  google.script.run.withSuccessHandler(function (t) { tables[f.k] = t; f.fresh = true; setSaved('AIが表を作りました'); renderTable(f); loadStatus(); })
+    .withFailureHandler(function (e) { renderTable(f, 'AIで読み取れませんでした: ' + (e.message || e) + '。画像のままLPに表示されます。'); }).api_readTable(cur, f.k, true);
 }
 function tableEditor(f, t) {
   var tb = el('table'), head = el('tr', {}, [el('th')]), cin = [], rin = [], cin2 = [];
@@ -238,26 +238,26 @@ function tableEditor(f, t) {
 function renderTable(f, errMsg) {
   var box = f.tb; if (!box) return; box.replaceChildren();
   if (errMsg) box.appendChild(el('p', { class: 'warn', text: errMsg }));
-  var t = f.draft || tables[f.k];
+  var t = tables[f.k], isTrend = /price_trend/.test(f.k);
   if (!imgs[f.k]) return;
   if (!t) {
-    if (aiReady) { var b = el('button', { class: 'ghost', type: 'button', text: 'AIで画像を表に作り直す' }); b.onclick = function () { readTableAI(f); }; box.appendChild(b); }
-    else box.appendChild(el('p', { class: 'note', text: '「設定」でAIのAPIキーを入れると、画像を見やすい表に作り直せます。' }));
+    if (aiReady) { var b = el('button', { class: 'ghost', type: 'button', text: 'AIで画像から作り直す' }); b.onclick = function () { readTableAI(f); }; box.appendChild(b); }
+    else box.appendChild(el('p', { class: 'note', text: '「設定」でAIのAPIキーを入れると、貼った画像から自動で表・グラフを作れます。' }));
     return;
   }
   var ed = tableEditor(f, t), wrap = el('div', { class: 'tbl' }, [ed.node]);
-  if (f.draft) {
-    box.appendChild(el('p', { class: 'note', text: 'AIが読み取った表です。元の画像と見比べて、違う数字があれば直してから「この内容で保存」を押してください。' }));
-    (f.draft.warnings || []).forEach(function (w) { box.appendChild(el('p', { class: 'warn', text: '要確認: ' + w })); });
-  } else box.appendChild(el('p', { class: 'note', text: '表に作り直し済みです(LPにはこの表が表示されます)。数字は直接直せます。' }));
+  if (f.fresh) {
+    box.appendChild(el('p', { class: 'note', text: 'AIが自動で作りました(LPに反映済み)。元の画像と見比べて、違う数字があれば直して「修正を保存」を押してください。' + (isTrend ? 'グラフの値は読み取りによる概算です。' : '') }));
+    (t.warnings || []).forEach(function (w) { box.appendChild(el('p', { class: 'warn', text: '要確認: ' + w })); });
+  } else box.appendChild(el('p', { class: 'note', text: 'AIで作り直し済みです(LPにはこの' + (isTrend ? 'グラフ' : '表') + 'が表示されます)。数字は直接直せます。' }));
   box.appendChild(wrap);
-  var sv = el('button', { type: 'button', text: f.draft ? 'この内容で保存' : '修正を保存' }), rd = el('button', { class: 'ghost', type: 'button', text: 'AIで読み取り直す' }), rm = el('button', { class: 'ghost', type: 'button', text: '表をやめて画像のまま使う' }), msg = el('span', { class: 'note' });
+  var sv = el('button', { type: 'button', text: '修正を保存' }), rd = el('button', { class: 'ghost', type: 'button', text: 'AIで読み取り直す' }), rm = el('button', { class: 'ghost', type: 'button', text: 'AIの結果をやめて画像のまま使う' }), msg = el('span', { class: 'note' });
   sv.onclick = function () {
-    google.script.run.withSuccessHandler(function (r) { tables[f.k] = ed.get(); tables[f.k].cells = tables[f.k].cells.map(function (l) { return l.map(function (x) { return x === '' ? null : Number(String(x).replace(/[,，]/g, '')); }); }); f.draft = null; setSaved('表を保存しました(合計 ' + r.total + '件)'); renderTable(f); loadStatus(); })
+    google.script.run.withSuccessHandler(function (r) { var w = t.warnings; tables[f.k] = ed.get(); tables[f.k].warnings = w; tables[f.k].cells = tables[f.k].cells.map(function (l) { return l.map(function (x) { return x === '' ? null : Number(String(x).replace(/[,，]/g, '')); }); }); f.fresh = false; setSaved('保存しました'); renderTable(f); loadStatus(); })
       .withFailureHandler(function (e) { msg.textContent = e.message || e; }).api_saveTable(cur, f.k, ed.get());
   };
   rd.onclick = function () { readTableAI(f); }; rd.hidden = !aiReady;
-  rm.onclick = function () { google.script.run.withSuccessHandler(function () { tables[f.k] = null; f.draft = null; renderTable(f); loadStatus(); }).api_deleteTable(cur, f.k); };
+  rm.onclick = function () { google.script.run.withSuccessHandler(function () { tables[f.k] = null; f.fresh = false; renderTable(f); loadStatus(); }).api_deleteTable(cur, f.k); };
   box.appendChild(el('div', { class: 'imgbox', style: 'margin-top:8px' }, [sv, rd, rm, msg]));
 }
 function imageField(f, wrap) {

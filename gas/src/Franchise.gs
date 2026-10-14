@@ -27,7 +27,7 @@ function selectFranchise_(rows, pref, city, neighbors, opt) {
     if (picked.length && stop) break;
   }
   return { items: picked.map(function (r) {
-    return { name: r.name, prefecture: r.prefecture, city: r.city, url: r.url || '', area: r.prefecture + ' ' + r.city, tier: r._tier };
+    return { name: r.name, prefecture: r.prefecture, city: r.city, address: r.address || '', url: r.url || '', area: r.prefecture + ' ' + r.city, tier: r._tier };
   }), tiers_used: used };
 }
 

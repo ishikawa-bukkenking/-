@@ -1,26 +1,27 @@
 /** 分布表の画像 → AI(Claude API)で読み取り → 内容そのままの表に作り直す */
 
 var AI_MODEL_ = 'claude-opus-5-5';
-var TABLE_KEYS_ = ['inputs.used_house.heatmap_image', 'inputs.used_mansion.heatmap_image', 'inputs.new_house.heatmap_image'];
+var TREND_KEY_ = 'inputs.price_trend.image';
+var TABLE_KEYS_ = [TREND_KEY_, 'inputs.used_house.heatmap_image', 'inputs.used_mansion.heatmap_image', 'inputs.new_house.heatmap_image'];
 function isTableKey_(key) { return TABLE_KEYS_.indexOf(key) >= 0; }
 function tableValueKey_(key) { return 'tbl.' + key; }
 
 function aiKey_() { return String(PropertiesService.getScriptProperties().getProperty('ANTHROPIC_KEY') || '').trim(); }
 
 /** 表データの検証と整形(純粋関数)。不正ならエラーを投げる */
-function normalizeTable_(t) {
+function normalizeTable_(t, allowNeg) {
   if (!t || typeof t !== 'object') throw new Error('表のデータがありません。');
   var cols = (t.cols || []).map(function (x) { return String(x === null || x === undefined ? '' : x).trim().slice(0, 30); });
   var rows = (t.rows || []).map(function (x) { return String(x === null || x === undefined ? '' : x).trim().slice(0, 30); });
   if (!cols.length || !rows.length) throw new Error('表の列と行が空です。');
-  if (cols.length > 30 || rows.length > 40) throw new Error('表が大きすぎます(30列・40行まで)。');
+  if (cols.length > 60 || rows.length > 40) throw new Error('表が大きすぎます(60列・40行まで)。');
   var cells = rows.map(function (r, i) {
     var line = (t.cells && t.cells[i]) || [];
     return cols.map(function (c, j) {
       var v = line[j];
       if (v === null || v === undefined || String(v).trim() === '') return null;
       var n = parseNum_(v);
-      if (n === undefined || n < 0) throw new Error('表の数値が正しくありません(' + (i + 1) + '行目・' + (j + 1) + '列目)。');
+      if (n === undefined || (n < 0 && !allowNeg)) throw new Error('表の数値が正しくありません(' + (i + 1) + '行目・' + (j + 1) + '列目)。');
       return n;
     });
   });
@@ -34,6 +35,17 @@ function tableToHeat_(t) {
   return { cols: t.cols, rows: t.rows, grid: t.cells.map(function (r) { return r.map(function (v) { return v || 0; }); }), max: max || 1 };
 }
 function tableTotal_(t) { var s = 0; t.cells.forEach(function (r) { r.forEach(function (v) { s += v || 0; }); }); return s; }
+
+var TREND_PROMPT_ = [
+  'この画像は、不動産の価格推移の折れ線グラフです。グラフの内容を読み取って表にしてください。',
+  '- cols に横軸の時点ラベル(年月など)を左から順に、rows に線(系列)の名前(凡例や線の脇の表記。マンション・戸建て・土地など)を書きます。',
+  '- cells は、各系列の各時点の値です。グラフに数値が書かれていればその値を、無ければ縦軸の目盛りから読み取った値にします。',
+  '- 線が途切れていて値が読めない時点は null にします。読み取りが概算になる場合は、warnings に日本語で書いてください。',
+  '- 縦軸の単位や指数の基準が画像にあれば caption に書き写します(無ければ空文字)。',
+  '次のJSONだけを返してください(説明文やコードブロックは付けない)。',
+  '{"caption":"","cols":["時点",...],"rows":["系列名",...],"cells":[[数値またはnull,...],...],"warnings":["..."]}',
+  'cells は rows と同じ行数、cols と同じ列数にしてください。'
+].join('\n');
 
 var TABLE_PROMPT_ = [
   'この画像は、不動産の「面積×価格」の分布表(ヒートマップ)です。表の内容を、一切変えずに正確に読み取ってください。',
@@ -53,13 +65,13 @@ function extractJson_(text) {
 }
 
 /** Claude API で画像を読み取る。fetch は UrlFetchApp.fetch 互換(テスト用に差し替え可) */
-function aiReadTable_(base64, mediaType, key, fetch) {
+function aiReadTable_(base64, mediaType, key, fetch, kind) {
   if (!key) throw new Error('AIのAPIキーが未設定です。「設定」で入力してください。');
   var body = {
     model: AI_MODEL_, max_tokens: 8000, output_config: { effort: 'low' },
     messages: [{ role: 'user', content: [
       { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-      { type: 'text', text: TABLE_PROMPT_ }] }]
+      { type: 'text', text: kind === 'trend' ? TREND_PROMPT_ : TABLE_PROMPT_ }] }]
   };
   var res = fetch('https://api.anthropic.com/v1/messages', {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true,
@@ -74,7 +86,7 @@ function aiReadTable_(base64, mediaType, key, fetch) {
   if (r.stop_reason === 'max_tokens') throw new Error('表が大きすぎて読み取りきれませんでした。');
   var text = (r.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('');
   var raw = extractJson_(text);
-  var t = normalizeTable_(raw);
+  var t = normalizeTable_(raw, kind === 'trend');
   t.warnings = (raw.warnings || []).map(String).slice(0, 10);
   return t;
 }
@@ -82,11 +94,11 @@ function aiReadTable_(base64, mediaType, key, fetch) {
 function savedTable_(values, key) {
   var s = values[tableValueKey_(key)];
   if (!s) return null;
-  try { return normalizeTable_(JSON.parse(s)); } catch (e) { return null; }
+  try { return normalizeTable_(JSON.parse(s), key === TREND_KEY_); } catch (e) { return null; }
 }
 
-/** 保存済みの画像をAIで読み取り、表の候補を返す(保存はしない。画面で確認・修正してから保存) */
-function api_readTable(areaId, key) {
+/** 保存済みの画像をAIで読み取る。save=true なら表として自動保存(貼り付け時)。false は候補を返すだけ */
+function api_readTable(areaId, key, save) {
   requireUser_();
   if (!isTableKey_(key)) throw new Error('この項目は表に作り直せません。');
   var a = areaById_(areaId);
@@ -94,15 +106,22 @@ function api_readTable(areaId, key) {
   var ref = String(a.values[key] || '').match(/^drive:([A-Za-z0-9_-]+)$/);
   if (!ref) throw new Error('先に画像を登録してください。');
   var blob = DriveApp.getFileById(ref[1]).getBlob();
-  var t = aiReadTable_(Utilities.base64Encode(blob.getBytes()), blob.getContentType(), aiKey_(), function (u, o) { return UrlFetchApp.fetch(u, o); });
+  var t = aiReadTable_(Utilities.base64Encode(blob.getBytes()), blob.getContentType(), aiKey_(), function (u, o) { return UrlFetchApp.fetch(u, o); }, key === TREND_KEY_ ? 'trend' : 'table');
   t.total = tableTotal_(t);
+  if (save) {   // 貼り付けたら自動で表にして保存する(あとから画面で直せる)
+    writeAreaValues_(areaId, function (values) {
+      if (values[key] !== a.values[key]) throw new Error('画像が差し替えられました。もう一度やり直してください。');
+      values[tableValueKey_(key)] = JSON.stringify({ caption: t.caption, cols: t.cols, rows: t.rows, cells: t.cells });
+      var dk = dateKeyFor_(key); if (dk) values[dk] = todayStr_();
+    });
+  }
   return t;
 }
 
 function api_saveTable(areaId, key, table) {
   requireUser_();
   if (!isTableKey_(key)) throw new Error('この項目は表に作り直せません。');
-  var t = normalizeTable_(table);
+  var t = normalizeTable_(table, key === TREND_KEY_);
   writeAreaValues_(areaId, function (values) {
     values[tableValueKey_(key)] = JSON.stringify(t);
     var dk = dateKeyFor_(key); if (dk) values[dk] = todayStr_();
@@ -126,4 +145,11 @@ function api_ai_set(key) {
   if (!/^sk-ant-[A-Za-z0-9_-]{20,}$/.test(key)) throw new Error('APIキーの形式が正しくありません(sk-ant- で始まる文字列)。');
   p.setProperty('ANTHROPIC_KEY', key);
   return { set: true };
+}
+
+/** 価格推移の表(行=系列、列=時点) → 描画用の系列データ */
+function trendTableToSeries_(t) {
+  var s = { labels: t.cols.slice() };
+  t.rows.forEach(function (name, i) { if (name) s[name] = t.cells[i].slice(); });
+  return s;
 }
