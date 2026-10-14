@@ -17,10 +17,31 @@ def first_input():
         return sorted(cs,key=key)[0]
     return {i:first(NAMES[i-1]) for i in range(1,13)}
 
+NEW_NAME='株式会社〇〇'
+def anonymize_name(path):
+    """社名!C15 の文字列(三ツ星不動産)を「株式会社〇〇」に置き換える。ふりがなは削除。決定事項!A2 の保存値も合わせる"""
+    zin=zipfile.ZipFile(path); parts={n:zin.read(n) for n in zin.namelist()}; order=zin.namelist()
+    sst=etree.fromstring(parts['xl/sharedStrings.xml']); hit=0
+    for si in sst.findall('m:si',N):
+        if ''.join(t.text or '' for t in si.findall('m:t',N))=='三ツ星不動産':
+            for ch in list(si):
+                if etree.QName(ch).localname in('rPh','phoneticPr'): si.remove(ch)
+            si.find('m:t',N).text=NEW_NAME; hit+=1
+    assert hit==1,hit
+    parts['xl/sharedStrings.xml']=etree.tostring(sst,xml_declaration=True,encoding='UTF-8',standalone=True)
+    sh=etree.fromstring(parts['xl/worksheets/sheet12.xml'])
+    for c in sh.iterfind('.//m:sheetData/m:row/m:c',N):
+        if c.get('r')=='A2' and c.find('m:f',N) is not None: c.find('m:v',N).text=NEW_NAME
+    parts['xl/worksheets/sheet12.xml']=etree.tostring(sh,xml_declaration=True,encoding='UTF-8',standalone=True)
+    zo=zipfile.ZipFile(path,'w',zipfile.ZIP_DEFLATED)
+    for n in order:
+        zi=zipfile.ZipInfo(n,(2026,10,14,0,0,0)); zi.compress_type=zipfile.ZIP_DEFLATED; zo.writestr(zi,parts[n])
+    zo.close()
 def build_formatted(out,unlock=False):
     C=cfgs(first_input())
     for i in C: C[i]['selected']=(i==1)
-    return build(out,C,print_areas=PRINT_AREAS,active_tab=0,unlock=unlock)
+    st=build(out,C,print_areas=PRINT_AREAS,active_tab=0,unlock=unlock)
+    anonymize_name(out); return st
 
 # ---------- 使い方シート ----------
 def make_usage(st,constants):
@@ -72,7 +93,7 @@ def make_usage(st,constants):
     add([('B','2. シートの一覧と入力する順番',S['h2'])],ht=20)
     add([('B','順',S['head']),('C','シート',S['head']),('D','何をするか',S['head']),('E','入力するところ',S['head']),('F','種類',S['head'])])
     sheets=[('―','まとめ','入力内容のまとめとグラフ(黒字化のタイミング、損益分岐点、簡易P&L、月次推移の表)。各シートから自動で集計されます','―(入力不要。先に各シートへ入力)','確認'),
-      ('1','社名','会社名を入れます(決定事項の表題にも出ます)','C15','入力'),
+      ('1','社名','会社名を入れます(初期値は仮の「株式会社〇〇」。決定事項・まとめの表題にも出ます)','C15','入力'),
       ('2','ターゲットエリア','出店エリアの市区町村と世帯数、種別ごとの物件数・金額(万円)を入れます','水色セル(C6:K7、各エリア表の物件数・金額)。CPC(170円)は前提値','入力'),
       ('3','免許','免許の有無を選びます(有り/無し)。免許費用は前提値','D3(プルダウン)','入力'),
       ('4','目標設定','人員の給与、年間の営業利益目標、対応する事業(□を■にする)を入れます','E列(給与)、B21(目標)、□/■(プルダウン)','入力'),
@@ -159,6 +180,7 @@ def assemble(formatted_unlocked,pre_out):
         for c in root.iterfind('.//m:sheetData/m:row/m:c',N):
             ref=c.get('r'); 
             if roles[name].get(ref)!='A' or c.find('m:f',N) is not None: continue
+            if (name,ref)==('社名','C15'): continue   # 仮の社名「株式会社〇〇」を初期値として残す
             v=c.find('m:v',N)
             if v is None: continue
             if (name,ref) in CHECKS:

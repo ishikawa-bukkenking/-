@@ -221,6 +221,7 @@ def sheet_xml(st,vals,protect):
     cols=etree.SubElement(ws,q('cols'))
     for a,b,w in((1,1,1.5),(2,13,8.6),(14,14,2.5),(15,21,11)):
         c=etree.SubElement(cols,q('col')); c.attrib.update({'min':str(a),'max':str(b),'width':str(w),'customWidth':'1'})
+        if a==15: c.set('hidden','1')   # グラフ用の補助表は非表示
     sd=etree.SubElement(ws,q('sheetData'))
     for rn in range(1,last+1):
         if rn not in rows and rn not in H: continue
@@ -287,7 +288,7 @@ def chart_xml(title,bars,lines,stacked,cat_ref,cat_vals,valsget):
             '<c:autoTitleDeleted val="0"/><c:plotArea><c:layout/>%s%s'
             '<c:catAx><c:axId val="111111111"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="b"/><c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="800" b="0"/></a:pPr><a:r><a:rPr lang="ja-JP" sz="800" b="0"><a:solidFill><a:srgbClr val="595959"/></a:solidFill><a:latin typeface="%s"/><a:ea typeface="%s"/></a:rPr><a:t>月</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title><c:numFmt formatCode="General" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="low"/><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="A6A6A6"/></a:solidFill></a:ln></c:spPr>%s<c:crossAx val="222222222"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx>'
             '<c:valAx><c:axId val="222222222"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="l"/>%s<c:title><c:tx><c:rich><a:bodyPr rot="-5400000" vert="horz"/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="800" b="0"/></a:pPr><a:r><a:rPr lang="ja-JP" sz="800" b="0"><a:solidFill><a:srgbClr val="595959"/></a:solidFill><a:latin typeface="%s"/><a:ea typeface="%s"/></a:rPr><a:t>万円</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title><c:numFmt formatCode="#,##0" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:spPr><a:ln><a:noFill/></a:ln></c:spPr>%s<c:crossAx val="111111111"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>'
-            '<c:spPr><a:noFill/></c:spPr></c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/>%s</c:legend><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart>'
+            '<c:spPr><a:noFill/></c:spPr></c:plotArea><c:legend><c:legendPos val="b"/><c:overlay val="0"/>%s</c:legend><c:plotVisOnly val="0"/><c:dispBlanksAs val="gap"/></c:chart>'
             '<c:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="D0D7D7"/></a:solidFill></a:ln></c:spPr>%s</c:chartSpace>'
             )%(CNS,REL,PAL['BRAND'],FONT_NAME,FONT_NAME,title,bar,ln,FONT_NAME,FONT_NAME,_txpr(800),grid,FONT_NAME,FONT_NAME,_txpr(800),_txpr(900),_txpr(900))
 

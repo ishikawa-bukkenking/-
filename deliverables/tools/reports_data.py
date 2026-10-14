@@ -59,6 +59,7 @@ for sh,c,val,k,act,why,q in rows:
     if sh=='簡易PL' and c in('D7','D8','D9','I7'): cls='B 想定値→残す'; act2='残す'; why='件数(ご回答Q8: 残す)'
     if sh in('PL（1年目）','PL（2年目以降）') and k.startswith('A'): act2='0のまま(ご回答Q10)'
     if (sh,c) in CHECKS: act2='□(未選択)にする(ご回答Q9)'
+    if (sh,c)==('社名','C15'): act2='「株式会社〇〇」(仮の社名)に置き換える(整形版・テンプレート版とも)'; why='社名(ご指示で仮名に変更)'
     if k.startswith('A') and act2=='空にする' : pass
     out.append([sh,c,val,cls,act2,why])
 wb=openpyxl.Workbook(); ws=wb.active; ws.title='入力分類(確定)'
