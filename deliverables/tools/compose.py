@@ -5,7 +5,7 @@ O='/home/user/-/deliverables/report/img/'; os.makedirs(O,exist_ok=True)
 f=ImageFont.truetype('/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf',30)
 names=["社名","全体フロー","研修詳細","店舗内装","ターゲットエリア","免許","目標設定","事業検討","簡易PL","PL（1年目）","PL（2年目以降）","決定事項"]
 before=[(1,2),(3,4),(5,6),(7,8),(9,12),(13,14),(15,16),(17,18),(19,20),(21,24),(25,28),(29,32)]
-after=[(1,1),(2,2),(3,3),(4,4),(5,6),(7,7),(8,8),(9,9),(10,10),(11,11),(12,12),(13,13)]
+after=[(4,4),(5,5),(6,6),(7,7),(8,9),(10,10),(11,11),(12,12),(13,13),(14,14),(15,15),(16,16)]
 def grid(pref,rng,four):
     ims=[Image.open(S+f'{pref}-{i:02d}.png').convert('RGB') for i in range(rng[0],rng[1]+1)]
     if four and len(ims)==4:
