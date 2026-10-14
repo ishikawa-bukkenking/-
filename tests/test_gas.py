@@ -173,7 +173,7 @@ def test_input_system_api(tmp_path):
     fx = ROOT / "tests" / "fixtures"
     r = run_node("api_test.js", dict(values=vals, geoDir=geo_dir("長野県"), rawCsv1=(fx / "franchise_raw_1.csv").read_text("utf-8"),
                                      rawCsv2=(fx / "franchise_raw_2.csv").read_text("utf-8")))
-    assert r["sheets0"] == "エリア,会社,加盟店一覧,設定" and r["sheetsAfter"] and r["sheetsEnd"]   # 商談ごとにタブは増えない
+    assert r["sheets0"] == "エリア,会社,加盟店一覧,商談先一覧,設定" and r["sheetsAfter"] and r["sheetsEnd"]   # 商談ごとにタブは増えない(商談先一覧は1枚)
     assert r["seedCount"] == 201                                                   # 添付CSVから作った加盟店一覧が最初から入る
     # ログイン: メールアドレスが @bukkenking.com のアカウントだけ(取得できない/社外/なりすましは全APIが拒否)
     assert r["deniedNoEmail"] and r["deniedGmail"] and r["deniedLookalike"] and r["whoami"] == "ishikawa@bukkenking.com"
@@ -206,6 +206,12 @@ def test_input_system_api(tmp_path):
     assert r["estatTest"]["ok"] and not r["estatBadId"]["ok"] and "アプリケーションIDが無効" in r["estatBadId"]["message"]
     assert "試した表" in r["estatFail"] and r["estatFailCached"]                      # 失敗の理由を出し、連打しない
     assert r["areaDeleted"] and r["imagesTrashed"] and r["renamed"] and r["companyDeleted"]
+    # 商談先一覧(自動で記載・更新)
+    assert r["idxHead"] == "会社名,都道府県,市区町村,LPのURL,状態,作成日,更新日時,作成者,エリアID" and r["idxRow"] and r["idxCount"] and r["idxUpdated"]
+    assert r["idxStatus"] in ("入力完了", "未入力 3件") and r["idxRotated"] and r["idxAfterRename"] and r["idxAreaDeleted"]
+    # 会社の複製(エリア・入力内容・画像ごと。複製後は独立)
+    assert r["dupName"] == "株式会社○○（コピー）" and r["dupAreas"] and r["dupValues"] and r["dupNewFiles"] and r["dupLp"] and r["dupIndex"]
+    assert r["dupIndependent"] and r["dupDeleted"] and r["dupIdxGone"] and r["dupNamed"] and r["dupBad"]
     assert r["appPage"] and r["noOldFns"] == ["undefined"] * 6                      # パスワード方式・旧メニューは残さない
 
 
@@ -258,7 +264,8 @@ def test_input_screen_in_browser(tmp_path):
     assert log["stored"]["hh"] == "150000" and log["stored"]["cmp"] == "豊田市,12,80" and log["stored"]["pref"] == ""  # 不正値は保存されない
     assert log["stored"]["date"] and log["badShown"] == 1 and log["hscroll"] == "375/375"
     assert log["imageSaved"] and log["fieldsNoCta"] == 0 and log["noSourceFields"] == 0
-    assert log["sibChips"] == 2 and log["areasOfCompany"] == 2 and log["sheetNames"] == "エリア,会社,加盟店一覧,設定"   # 会社にエリアを追加。タブは増えない
+    assert log["sibChips"] == 2 and log["areasOfCompany"] == 2 and log["sheetNames"] == "エリア,会社,加盟店一覧,商談先一覧,設定"   # 会社にエリアを追加。タブは増えない
+    assert log["dupAreas"] == 2 and log["indexRows"] == 4                          # 一覧の会社から複製(エリアごと)。商談先一覧にも自動で載る
     assert log["frShown"] == "登録済み(201件)" and log["frSearch"] == 3 and log["frImported"]
     assert log["settingMax"] == 2 and log["settingUrl"].endswith("/exec")
     assert log["listUrlText"].startswith("LPのURL(仮)：https://script.test/exec?id=") and log["editUrlText"].startswith("LPのURL(仮")   # 一覧・入力画面にURLが文字でも出る

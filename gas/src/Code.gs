@@ -225,10 +225,12 @@ function setupSheets_(ss) {
   if (co.getLastRow() < 1) { co.getRange(1, 1, 1, 3).setValues([['会社ID', '会社名', '作成日']]).setFontWeight('bold'); co.setFrozenRows(1); co.setColumnWidth(1, 150); co.setColumnWidth(2, 260); }
   var ar = ss.getSheetByName(SHEET_AREA_) || ss.insertSheet(SHEET_AREA_);
   if (ar.getLastRow() < 1) {
-    ar.getRange(1, 1, 1, 9).setValues([['エリアID(LPのID)', '会社ID', '会社名', '都道府県', '市区町村', '作成日', '更新日時', '未入力件数', 'データ(入力システムが管理)']]).setFontWeight('bold');
+    ar.getRange(1, 1, 1, 10).setValues([['エリアID(LPのID)', '会社ID', '会社名', '都道府県', '市区町村', '作成日', '更新日時', '未入力件数', 'データ(入力システムが管理)', '作成者']]).setFontWeight('bold');
     ar.setFrozenRows(1); ar.setColumnWidth(1, 150); ar.setColumnWidth(3, 240); ar.setColumnWidth(9, 300);
     ar.getRange('A1').setNote('このシートは入力システムが管理するデータの保存先です。直接編集しないでください。');
   }
+  if (ar.getRange(1, 10).getValue() === '') ar.getRange(1, 10).setValue('作成者').setFontWeight('bold');   // 旧版のシートにも作成者の列を足す
+  indexSheet_();   // 商談先一覧(自動で記載・更新される一覧)
   var fr = ss.getSheetByName(SHEET_FR_) || ss.insertSheet(SHEET_FR_);
   if (fr.getLastRow() < 1) {
     fr.getRange(1, 1, 1, 9).setValues([['名称', '都道府県', '市区町村', '住所', 'URL', '有効(×で停止)', '屋号', '対応エリア', '顧客番号']]).setFontWeight('bold');

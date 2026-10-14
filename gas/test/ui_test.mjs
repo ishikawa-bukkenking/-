@@ -106,6 +106,13 @@ log.sibChips = await page.locator('button:has-text("愛知県 岡崎市"), butto
 await page.click('#navlist'); await page.waitForSelector('.item');
 log.areasOfCompany = await page.locator('.card', { hasText: '株式会社テスト工務店' }).locator('.item').count();
 log.listUrlText = (await page.locator('.card', { hasText: '株式会社テスト工務店' }).locator('.item').first().textContent()).replace(/.*(LPのURL\(仮\)：https:\/\/script\.test\/exec\?id=\w+).*/, '$1');
+// 会社の複製(一覧の会社から)
+await page.locator('.card', { hasText: '株式会社テスト工務店' }).locator('button:has-text("複製")').first().click();
+await page.locator('input[aria-label="複製後の会社名"]').fill('株式会社テスト工務店 複製');
+await page.click('button:has-text("この名前で複製する")');
+await page.waitForSelector('.card:has-text("株式会社テスト工務店 複製")');
+log.dupAreas = await page.locator('.card', { hasText: '株式会社テスト工務店 複製' }).locator('.item').count();
+log.indexRows = vm.runInContext("(function(){var sh=ss_().getSheetByName('商談先一覧');return sh.getLastRow()-1;})()", ctx);
 log.sheetNames = vm.runInContext("__sheetNames().sort().join(',')", ctx);   // 会社ごとにタブは増えない
 await page.screenshot({ path: outDir + '/ui-list.png' });
 // 加盟店の管理(CSV取り込みと検索)

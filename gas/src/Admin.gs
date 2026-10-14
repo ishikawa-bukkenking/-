@@ -53,6 +53,7 @@ function api_add_area(companyId, pref, city) { requireUser_(); return { areaId: 
 function api_rename_company(id, name) { requireUser_(); renameCompany_(id, name); return { ok: true }; }
 function api_delete_area(areaId) { requireUser_(); deleteArea_(areaId); return { ok: true }; }
 function api_delete_company(id) { requireUser_(); deleteCompany_(id); return { ok: true }; }
+function api_duplicate_company(companyId, newName) { requireUser_(); return duplicateCompany_(companyId, newName); }
 function api_rotate(areaId) { requireUser_(); return { id: rotateAreaId_(areaId) }; }
 
 function api_get(areaId) {
@@ -191,6 +192,7 @@ function api_settings_set(v) {
     throw new Error('LPの公開URLは https://script.google.com/macros/s/…/exec の形で入力してください。');
   var sh = sheetOrThrow_(SHEET_SETTINGS_);
   sh.getRange('B1').setValue(url.replace(/\/+$/, '')); sh.getRange('B2').setValue(String(v.estat || '').trim());
+  syncIndex_(rebuildIndex_);   // 商談先一覧のURLも新しい公開URLに更新
   sh.getRange('B3').setValue(String(max)); sh.getRange('B4').setValue(String(th));
   return { ok: true };
 }

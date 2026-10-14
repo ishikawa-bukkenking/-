@@ -119,7 +119,15 @@ function companyCard(c, r) {
     head.replaceChildren(inp, ok); inp.focus();
   };
   var del = el('button', { class: 'ghost', text: '会社を削除' }); armed(del, 'エリアも全部消えます。もう一度押すと削除', function () { call('api_delete_company', [c.id], function () { viewList(); }); });
-  head.appendChild(nameEl); head.appendChild(ren); head.appendChild(del); card.appendChild(head);
+  var dup = el('button', { class: 'ghost', text: '複製' });
+  dup.onclick = function () {
+    var inp = el('input', { value: c.name + '（コピー）', style: 'flex:1;min-width:200px', 'aria-label': '複製後の会社名' }), ok = el('button', { text: 'この名前で複製する' }), cancel = el('button', { class: 'ghost', text: 'やめる' });
+    ok.onclick = function () { call('api_duplicate_company', [c.id, inp.value], function (x) { viewList(); }); };
+    cancel.onclick = function () { viewList(); };
+    head.replaceChildren(inp, ok, cancel); inp.focus(); inp.select();
+  };
+  head.appendChild(nameEl); head.appendChild(dup); head.appendChild(ren); head.appendChild(del); card.appendChild(head);
+  if (c.areas.length) card.appendChild(el('p', { class: 'note', style: 'margin:0 0 4px', text: '「複製」で、この会社のエリアと入力内容・画像をそのまま別の会社としてコピーできます(同じエリアで別の会社に提案するときに便利です)。' }));
   c.areas.forEach(function (a) {
     var row = el('div', { class: 'item' }, [el('div', { class: 'grow' }, [el('b', { text: a.city }), el('span', { class: 'note', text: '　' + a.pref + '　' }), el('span', { class: 'chip' + (a.done ? '' : ' need'), text: a.status })])]);
     var ed = el('button', { text: '入力する' }); ed.onclick = function () { openArea(a.id); }; row.appendChild(ed);

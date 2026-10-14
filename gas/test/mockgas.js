@@ -12,6 +12,7 @@ function makeEnv(geoDir) {
     getValue() { return this.sh.get(this.r, this.c); }
     getDisplayValue() { return String(this.getValue()); }
     setValue(v) { this.sh.set(this.r, this.c, v); return this; }
+  clearContent() { for (let i = 0; i < this.nr; i++) for (let j = 0; j < this.nc; j++) this.sh.cells.delete((this.r + i) + ',' + (this.c + j)); return this; }
     setValues(vs) { vs.forEach((row, i) => row.forEach((v, j) => this.sh.set(this.r + i, this.c + j, v))); return this; }
   }
   ['setNumberFormat', 'setFontWeight', 'setBackground', 'setFontColor', 'setNote'].forEach(m => { Range.prototype[m] = function () { return this; }; });
@@ -48,7 +49,7 @@ function makeEnv(geoDir) {
   Session: { getActiveUser: () => ({ getEmail: () => (global.__email === undefined ? 'ishikawa@bukkenking.com' : global.__email) }) },
   ScriptApp: { getService: () => ({ getUrl: () => 'https://script.test/exec' }) },
   DriveApp: (() => { const files = new Map(); let n = 0;
-    const mk = blob => { const id = 'file' + (++n); const f = { id, blob, trashed: false, getId: () => id, getBlob: () => ({ getContentType: () => blob.mime, getBytes: () => blob.bytes }), setTrashed(t) { f.trashed = t; } }; files.set(id, f); return f; };
+    const mk = blob => { const id = 'file' + (++n); const f = { id, blob, trashed: false, getId: () => id, getBlob: () => ({ getContentType: () => blob.mime, getBytes: () => blob.bytes }), setTrashed(t) { f.trashed = t; }, makeCopy(name) { return mk({ mime: blob.mime, bytes: blob.bytes, name }); } }; files.set(id, f); return f; };
     const folder = { getId: () => 'folder1', createFile: mk };
     return { createFolder: () => folder, getFolderById: () => folder, getFileById: id => { if (!files.has(id)) throw new Error('not found'); return files.get(id); }, __files: files }; })(),
     HtmlService: { XFrameOptionsMode: { ALLOWALL: 1 }, createHtmlOutput: html => { const o = { html, setTitle() { return o; }, addMetaTag() { return o; }, setXFrameOptionsMode() { return o; } }; return o; } },

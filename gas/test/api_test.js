@@ -129,14 +129,47 @@ const res = vm.runInContext(`
   var stB = api_status(autoB); r.estatFail = stB.missing.filter(function (m) { return m.key === 'area.households'; })[0].reason;
   var callsB = __estatCalls(); api_status(autoB); r.estatFailCached = __estatCalls() === callsB;   // 失敗は10分間だけ覚えて連打しない
   __estatMode('');
+  // --- 商談先一覧(自動で記載・更新) ---
+  function idxRows() { var sh = ss.getSheetByName('商談先一覧'); var last = sh.getLastRow(); return { head: sh.getRange(1, 1, 1, 9).getValues()[0], rows: last > 1 ? sh.getRange(2, 1, last - 1, 9).getValues() : [] }; }
+  function idxOf(id) { return idxRows().rows.filter(function (x) { return x[8] === id; })[0]; }
+  var ix0 = idxRows();
+  r.idxHead = ix0.head.join(',');
+  r.idxSheetEarly = typeof ss.getSheetByName('商談先一覧') === 'object';
+  var rowA1 = idxOf(a1);
+  r.idxRow = rowA1 && rowA1[0] === '株式会社○○' && rowA1[1] === '長野県' && rowA1[2] === '上田市' && rowA1[3] === 'https://script.google.com/macros/s/AKfycbxTEST/exec?id=' + a1 && rowA1[7] === 'ishikawa@bukkenking.com';
+  r.idxStatus = rowA1[4];
+  r.idxCount = ix0.rows.length === listAreas_().length;
+  r.idxUpdated = String(rowA1[6]).length > 0 && String(rowA1[5]).length > 0;
+  // --- 会社の複製(エリア・入力内容・画像ごと。複製後は独立) ---
+  var srcCompanyId = api_list().companies.filter(function (x) { return x.name === '株式会社○○'; })[0].id;
+  var filesBefore = DriveApp.__files.size;
+  var dup = api_duplicate_company(srcCompanyId, '');
+  var dl = api_list().companies;
+  var dupC = dl.filter(function (x) { return x.id === dup.companyId; })[0], srcC = dl.filter(function (x) { return x.id === srcCompanyId; })[0];
+  r.dupName = dupC.name; r.dupAreas = dupC.areas.length === srcC.areas.length && dupC.areas.length === 2;
+  var dA = dupC.areas.filter(function (x) { return x.city === '上田市'; })[0];
+  var dv = areaById_(dA.id).values, sv = areaById_(a1).values;
+  r.dupValues = dv['inputs.income.city_avg_man'] === sv['inputs.income.city_avg_man'] && dv['compare.0'] === sv['compare.0'] && dv['auto.date.income'] === sv['auto.date.income'] && dv['inputs.price_trend.image'] !== sv['inputs.price_trend.image'] && dv['inputs.price_trend.image'].indexOf('drive:') === 0;
+  r.dupNewFiles = DriveApp.__files.size === filesBefore + 1;                              // 画像は別ファイルにコピー
+  r.dupLp = doGet({ parameter: { id: dA.id } }).html.indexOf('414') >= 0 && doGet({ parameter: { id: dA.id } }).html.indexOf(dupC.name) >= 0;
+  r.dupIndex = idxRows().rows.filter(function (x) { return x[0] === dupC.name; }).length === 2;
+  api_save(dA.id, { 'inputs.income.city_avg_man': '999' }); r.dupIndependent = areaById_(a1).values['inputs.income.city_avg_man'] === '476' && areaById_(dA.id).values['inputs.income.city_avg_man'] === '999';
+  var copyFile = dv['inputs.price_trend.image'].slice(6); api_delete_company(dup.companyId);
+  r.dupDeleted = DriveApp.getFileById(copyFile).trashed === true && DriveApp.getFileById(sv['inputs.price_trend.image'].slice(6)).trashed === false;   // コピーを消しても元の画像は残る
+  r.dupIdxGone = idxRows().rows.filter(function (x) { return x[0] === dupC.name; }).length === 0;
+  r.dupNamed = api_duplicate_company(srcCompanyId, '別会社 提案用').companyId.length === 16 && api_list().companies.some(function (x) { return x.name === '別会社 提案用'; });
+  r.dupBad = tryCall(function () { return api_duplicate_company('nope', 'x'); }).err;
   // URL作り直し・削除
   var nid = api_rotate(a1).id; r.rotated = nid !== a1 && doGet({ parameter: { id: a1 } }).html.indexOf('見つかりません') >= 0 && doGet({ parameter: { id: nid } }).html.indexOf('414') >= 0;
   r.lpBadId = ['nope', '../../x', ''].map(function (id) { return id ? doGet({ parameter: { id: id } }).html.indexOf('見つかりません') >= 0 : true; });
-  var imgBefore = nid && DriveApp.__files.size;
+  r.idxRotated = !!idxOf(nid) && !idxOf(a1);
+  api_delete_company(api_list().companies.filter(function (x) { return x.name === '別会社 提案用'; })[0].id);   // 複製テストで作った会社を片付ける
   api_delete_area(nid); r.areaDeleted = api_list().companies.filter(function (x) { return x.name === '株式会社○○'; })[0].areas.length === 1 && doGet({ parameter: { id: nid } }).html.indexOf('見つかりません') >= 0;
   r.imagesTrashed = Array.from(DriveApp.__files.values()).every(function (f) { return f.trashed; });
-  api_rename_company(c.companyId, '株式会社□□'); r.renamed = api_list().companies.filter(function (x) { return x.name === '株式会社□□'; }).length === 1 && doGet({ parameter: { id: a2 } }).html.indexOf('株式会社□□') >= 0;
+  api_rename_company(c.companyId, '株式会社□□'); r.idxAfterRename = idxRows().rows.some(function (x) { return x[0] === '株式会社□□'; }) && idxRows().rows.every(function (x) { return x[0] !== '株式会社○○'; });
+  r.renamed = api_list().companies.filter(function (x) { return x.name === '株式会社□□'; }).length === 1 && doGet({ parameter: { id: a2 } }).html.indexOf('株式会社□□') >= 0;
   api_delete_company(c.companyId); r.companyDeleted = api_list().companies.every(function (x) { return x.name !== '株式会社□□'; }) && listAreas_().every(function (x) { return x.company !== '株式会社□□'; });
+  r.idxAreaDeleted = !idxOf(nid) && idxRows().rows.length === listAreas_().length;
   r.sheetsEnd = sheetNames() === r.sheets0;
   var app = doGet({ parameter: {} }).html; r.appPage = app.indexOf('入力システム') >= 0 && doGet({ parameter: { page: 'app' } }).html === app;
   r.noOldFns = ['menuAddProspect', 'menuShowUrl', 'menuReport', 'menuRotateId', 'api_login', 'api_create'].map(function (n) { return typeof this[n]; }, this);
