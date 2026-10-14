@@ -224,6 +224,7 @@ def test_input_system_api(tmp_path):
     # 地図のピン: 商談先の住所と周辺加盟店(位置はジオコーダで求め、キャッシュする。範囲外・特定不可・上限超過はピンなしで落ちない)
     assert r["pinNone"] and r["pinClient"] and r["pinFr"] and r["pinCached"] and r["pinOutOfMap"] and r["pinNotFound"] and r["pinGeoFail"] and r["pinRemoved"] and r["pinSvgValid"]
     assert r["pinMismatch"] and r["pinGsi"] and r["pinRough"] and r["pinFrExpect"] and r["geoAddrNorm"]   # 住所と違う場所にはピンを立てない/地理院で補う/概算は報告
+    assert r["pinsDefaultOn"] and r["pinsOff"] and r["pinsBackOn"] and r["pinsBad"]            # ピンの表示/非表示(既定は表示。非表示なら位置検索もしない)
     assert r["trendBar"] and r["trendLineLabel"]                                          # 価格推移は折れ線・棒グラフ(単位・値を表示)
     assert r["appPage"] and r["noOldFns"] == ["undefined"] * 6                      # パスワード方式・旧メニューは残さない
 

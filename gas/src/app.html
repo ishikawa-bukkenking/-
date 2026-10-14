@@ -304,9 +304,11 @@ document.addEventListener('paste', function (e) {
 function fmt1(v) { var n = parseFloat(String(v).replace(/[,，％%\s]/g, '')); return isNaN(n) ? v : n.toFixed(1); }
 function trendOn() { return vals['show.price_trend'] !== '0'; }
 function applyGroups() {
-  var on = trendOn();
-  document.querySelectorAll('.field[data-grp="trend"]').forEach(function (f) {
-    f.classList.toggle('off', !on); f.querySelectorAll('input,button,label.btn').forEach(function (x) { if (x.tagName === 'LABEL') x.style.pointerEvents = on ? '' : 'none'; else x.disabled = !on; });
+  [['trend', trendOn()], ['pins', vals['show.pins'] !== '0']].forEach(function (g) {
+    var on = g[1];
+    document.querySelectorAll('.field[data-grp="' + g[0] + '"]').forEach(function (f) {
+      f.classList.toggle('off', !on); f.querySelectorAll('input,button,label.btn').forEach(function (x) { if (x.tagName === 'LABEL') x.style.pointerEvents = on ? '' : 'none'; else x.disabled = !on; });
+    });
   });
   refreshNeed();
 }

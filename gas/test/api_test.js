@@ -199,6 +199,13 @@ const res = vm.runInContext(`
   r.pinRough = rough.model.area.pins[0].precise === false && rough.report.items.some(function (i) { return i.key === 'area.pin_client' && /概算/.test(i.reason); });
   r.pinFrExpect = bp.model.area.pins.filter(function (x) { return x.kind === 'fr'; }).every(function (x) { return x.source === 'Googleマップ'; });
   r.geoAddrNorm = normalizeAddr_('〒386-0012　長野県上田市中央１－１－１') === '長野県上田市中央1-1-1';
+  // ピンの表示/非表示(既定は表示)
+  api_save(pinA, { 'inputs.client.address': '長野県上田市中央1-1-1' });
+  r.pinsDefaultOn = buildArea_(pinA).html.indexOf('class="pin pin-client"') >= 0 && api_get(pinA).fields.some(function (f) { return f.k === 'show.pins' && f.t === 'bool'; });
+  var gcOff = __geoCalls(); api_save(pinA, { 'show.pins': '0' }); var off = buildArea_(pinA);
+  r.pinsOff = off.html.indexOf('class="pin ') < 0 && off.html.indexOf('<p class="map-legend">') < 0 && off.html.indexOf('class="pinno"') < 0 && off.model.area.pins.length === 0 && __geoCalls() === gcOff && off.html.indexOf('area-map') >= 0;
+  api_save(pinA, { 'show.pins': '1' }); r.pinsBackOn = buildArea_(pinA).html.indexOf('class="pin pin-client"') >= 0;
+  r.pinsBad = !!api_save(pinA, { 'show.pins': 'maybe' }).errors['show.pins'];
   api_save(pinA, { 'inputs.client.address': '' }); r.pinRemoved = buildArea_(pinA).html.indexOf('pin-client') < 0;
   r.pinSvgValid = (function () { var h = bp.html, i = h.indexOf('<svg class="area-map"'), seg = h.slice(i, h.indexOf('</svg>', i)); return i > 0 && seg.split('<g ').length === seg.split('</g>').length; })();
   api_delete_company(api_list().companies.filter(function (x) { return x.name === 'ピンテスト'; })[0].id);

@@ -207,9 +207,10 @@ function buildModel_(cfg, services, data) {
   rep.add('fixed.question', '問いかけ', 'fixed', 'サンプルから流用');
 
   // --- 地図のピン(商談先の住所・周辺加盟店。住所は Googleマップのジオコーダで位置を求める) ---
-  var pins = [], clientAddr = String(((inputs.client || {}).address) || '').trim();
+  var pinsOn = !(cfg.sections && cfg.sections.pins === false);   // ピンを表示しない設定にできる
+  var pins = [], clientAddr = pinsOn ? String(((inputs.client || {}).address) || '').trim() : '';
   function locate_(addr, name, kind, n, expect) {
-    if (!services.geocode) return null;
+    if (!services.geocode || !pinsOn) return null;
     var g = null;
     try { g = services.geocode(addr, expect); } catch (e) { g = null; }
     var ok = g && g.lat != null;
@@ -220,6 +221,7 @@ function buildModel_(cfg, services, data) {
   var frNoAddr = [];
   model.area.franchise.items.forEach(function (f, i) {
     f.pin_no = null;
+    if (!pinsOn) return;
     if (!f.address) { frNoAddr.push(f.name); return; }
     var fp = locate_(/^(北海道|東京都|大阪府|京都府|.{2,3}県)/.test(f.address) ? f.address : f.prefecture + f.address, f.name, 'fr', i + 1, { pref: f.prefecture, city: f.city });
     if (fp) pins.push(fp);
@@ -234,11 +236,12 @@ function buildModel_(cfg, services, data) {
   });
   model.area.franchise.items.forEach(function (f, i) { f.pin_no = pins.some(function (x) { return x.kind === 'fr' && x.n === i + 1 && x.on_map; }) ? i + 1 : null; });
   var cpin = pins.filter(function (x) { return x.kind === 'client'; })[0];
-  rep.add('area.pin_client', '商談先のピン', cpin ? (cpin.on_map && cpin.precise ? 'auto' : 'optional') : 'optional', cpin ? '商談先の住所 + ' + (cpin.source || '位置検索') : '',
+  if (!pinsOn) rep.add('area.pins', '地図のピン', 'optional', '', 'LPに表示しない設定');
+  else rep.add('area.pin_client', '商談先のピン', cpin ? (cpin.on_map && cpin.precise ? 'auto' : 'optional') : 'optional', cpin ? '商談先の住所 + ' + (cpin.source || '位置検索') : '',
     cpin ? (cpin.on_map ? (cpin.precise ? '' : '住所が大まかなため位置は概算です。番地まで入力してください') : '商談先の住所(' + clientAddr + ')のピンを立てられません: ' + cpin.why) : '商談先の住所が未入力のため、地図に商談先のピンを立てていません(入力すると立ちます)');
   var frFail = pins.filter(function (x) { return x.kind === 'fr' && !x.on_map; }).map(function (x) { return x.name + '(' + x.why + ')'; });
   var frRough = pins.filter(function (x) { return x.kind === 'fr' && x.on_map && !x.precise; }).map(function (x) { return x.name; });
-  if (model.area.franchise.items.length) rep.add('area.pin_franchise', '周辺加盟店のピン', frNoAddr.length || frFail.length || frRough.length ? 'optional' : 'auto', '加盟店一覧の住所 + Googleマップ',
+  if (pinsOn && model.area.franchise.items.length) rep.add('area.pin_franchise', '周辺加盟店のピン', frNoAddr.length || frFail.length || frRough.length ? 'optional' : 'auto', '加盟店一覧の住所 + Googleマップ',
     (frNoAddr.length ? '住所が未登録でピンなし: ' + frNoAddr.join('、') + '。' : '') + (frFail.length ? 'ピンを立てられない: ' + frFail.join('、') + '。' : '') + (frRough.length ? '住所が大まかで位置が概算: ' + frRough.join('、') : ''));
   model.area.pins = pins.map(function (x) { return { kind: x.kind, n: x.n, name: x.name, address: x.address, lat: x.lat, lng: x.lng, source: x.source, precise: x.precise, on_map: x.on_map, why: x.why }; });
   model._mapSvg = mapSvg ? addPinsToSvg_(mapSvg, pins.filter(function (x) { return x.on_map; })) : null;

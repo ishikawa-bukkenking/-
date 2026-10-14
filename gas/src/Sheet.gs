@@ -16,7 +16,8 @@ var FIELDS_ = [
   { k: 'prefecture', l: '都道府県', req: 1, d: '例: 長野県' },
   { k: 'city', l: '市区町村', req: 1, d: '例: 上田市(2021年1月時点の名称)' },
   { k: 'created', l: '作成日', t: 'date', d: '空欄なら、この商談先を追加した日' },
-  { k: 'inputs.client.address', l: '商談先の住所', d: '地図にピンを立てます。例: 長野県上田市中央1-1-1(空欄ならピンなし)' },
+  { k: 'show.pins', l: 'LPの地図にピンを表示する', t: 'bool', d: 'チェックを外すと、地図に御社・周辺加盟店のピンを立てません' },
+  { k: 'inputs.client.address', grp: 'pins', l: '商談先の住所', d: '地図にピンを立てます。例: 長野県上田市中央1-1-1(空欄ならピンなし)' },
   { h: '対象エリア(出典: 総務省統計局 令和2年国勢調査)' },
   { k: 'inputs.area.households', l: '世帯数', t: 'num', d: '空欄なら、国勢調査(e-Stat)から自動で取得します(設定にe-StatのアプリケーションIDが必要)。入力した場合はその値を使います' },
   { h: '年収(出典: LIFULL HOME\'S調べ)' },
@@ -137,6 +138,7 @@ function valuesToConfig_(vals, today) {
     else if ((m = k.match(/^comp\.(\d)$/))) { if (v[0]) comp.push({ name: v[0], area: v[1] || undefined, url: v[2] || undefined, listing_count: parseNum_(v[3]) }); }
     else if ((m = k.match(/^kw\.(.+)$/))) kw.push({ term: m[1], monthly_volume: parseNum_(v[0]), cpc_low_yen: parseNum_(v[1]), cpc_high_yen: parseNum_(v[2]) });
     else if (k === 'show.price_trend') { cfg.sections = cfg.sections || {}; cfg.sections.price_trend = v; }
+    else if (k === 'show.pins') { cfg.sections = cfg.sections || {}; cfg.sections.pins = v; }
     else if (k.indexOf('auto.') === 0) { /* 下で処理 */ }
     else setPath_(cfg, k, v);
   });
