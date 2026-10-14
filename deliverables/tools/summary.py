@@ -116,11 +116,7 @@ def build_cells():
         H[r]=22; r+=1
     r+=1
     # --- 05 月次推移 ---
-    band(r,'05  月次推移(24ヶ月)'); r+=1
-    chart2_top=r
-    for k in range(14): H[r+k]=18
-    r+=14
-    put(f'B{r}','s','棒=売上総利益(緑)と販売管理費(グレー)、線=営業損益。','note'); merge(f'B{r}',f'M{r}'); H[r]=18; r+=1
+    band(r,'05  月次推移(24ヶ月)'); sec05=r; r+=1
     hdr=[('月','B','B'),('売上高','C','D'),('売上総利益','E','F'),('販売管理費','G','H'),('営業損益','I','J'),('累計営業損益','K','M')]
     for t,a,b in hdr:
         put(f'{a}{r}','s',t,'th')
@@ -161,17 +157,16 @@ def build_cells():
     put(f'B{r}','s','このシートは「社名」「ターゲットエリア」「免許」「目標設定」「事業検討」「簡易PL」「PL」の内容を自動で集計したものです。数式で連動しているため、入力は不要です(入力は各シートの水色セルへ)。数値は事業計画上の想定であり、成果を保証するものではありません。','note'); merge(f'B{r}',f'M{r}'); H[r]=42
     last=r
     # 作業領域(グラフ用)
-    put(f'O{t0-1}','s','月','work_h'); put(f'P{t0-1}','s','黒字(万円)','work_h'); put(f'Q{t0-1}','s','赤字(万円)','work_h'); put(f'R{t0-1}','s','売上総利益(万円)','work_h'); put(f'S{t0-1}','s','販売管理費(万円)','work_h'); put(f'T{t0-1}','s','営業損益(万円)','work_h'); put(f'U{t0-1}','s','黒字転換フラグ','work_h')
+    put(f'O{t0-1}','s','月','work_h'); put(f'P{t0-1}','s','黒字(万円)','work_h'); put(f'Q{t0-1}','s','赤字(万円)','work_h'); put(f'U{t0-1}','s','黒字転換フラグ','work_h')
     for m in range(1,25):
         rr=t0+m-1
         put(f'O{rr}','f',f'B{rr}','work','gen')
         put(f'P{rr}','f',f'MAX(K{rr},0)/10000','work','man'); put(f'Q{rr}','f',f'MIN(K{rr},0)/10000','work','man')
-        put(f'R{rr}','f',f'E{rr}/10000','work','man'); put(f'S{rr}','f',f'G{rr}/10000','work','man'); put(f'T{rr}','f',f'I{rr}/10000','work','man')
         put(f'U{rr}','f',f'IF(K{rr}>0,1,0)','work','gen')
     # 黒字転換月・24ヶ月累計
     C[f'B{tile02}']=('f',f'IFERROR(INDEX(B{t0}:B{t1},MATCH(1,U{t0}:U{t1},0)),"―")','tile_val','mon')
     C[f'H{tile02}']=('f',f'K{t1}','tile_val','yen')
-    regions=dict(chart1=(chart1_top,chart1_top+13),chart2=(chart2_top,chart2_top+13),t0=t0,t1=t1,sec03=sec03)
+    regions=dict(chart1=(chart1_top,chart1_top+13),t0=t0,t1=t1,sec03=sec03,sec05=sec05)
     return C,M,H,last,regions
 
 def styles(st):
@@ -252,7 +247,7 @@ def sheet_xml(st,vals,protect):
     ps=etree.SubElement(ws,q('pageSetup')); ps.attrib.update({'paperSize':'9','orientation':'portrait','fitToWidth':'1','fitToHeight':'0'})
     hf=etree.SubElement(ws,q('headerFooter')); etree.SubElement(hf,q('oddFooter')).text=FOOTER
     rb=etree.SubElement(ws,q('rowBreaks')); 
-    breaks=[reg['sec03']-1,reg['t0']-2]   # 03の直前、月次表の直前で改ページ
+    breaks=[reg['sec03']-1,reg['sec05']-1]   # 03の直前、05の直前で改ページ
     rb.attrib.update({'count':str(len(breaks)),'manualBreakCount':str(len(breaks))})
     for b in breaks: etree.SubElement(rb,q('brk')).attrib.update({'id':str(b),'max':'16383','man':'1'})
     etree.SubElement(ws,q('drawing')).set('{%s}id'%REL,'rId1')
@@ -300,7 +295,7 @@ def drawing_xml(reg):
                 '<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="%d" name="%s"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="%s"><c:chart xmlns:c="%s" xmlns:r="%s" r:id="rId%d"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>'
                 %(top-1,bot,i+1,name,CNS,CNS,REL,i))
     return ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
-            +anchor(1,reg['chart1'][0],reg['chart1'][1],'グラフ 黒字化')+anchor(2,reg['chart2'][0],reg['chart2'][1],'グラフ 月次推移')+'</xdr:wsDr>').encode('utf8')
+            +anchor(1,reg['chart1'][0],reg['chart1'][1],'グラフ 黒字化')+'</xdr:wsDr>').encode('utf8')
 
 def make_charts(reg,vals):
     t0,t1=reg['t0'],reg['t1']
@@ -314,8 +309,7 @@ def make_charts(reg,vals):
         return out
     rng=lambda c: f"{SHEET}!${c}${t0}:${c}${t1}"
     c1=chart_xml('営業損益の累計(万円)',[('黒字',rng('P'),PAL['BRAND']),('赤字',rng('Q'),'D9534F')],[],True,cat,catv if vals else None,get)
-    c2=chart_xml('月次の売上総利益・販売管理費・営業損益(万円)',[('売上総利益',rng('R'),PAL['BRAND']),('販売管理費',rng('S'),'A6A6A6')],[('営業損益',rng('T'),'E69F00')],False,cat,catv if vals else None,get)
-    return c1.encode('utf8'),c2.encode('utf8')
+    return c1.encode('utf8')
 
 # ---------------- ブックへの組み込み ----------------
 def add_summary(zin_path,out_path,position,protect,vals=None,select=False):
@@ -323,10 +317,10 @@ def add_summary(zin_path,out_path,position,protect,vals=None,select=False):
     st=Styles(parts['xl/styles.xml'])
     sx,last,reg=sheet_xml(st,vals,protect)
     parts['xl/styles.xml']=st.tostring()
-    c1,c2=make_charts(reg,vals)
-    new={'xl/worksheets/sheet14.xml':sx,'xl/drawings/drawing6.xml':drawing_xml(reg),'xl/charts/chart2.xml':c1,'xl/charts/chart3.xml':c2,
+    c1=make_charts(reg,vals)
+    new={'xl/worksheets/sheet14.xml':sx,'xl/drawings/drawing6.xml':drawing_xml(reg),'xl/charts/chart2.xml':c1,
          'xl/worksheets/_rels/sheet14.xml.rels':('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="%s/drawing" Target="../drawings/drawing6.xml"/></Relationships>'%REL).encode('utf8'),
-         'xl/drawings/_rels/drawing6.xml.rels':('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="%s/chart" Target="../charts/chart2.xml"/><Relationship Id="rId2" Type="%s/chart" Target="../charts/chart3.xml"/></Relationships>'%(REL,REL)).encode('utf8')}
+         'xl/drawings/_rels/drawing6.xml.rels':('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="%s/chart" Target="../charts/chart2.xml"/></Relationships>'%REL).encode('utf8')}
     for k,v in new.items(): parts[k]=v; order.append(k)
     wb=etree.fromstring(parts['xl/workbook.xml']); sheets=wb.find('m:sheets',N)
     el=etree.Element(q('sheet')); el.set('name',SHEET); el.set('sheetId','42'); el.set('{%s}id'%REL,'rId102'); sheets.insert(position,el)
@@ -347,8 +341,7 @@ def add_summary(zin_path,out_path,position,protect,vals=None,select=False):
     ct=parts['[Content_Types].xml'].decode('utf8')
     add=('<Override PartName="/xl/worksheets/sheet14.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
          '<Override PartName="/xl/drawings/drawing6.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
-         '<Override PartName="/xl/charts/chart2.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>'
-         '<Override PartName="/xl/charts/chart3.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>')
+         '<Override PartName="/xl/charts/chart2.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>')
     parts['[Content_Types].xml']=ct.replace('</Types>',add+'</Types>').encode('utf8')
     # app.xml(シート名一覧)
     titles=[s.get('name') for s in sheets]; pa=[d.text.split('!')[0]+'!Print_Area' for d in wb.findall('m:definedNames/m:definedName',N)]
