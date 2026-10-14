@@ -123,17 +123,17 @@ function projectPoint_(proj, lat, lon) {
 function addPinsToSvg_(svg, pins) {
   if (!pins.length) return svg;
   var out = pins.map(function (p) {
-    var client = p.kind === 'client', fill = client ? 'var(--c-accent)' : 'var(--c-teal-600)', r = client ? 17 : 14;
+    var client = p.kind === 'client', fill = client ? 'var(--c-accent)' : 'var(--c-teal-700)', r = client ? 18 : 17;
     var x = p.x.toFixed(1), y = p.y.toFixed(1);
     // 先端が(x,y)に来るしずく型のピン
     var d = 'M' + x + ',' + y + 'c' + (-r * 0.2) + ',' + (-r * 0.9) + ' ' + (-r) + ',' + (-r * 1.2) + ' ' + (-r) + ',' + (-r * 2.1) + 'a' + r + ',' + r + ' 0 1,1 ' + (2 * r) + ',0c0,' + (r * 0.9) + ' ' + (-r * 0.8) + ',' + (r * 1.2) + ' ' + (-r) + ',' + (r * 2.1) + 'z';
     var cy = (p.y - r * 2.1 + r * 0.05).toFixed(1);
     var g = '<g class="pin ' + (client ? 'pin-client' : 'pin-fr') + '"><title>' + esc_(p.name) + '</title><path d="' + d + '" fill="' + fill + '" stroke="#fff" stroke-width="2"/>' +
-      (client ? '<circle cx="' + x + '" cy="' + cy + '" r="5" fill="#fff"/>' : '<text x="' + x + '" y="' + (parseFloat(cy) + 5) + '" text-anchor="middle" class="pin-no">' + p.n + '</text>');
-    if (client) g += '<text x="' + (p.x + r + 4).toFixed(1) + '" y="' + (parseFloat(cy) + 5) + '" class="map-label">商談先</text>';
+      (client ? '<circle cx="' + x + '" cy="' + cy + '" r="5" fill="#fff"/>' : '<text x="' + x + '" y="' + (parseFloat(cy) + 6) + '" text-anchor="middle" class="pin-no">' + p.n + '</text>');
+    if (client) g += '<text x="' + (p.x + r + 4).toFixed(1) + '" y="' + (parseFloat(cy) + 5) + '" class="map-label">御社</text>';
     return g + '</g>';
   });
-  // 後ろ(下)のピンから描いて、手前のピンが隠れないようにする。商談先は最前面
+  // 後ろ(下)のピンから描いて、手前のピンが隠れないようにする。御社は最前面
   out.sort(function (a, b) { return (a.indexOf('pin-client') >= 0 ? 1 : 0) - (b.indexOf('pin-client') >= 0 ? 1 : 0); });
   return svg.replace('</svg>', out.join('') + '</svg>');
 }

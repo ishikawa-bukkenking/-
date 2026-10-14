@@ -187,6 +187,20 @@ function loadStatus() {
     var ul = $('miss'); ul.replaceChildren();
     s.missing.slice(0, 40).forEach(function (m) { ul.appendChild(el('li', { text: m.label })); });
     s.checksNg.forEach(function (c) { ul.appendChild(el('li', { text: '整合性チェックNG: ' + c, style: 'color:#B00020' })); });
+    var pc = $('pinchk'); if (!pc) { pc = el('div', { id: 'pinchk', class: 'note', style: 'margin-top:12px' }); ul.parentNode.appendChild(pc); }
+    pc.replaceChildren();
+    if (s.pins && s.pins.length) {
+      pc.appendChild(el('div', { text: '地図のピンの位置(違っていたら住所を直してください)', style: 'font-weight:700;margin-bottom:4px' }));
+      s.pins.forEach(function (p) {
+        var li = el('div', { style: 'margin:2px 0' });
+        li.appendChild(document.createTextNode((p.kind === 'client' ? '御社' : p.n + '. ' + p.name) + '：' + p.address + ' → '));
+        if (p.lat != null) {
+          li.appendChild(el('a', { href: 'https://www.google.com/maps?q=' + p.lat + ',' + p.lng, target: '_blank', rel: 'noopener', text: '地図で確認(' + (p.source || '') + (p.precise ? '' : '・概算') + ')' }));
+          if (!p.on_map) li.appendChild(el('span', { text: ' ※' + p.why, style: 'color:#B00020' }));
+        } else li.appendChild(el('span', { text: 'ピンなし: ' + p.why, style: 'color:#B00020' }));
+        pc.appendChild(li);
+      });
+    }
     var t = $('totals'); if (t) t.textContent = s.totals && s.totals.listings_total != null ? '物件総数 ' + s.totals.listings_total + '件 / 仲介単価 約' + s.totals.brokerage + '万円' : '';
   }).withFailureHandler(function () {}).api_status(cur);
 }

@@ -79,6 +79,8 @@ function trendLinesSvg_(series, compact) {
   if (!lines.length) return null;
   var width = 760, height = 340, left = 56, right = 120, top = 16, bottom = 44;
   if (compact) { width = 340; height = 300; left = 44; right = 112; }
+  right += 40;
+  var unit = series.unit || '';
   var cols = { 'マンション': 'var(--c-accent)', '中古マンション': 'var(--c-accent)', '中古戸建': 'var(--c-teal-600)', '中古戸建て': 'var(--c-teal-600)', '土地': 'var(--c-slate)' };
   var vals = [0];
   lines.forEach(function (l) { l[1].forEach(function (x) { if (x != null) vals.push(x); }); });
@@ -102,7 +104,40 @@ function trendLinesSvg_(series, compact) {
     var c = cols[k] || 'var(--c-teal-400)', last = null;
     for (var j = v.length - 1; j >= 0; j--) if (v[j] != null) { last = j; break; }
     out.push('<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + c + '" stroke-width="3" stroke-linejoin="round"/>');
-    if (last !== null) out.push('<text x="' + f1_(X(last) + 8) + '" y="' + f1_(Y(v[last]) + 5) + '" class="ch-lab" font-weight="700" fill="' + c + '">' + esc_(k) + '</text>');
+    if (last !== null) out.push('<text x="' + f1_(X(last) + 8) + '" y="' + f1_(Y(v[last]) + 5) + '" class="ch-lab" font-weight="700" fill="' + c + '">' + esc_(k) + '</text><text x="' + f1_(X(last) + 8) + '" y="' + f1_(Y(v[last]) + 24) + '" class="ch-val" fill="' + c + '">' + num_(v[last], Math.abs(v[last]) < 100 && v[last] % 1 ? 1 : 0) + unit + '</text>');
   });
+  if (unit) out.push('<text x="' + left + '" y="10" class="ch-sub">単位: ' + esc_(unit) + '</text>');
   return '<svg class="chart" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="直近3年間の価格推移(万円)">' + out.join('') + '</svg>';
 }
+
+/** 価格推移が棒グラフのとき: 時点ごとに系列を並べた棒。値を棒の上に表示 */
+function trendBarsSvg_(series, compact) {
+  var labels = series.labels || [], unit = series.unit || '';
+  var lines = Object.keys(series).filter(function (k) { return Array.isArray(series[k]) && series[k].length === labels.length && labels.length; }).map(function (k) { return [k, series[k]]; });
+  if (!lines.length) return null;
+  var width = compact ? 340 : 760, height = compact ? 320 : 360, left = 8, top = 28, bottom = 70, ph = height - top - bottom;
+  var all = [0]; lines.forEach(function (l) { l[1].forEach(function (x) { if (x != null) all.push(x); }); });
+  var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all), span = (hi - lo) || 1;
+  var gw = (width - 2 * left) / labels.length, bw = Math.min(46, gw * 0.8 / lines.length);
+  var cols = ['var(--c-accent)', 'var(--c-teal-600)', 'var(--c-slate)', 'var(--c-teal-400)'];
+  function Y(v) { return top + ph * (1 - (v - lo) / span); }
+  var out = ['<line x1="' + left + '" x2="' + (width - left) + '" y1="' + f1_(Y(0)) + '" y2="' + f1_(Y(0)) + '" stroke="var(--c-line)" stroke-width="1.5"/>'];
+  labels.forEach(function (lab, i) {
+    var gx = left + i * gw + (gw - bw * lines.length) / 2;
+    lines.forEach(function (l, j) {
+      var v = l[1][i]; if (v == null) return;
+      var y0 = Y(0), y1 = Y(v), x = gx + j * bw, yy = Math.min(y0, y1), h = Math.abs(y0 - y1);
+      out.push('<rect x="' + f1_(x) + '" y="' + f1_(yy) + '" width="' + f1_(bw - 3) + '" height="' + f1_(Math.max(h, 1)) + '" rx="3" fill="' + cols[j % cols.length] + '"/>' +
+        '<text x="' + f1_(x + (bw - 3) / 2) + '" y="' + f1_(v >= 0 ? yy - 6 : yy + h + 16) + '" text-anchor="middle" class="ch-val" style="font-size:' + (compact ? 11 : 14) + 'px">' + num_(v, Math.abs(v) < 100 && v % 1 ? 1 : 0) + '</text>');
+    });
+    out.push('<text x="' + f1_(left + i * gw + gw / 2) + '" y="' + (height - 40) + '" text-anchor="middle" class="ch-sub">' + esc_(lab) + '</text>');
+  });
+  var lx = left;
+  lines.forEach(function (l, j) {
+    out.push('<rect x="' + lx + '" y="' + (height - 24) + '" width="14" height="14" rx="3" fill="' + cols[j % cols.length] + '"/><text x="' + (lx + 20) + '" y="' + (height - 12) + '" class="ch-lab">' + esc_(l[0]) + '</text>');
+    lx += 40 + String(l[0]).length * 15;
+  });
+  if (unit) out.push('<text x="' + (width - left) + '" y="14" text-anchor="end" class="ch-sub">単位: ' + esc_(unit) + '</text>');
+  return '<svg class="chart" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="価格推移(棒グラフ)">' + out.join('') + '</svg>';
+}
+function trendChart_(series, compact) { return series.type === 'bar' ? trendBarsSvg_(series, compact) : trendLinesSvg_(series, compact); }

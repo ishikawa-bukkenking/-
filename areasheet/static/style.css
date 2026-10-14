@@ -87,11 +87,11 @@ a{color:var(--c-ink)}
 .area-map{width:auto;max-width:100%;max-height:560px;margin:0 auto;display:block}
 .area-map .map-other path{fill:#e3ebed;stroke:#fff;stroke-width:1}
 .area-map .map-target path{fill:var(--c-accent);stroke:#fff;stroke-width:1.5}
-.map-legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:.8125rem;color:var(--c-sub);margin:8px 0 0}
+.map-legend{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:.9375rem;color:var(--c-sub);margin:8px 0 0}
 .map-legend .lg{display:inline-block;width:12px;height:12px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);margin-right:6px;vertical-align:-1px}
-.lg-client{background:var(--c-accent)}.lg-fr{background:var(--c-teal-600)}
-.pin-no{font:700 13px var(--f);fill:#fff}
-.pinno{display:inline-flex;align-items:center;justify-content:center;width:1.5em;height:1.5em;border-radius:50%;background:var(--c-teal-600);color:#fff;font-size:.8125rem;margin-right:8px}
+.lg-client{background:var(--c-accent)}.lg-fr{background:var(--c-teal-700)}
+.pin-no{font:700 17px var(--f);fill:#fff}
+.fr .pinno{display:inline-flex;align-items:center;justify-content:center;width:1.75rem;height:1.75rem;border-radius:50%;background:var(--c-teal-700);color:#fff;font:700 1rem/1 var(--f);margin-right:10px;vertical-align:middle}
 .map-sub{font:500 12px var(--f);fill:#5f7377;paint-order:stroke;stroke:#fff;stroke-width:3px}
 .map-label{font:700 16px var(--f);fill:var(--c-text);paint-order:stroke;stroke:#fff;stroke-width:4px}
 .fr{list-style:none;margin:0;padding:0;display:grid;gap:10px}

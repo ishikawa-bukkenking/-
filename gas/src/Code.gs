@@ -118,19 +118,48 @@ function householdsFor_(settings, areaId, code) {
 
 var ALLOWED_DOMAIN_ = 'bukkenking.com';
 
-/** 住所 → {lat, lng}。Googleマップのジオコーダを使い、結果は6時間キャッシュ。特定できなければnull */
-function geocode_(addr) {
-  addr = String(addr || '').trim();
-  if (!addr) return null;
-  var key = 'gc:' + addr.slice(0, 100), hit = cacheGet_(key);
-  if (hit) return hit === 'none' ? null : JSON.parse(hit);
-  var res = null;
+/** 住所の表記ゆれをそろえる(郵便番号・空白・ハイフン類)。位置の検索に使う */
+function normalizeAddr_(a) {
+  a = String(a || '').normalize('NFKC').replace(/〒?\s*\d{3}-?\d{4}/, '').replace(/[‐‑–—−ー－]/g, '-').replace(/\s+/g, '');
+  return a;
+}
+function addrHasCity_(text, expect) { return !expect || !expect.city || String(text).indexOf(expect.city) >= 0; }
+
+/** 住所 → 位置。まず Googleマップのジオコーダ、だめなら国土地理院の住所検索。
+ *  結果の市区町村・都道府県が、期待する市区町村と違うときは採用しない(別の場所にピンが立つのを防ぐ)。
+ *  戻り値: { lat, lng, source, precise } または { lat: null, why } */
+function geocode_(addr, expect) {
+  expect = expect || {};
+  var q = normalizeAddr_(addr);
+  if (!q) return { lat: null, why: '住所が空です' };
+  var key = 'gc2:' + (expect.city || '') + ':' + q.slice(0, 120), hit = cacheGet_(key);
+  if (hit) return JSON.parse(hit);
+  var why = '', res = null, transient = false;
   try {
-    var r = Maps.newGeocoder().setLanguage('ja').setRegion('jp').geocode(addr);
-    if (r && r.status === 'OK' && r.results && r.results.length) { var l = r.results[0].geometry.location; res = { lat: l.lat, lng: l.lng }; }
-  } catch (e) { return null; }   // 上限超過などは覚えない(次回やり直す)
-  cachePut_(key, res ? JSON.stringify(res) : 'none');
-  return res;
+    var r = Maps.newGeocoder().setLanguage('ja').setRegion('jp').geocode(q);
+    if (r && r.status === 'OK' && r.results && r.results.length) {
+      var x = r.results[0], comps = JSON.stringify(x.address_components || []), l = x.geometry.location;
+      if (expect.pref && comps.indexOf(expect.pref) < 0) why = '住所の都道府県が一致しません';
+      else if (expect.city && comps.indexOf(expect.city) < 0) why = '住所の市区町村が「' + expect.city + '」と一致しません(Googleマップは「' + String(x.formatted_address || '').slice(0, 40) + '」と判断)';
+      else res = { lat: l.lat, lng: l.lng, source: 'Googleマップ', precise: x.geometry.location_type !== 'APPROXIMATE' };
+    } else if (r && r.status && r.status !== 'ZERO_RESULTS') { transient = true; why = 'Googleマップの位置検索を使えませんでした(' + r.status + ')'; }
+    else why = '住所から位置を特定できませんでした';
+  } catch (e) { transient = true; why = 'Googleマップの位置検索を使えませんでした'; }
+  if (!res) {   // 国土地理院の住所検索(日本の住所に強い)で再確認
+    try {
+      var g = UrlFetchApp.fetch('https://msearch.gsi.go.jp/address-search/AddressSearch?q=' + encodeURIComponent(q), { muteHttpExceptions: true });
+      var arr = g.getResponseCode() === 200 ? JSON.parse(g.getContentText()) : [];
+      for (var i = 0; i < arr.length && !res; i++) {
+        var t = String((arr[i].properties || {}).title || ''), c = (arr[i].geometry || {}).coordinates;
+        if (c && addrHasCity_(t, expect) && (!expect.pref || t.indexOf(expect.pref) >= 0 || true)) res = { lat: c[1], lng: c[0], source: '国土地理院', precise: true };
+      }
+      if (res) why = '';
+    } catch (e) { /* 次回やり直す */ }
+  }
+  if (res) { cachePut_(key, JSON.stringify(res)); return res; }
+  var fail = { lat: null, why: why || '住所から位置を特定できませんでした' };
+  if (!transient) cachePut_(key, JSON.stringify(fail));   // 一時的な失敗(上限超過など)は覚えない
+  return fail;
 }
 
 function realServices_(settings, areaId) {

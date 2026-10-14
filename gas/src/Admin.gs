@@ -126,6 +126,7 @@ function api_status(areaId) {
       missing: miss.map(function (i) { return { key: i.key, label: i.label, reason: i.reason }; }),
       checksNg: r.checks.filter(function (c) { return !c.ok; }).map(function (c) { return c.name + (c.detail ? '(' + c.detail + ')' : ''); }),
       city: r.model.meta.city, households: r.model.area.households, householdsAuto: r.model.area.households_source && /e-Stat/.test(r.model.area.households_source),
+      pins: (r.model.area.pins || []).map(function (p) { return { kind: p.kind, n: p.n, name: p.name, address: p.address, lat: p.lat, lng: p.lng, source: p.source, precise: p.precise, on_map: p.on_map, why: p.why }; }),
       totals: { listings_total: r.model.totals.listings_total, brokerage: r.model.totals.brokerage_unit_display_man }
     };
   } catch (e) {

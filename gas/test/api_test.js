@@ -164,6 +164,11 @@ const res = vm.runInContext(`
   r.trendAi = [tt.rows.join('/'), tt.cols.length, tt.cells[0][2], tt.cells[1][1], tt.warnings.length, !!areaById_(a1).values['tbl.' + TK]];
   var lpT = doGet({ parameter: { id: a1 } }).html;
   r.trendLine = lpT.indexOf('直近3年間の価格推移(万円)') >= 0 && lpT.indexOf('中古マンション') >= 0 && lpT.indexOf('の住宅価格推移グラフ"') < 0 && api_status(a1).missing.filter(function (m) { return m.key === 'price_trend.chart'; }).length === 0;
+  api_saveTable(a1, TK, { type: 'bar', unit: '万円', cols: ['2023', '2024'], rows: ['土地', 'マンション'], cells: [[900, 950], [2800, 3100]] });
+  var lpB = doGet({ parameter: { id: a1 } }).html;
+  r.trendBar = lpB.indexOf('価格推移(棒グラフ)') >= 0 && lpB.indexOf('単位: 万円') >= 0 && lpB.indexOf('<rect') >= 0 && api_get(a1).tables[TK].type === 'bar';
+  api_saveTable(a1, TK, { type: 'line', unit: '万円', cols: ['2023', '2024', '2025'], rows: ['土地'], cells: [[900, 950, 1000]] });
+  r.trendLineLabel = doGet({ parameter: { id: a1 } }).html.indexOf('1,000万円') >= 0;
   r.trendEdit = api_saveTable(a1, TK, { cols: ['2023', '2024'], rows: ['土地'], cells: [[-1.5, '2']] }).ok && api_get(a1).tables[TK].cells[0][0] === -1.5;
   r.trendNegBlockedForDist = !!tryCall(function () { return api_saveTable(a1, HK, { cols: ['a'], rows: ['b'], cells: [[-3]] }); }).err;
   r.autoSaveStale = (function () { api_uploadImage(a1, HK, PX); var t = api_readTable(a1, HK, true); return !!areaById_(a1).values['tbl.' + HK] && t.total === 29; })();
@@ -177,14 +182,23 @@ const res = vm.runInContext(`
   r.pinNone = noPin.indexOf('pin-client') < 0 && __geoCalls() > g0 - 1 && buildArea_(pinA).report.missing().some(function (i) { return i.key === 'area.pin_client'; }) === false;
   api_save(pinA, { 'inputs.client.address': '長野県上田市中央1-1-1' });
   var bp = buildArea_(pinA), pm = bp.model.area.pins;
-  r.pinClient = pm.filter(function (x) { return x.kind === 'client'; }).length === 1 && pm[0].on_map === true && bp.html.indexOf('class="pin pin-client"') >= 0 && bp.html.indexOf('map-legend') >= 0 && bp.html.indexOf('商談先') >= 0;
+  r.pinClient = pm.filter(function (x) { return x.kind === 'client'; }).length === 1 && pm[0].on_map === true && bp.html.indexOf('class="pin pin-client"') >= 0 && bp.html.indexOf('map-legend') >= 0 && bp.html.indexOf('>御社</text>') >= 0 && bp.html.indexOf('商談先') < 0;
   var frPins = pm.filter(function (x) { return x.kind === 'fr' && x.on_map; });
   r.pinFr = frPins.length >= 1 && bp.html.split('class="pin pin-fr"').length - 1 === frPins.length && bp.html.indexOf('class="pinno"') >= 0 && frPins.every(function (x) { return x.n >= 1 && x.n <= 3; });
   var gc = __geoCalls(); buildArea_(pinA); doGet({ parameter: { id: pinA } }); r.pinCached = __geoCalls() === gc;   // 住所の位置はキャッシュ(連打しない)
   api_save(pinA, { 'inputs.client.address': '大阪府大阪市北区1-1' }); var far = buildArea_(pinA);
   r.pinOutOfMap = far.model.area.pins[0].on_map === false && far.html.indexOf('pin-client') < 0 && far.report.missing().length >= 0;
-  api_save(pinA, { 'inputs.client.address': 'ZZZ' }); r.pinNotFound = buildArea_(pinA).model.area.pins[0].why === undefined && buildArea_(pinA).model.area.pins[0].lat === null;
+  api_save(pinA, { 'inputs.client.address': 'ZZZ' }); r.pinNotFound = !!buildArea_(pinA).model.area.pins[0].why && buildArea_(pinA).model.area.pins[0].lat === null;
   __geoMode('fail'); api_save(pinA, { 'inputs.client.address': '長野県上田市テスト失敗' }); r.pinGeoFail = buildArea_(pinA).html.indexOf('pin-client') < 0; __geoMode('');
+  // 位置の正確さ: 住所の市区町村が違う結果は採用しない / 地理院で補う / 概算は報告する
+  api_save(pinA, { 'inputs.client.address': '長野県松本市中央1-1-1' }); var mis = buildArea_(pinA);
+  r.pinMismatch = mis.model.area.pins[0].lat === null && /一致しません/.test(mis.model.area.pins[0].why) && mis.html.indexOf('pin-client') < 0;
+  var gs0 = __gsiCalls(); api_save(pinA, { 'inputs.client.address': '長野県上田市GSI' + '999' }); var gsi = buildArea_(pinA);
+  r.pinGsi = __gsiCalls() > gs0 && gsi.model.area.pins[0].source === '国土地理院' && gsi.model.area.pins[0].on_map === true;
+  api_save(pinA, { 'inputs.client.address': '長野県上田市概算' }); var rough = buildArea_(pinA);
+  r.pinRough = rough.model.area.pins[0].precise === false && rough.report.items.some(function (i) { return i.key === 'area.pin_client' && /概算/.test(i.reason); });
+  r.pinFrExpect = bp.model.area.pins.filter(function (x) { return x.kind === 'fr'; }).every(function (x) { return x.source === 'Googleマップ'; });
+  r.geoAddrNorm = normalizeAddr_('〒386-0012　長野県上田市中央１－１－１') === '長野県上田市中央1-1-1';
   api_save(pinA, { 'inputs.client.address': '' }); r.pinRemoved = buildArea_(pinA).html.indexOf('pin-client') < 0;
   r.pinSvgValid = (function () { var h = bp.html, i = h.indexOf('<svg class="area-map"'), seg = h.slice(i, h.indexOf('</svg>', i)); return i > 0 && seg.split('<g ').length === seg.split('</g>').length; })();
   api_delete_company(api_list().companies.filter(function (x) { return x.name === 'ピンテスト'; })[0].id);

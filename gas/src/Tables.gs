@@ -25,7 +25,9 @@ function normalizeTable_(t, allowNeg) {
       return n;
     });
   });
-  return { caption: String(t.caption || '').trim().slice(0, 60), cols: cols, rows: rows, cells: cells };
+  var out = { caption: String(t.caption || '').trim().slice(0, 60), cols: cols, rows: rows, cells: cells };
+  if (allowNeg) { out.type = t.type === 'bar' ? 'bar' : 'line'; out.unit = String(t.unit || '').trim().slice(0, 10); }   // 価格推移グラフ: 折れ線/棒と単位
+  return out;
 }
 
 /** 表 → 描画用(heat_html_ の入力) */
@@ -41,9 +43,10 @@ var TREND_PROMPT_ = [
   '- cols に横軸の時点ラベル(年月など)を左から順に、rows に線(系列)の名前(凡例や線の脇の表記。マンション・戸建て・土地など)を書きます。',
   '- cells は、各系列の各時点の値です。グラフに数値が書かれていればその値を、無ければ縦軸の目盛りから読み取った値にします。',
   '- 線が途切れていて値が読めない時点は null にします。読み取りが概算になる場合は、warnings に日本語で書いてください。',
-  '- 縦軸の単位や指数の基準が画像にあれば caption に書き写します(無ければ空文字)。',
+  '- グラフが折れ線なら type は "line"、棒グラフなら "bar" にします。縦軸の単位(万円、%、指数など)が分かれば unit に書きます(不明なら空文字)。',
+  '- 縦軸の指数の基準などの補足が画像にあれば caption に書き写します(無ければ空文字)。',
   '次のJSONだけを返してください(説明文やコードブロックは付けない)。',
-  '{"caption":"","cols":["時点",...],"rows":["系列名",...],"cells":[[数値またはnull,...],...],"warnings":["..."]}',
+  '{"type":"line","unit":"","caption":"","cols":["時点",...],"rows":["系列名",...],"cells":[[数値またはnull,...],...],"warnings":["..."]}',
   'cells は rows と同じ行数、cols と同じ列数にしてください。'
 ].join('\n');
 
@@ -111,7 +114,7 @@ function api_readTable(areaId, key, save) {
   if (save) {   // 貼り付けたら自動で表にして保存する(あとから画面で直せる)
     writeAreaValues_(areaId, function (values) {
       if (values[key] !== a.values[key]) throw new Error('画像が差し替えられました。もう一度やり直してください。');
-      values[tableValueKey_(key)] = JSON.stringify({ caption: t.caption, cols: t.cols, rows: t.rows, cells: t.cells });
+      values[tableValueKey_(key)] = JSON.stringify(t);
       var dk = dateKeyFor_(key); if (dk) values[dk] = todayStr_();
     });
   }
@@ -149,7 +152,7 @@ function api_ai_set(key) {
 
 /** 価格推移の表(行=系列、列=時点) → 描画用の系列データ */
 function trendTableToSeries_(t) {
-  var s = { labels: t.cols.slice() };
+  var s = { labels: t.cols.slice(), type: t.type || 'line', unit: t.unit || '' };
   t.rows.forEach(function (name, i) { if (name) s[name] = t.cells[i].slice(); });
   return s;
 }

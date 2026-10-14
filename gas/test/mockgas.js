@@ -53,17 +53,26 @@ function makeEnv(geoDir) {
     const folder = { getId: () => 'folder1', createFile: mk };
     return { createFolder: () => folder, getFolderById: () => folder, getFileById: id => { if (!files.has(id)) throw new Error('not found'); return files.get(id); }, __files: files }; })(),
     HtmlService: { XFrameOptionsMode: { ALLOWALL: 1 }, createHtmlOutput: html => { const o = { html, setTitle() { return o; }, addMetaTag() { return o; }, setXFrameOptionsMode() { return o; } }; return o; } },
-    Maps: { newGeocoder: () => ({ setLanguage() { return this; }, setRegion() { return this; }, geocode: addr => {   // ジオコーダの模擬(上田市付近の座標を住所の文字から決める)
+    Maps: { newGeocoder: () => ({ setLanguage() { return this; }, setRegion() { return this; }, geocode: addr => {   // ジオコーダの模擬(上田市付近の座標を住所の文字から決める。address_components も返す)
       global.__geoCalls = (global.__geoCalls || 0) + 1;
-      const ok = (lat, lng) => ({ status: 'OK', results: [{ geometry: { location: { lat, lng } } }] });
+      const m = addr.match(/^(北海道|東京都|大阪府|京都府|.{2,3}県)(.+?[市区町村])/);
+      const comps = m ? [{ long_name: m[1] }, { long_name: m[2] }] : [];
+      const ok = (lat, lng, type) => ({ status: 'OK', results: [{ formatted_address: '日本、' + addr, address_components: comps, geometry: { location: { lat, lng }, location_type: type || 'ROOFTOP' } }] });
       if (global.__geoMode === 'fail') return { status: 'OVER_QUERY_LIMIT', results: [] };
-      if (/ZZZ/.test(addr)) return { status: 'ZERO_RESULTS', results: [] };
+      if (/ZZZ|GSI/.test(addr)) return { status: 'ZERO_RESULTS', results: [] };
       if (/大阪/.test(addr)) return ok(34.69, 135.5);
+      if (/概算/.test(addr)) return ok(36.4, 138.25, 'APPROXIMATE');
       if (/中央1-1-1/.test(addr)) return ok(36.4019, 138.249);
       let h = 0; for (const c of addr) h = (h * 31 + c.charCodeAt(0)) % 1000;
       return ok(36.36 + (h % 50) / 1000, 138.2 + (h % 70) / 1000);
     } }) },
     UrlFetchApp: { fetch: function (url) {
+    if (url.indexOf('msearch.gsi.go.jp') >= 0) {   // 国土地理院の住所検索の模擬
+      global.__gsiCalls = (global.__gsiCalls || 0) + 1;
+      const q = decodeURIComponent(url.split('q=')[1]);
+      const body = /GSI/.test(q) ? [{ geometry: { coordinates: [138.26, 36.39] }, properties: { title: '長野県上田市GSIテスト' } }] : [];
+      return { getResponseCode: () => 200, getContentText: () => JSON.stringify(body) };
+    }
     if (url.indexOf('api.anthropic.com') >= 0) {   // Claude APIの模擬(応答の形は公開仕様どおり)
       const o = arguments[1] || {}; global.__aiCalls = (global.__aiCalls || []).concat([{ url, key: (o.headers || {})['x-api-key'], body: JSON.parse(o.payload) }]);
       const reply = (code, body) => ({ getResponseCode: () => code, getContentText: () => JSON.stringify(body) });
@@ -90,7 +99,7 @@ function makeEnv(geoDir) {
   });
 
   ctx.__sheetNames = () => sheets.map(x => x.name);
-  ctx.__geoMode = m => { global.__geoMode = m; }; ctx.__geoCalls = () => global.__geoCalls || 0;
+  ctx.__gsiCalls = () => global.__gsiCalls || 0; ctx.__geoMode = m => { global.__geoMode = m; }; ctx.__geoCalls = () => global.__geoCalls || 0;
   ctx.__aiMode = m => { global.__aiMode = m; }; ctx.__aiCalls = () => global.__aiCalls || [];
   ctx.__estatMode = m => { global.__estatMode = m; }; ctx.__estatCalls = () => global.__estatCalls || 0;
   ctx.__setEmail = e => { global.__email = e; };

@@ -31,8 +31,8 @@ function mapLegend_(pins) {
   var on = (pins || []).filter(function (x) { return x.on_map; });
   if (!on.length) return '';
   var parts = [];
-  if (on.some(function (x) { return x.kind === 'client'; })) parts.push('<span><i class="lg lg-client" aria-hidden="true"></i>商談先</span>');
-  if (on.some(function (x) { return x.kind === 'fr'; })) parts.push('<span><i class="lg lg-fr" aria-hidden="true"></i>周辺加盟店(番号は右の一覧と対応)</span>');
+  if (on.some(function (x) { return x.kind === 'client'; })) parts.push('<span><i class="lg lg-client" aria-hidden="true"></i>御社</span>');
+  if (on.some(function (x) { return x.kind === 'fr'; })) parts.push('<span><i class="lg lg-fr" aria-hidden="true"></i>周辺加盟店(番号は右の一覧と同じ)</span>');
   return '<p class="map-legend">' + parts.join('') + '</p>';
 }
 
@@ -75,7 +75,7 @@ function renderPage_(model, report, assets, styleCss) {
   var donut = (br.length && br.every(function (b) { return b.share != null; })) ? donutSvg_(br) : null;
   var haveBars = inc.city_avg_man != null && inc.prefecture_avg_man != null && inc.national_avg_man != null;
   function barsFor(w) { return hbarsSvg_([[m.city, inc.city_avg_man, true], [m.prefecture, inc.prefecture_avg_man, false], ['全国', inc.national_avg_man, false]], w); }
-  var trendD = tr.series ? trendLinesSvg_(tr.series, false) : null, trendC = tr.series ? trendLinesSvg_(tr.series, true) : null;
+  var trendD = tr.series ? trendChart_(tr.series, false) : null, trendC = tr.series ? trendChart_(tr.series, true) : null;
   var items = land.compare.items;
   var landOk = items.length && items.every(function (r) { return r.tsubo_price_man != null && r.listings != null; });
   var vols = kw.rows.map(function (r) { return r.monthly_volume; }).filter(function (v) { return v != null; });
