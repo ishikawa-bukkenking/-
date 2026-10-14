@@ -35,7 +35,7 @@ function houseSection_(id, no, sec, label) {   // no: 表示用の連番(文字�
   if (!ok) s += '<div style="margin-top:16px">' + slot_(label + 'の相場・物件数', [label + 'の相場・物件数']) + '</div>';
   s += '<div style="margin-top:28px">';
   if (sec.heatmap_image) {
-    s += '<figure class="fig"><img src="' + esc_(sec.heatmap_image) + '" alt="' + esc_(label) + 'の面積と価格の分布表" loading="lazy"></figure>';
+    s += '<figure class="fig"><img class="uimg" src="' + esc_(sec.heatmap_image) + '" alt="' + esc_(label) + 'の面積と価格の分布表" loading="lazy"></figure>';
   } else if (sec.heatmaps) {
     var keys = Object.keys(sec.heatmaps).filter(function (k) { return sec.heatmaps[k]; });
     s += '<div class="grid' + (keys.length > 1 ? ' g2' : '') + '">' + keys.map(function (k) {
@@ -117,7 +117,7 @@ function renderPage_(model, report, assets, styleCss) {
     (tr.yearly_pct ? '<div class="kpi flat" style="grid-column:span 2"><div style="display:flex;gap:24px;flex-wrap:wrap">' + ['初年度', '2年目', '3年目'].map(function (lab, i) {
       return '<div><div class="kpi-num num" style="font-size:1.75rem">' + num_(tr.yearly_pct[i], 2) + '<span class="u">%</span></div><div class="kpi-label" style="display:block">' + lab + '</div></div>';
     }).join('') + '</div></div>' : '') + '</div><div class="card">' +
-    (tr.image ? '<figure class="fig" style="border:0;padding:0"><img src="' + esc_(tr.image) + '" alt="' + esc_(m.city) + 'の住宅価格推移グラフ"></figure>' :
+    (tr.image ? '<figure class="fig" style="border:0;padding:0"><img class="uimg" src="' + esc_(tr.image) + '" alt="' + esc_(m.city) + 'の住宅価格推移グラフ"></figure>' :
       trendD ? '<div class="chart-d">' + trendD + '</div><div class="chart-c">' + trendC + '</div>' :
         slot_('価格推移グラフ', ['価格推移グラフ(画像)'])) +
     '<ul class="notes note" style="margin-top:14px">' + tr.ai_note.map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul></div>' + srcline_(tr) + '</div></section>');

@@ -184,6 +184,7 @@ def test_input_system_api(tmp_path):
     assert set(r["valErr"]["errors"]) == {"inputs.income.city_avg_man", "bogus", "auto.date.income", "compare.0", "inputs.price_trend.image", "company"}
     assert r["valErr"]["saved"] == 1 and r["save"]["errors"] == {} and r["dateAuto"]  # 正しい項目だけ保存/取得日は自動
     assert r["upBad"][0] and r["upBad"][1] and r["imgRef"] and r["oldTrashed"]
+    assert r["uimg"] == 2                                                             # 貼った画像(価格推移・分布表)は小さめ表示のクラス付き
     assert r["lpImgCount"] == 3 and r["lpFixedSources"] and r["lpHas414"] and r["lpNoCta"] and r["lpAnonOk"]
     assert r["totals"] == {"listings_total": 414, "brokerage": 47} and r["checksNg"] == [] and r["missingStored"] == 3
     assert r["area2"] and r["status2"]                                              # 同じ会社の別エリアは別データ・別LP

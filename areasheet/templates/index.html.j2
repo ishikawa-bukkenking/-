@@ -18,7 +18,7 @@
 {% if sec.price_man is none or sec.listings is none %}<div style="margin-top:16px">{{ slot(label ~ 'の相場・物件数', ['inputs.' ~ id ~ '.price_man', 'inputs.' ~ id ~ '.listings', 'または inputs.listings_csv']) }}</div>{% endif %}
 <div style="margin-top:28px">
 {% if sec.heatmaps %}<div class="grid {{ 'g2' if sec.heatmaps|length > 1 else '' }}">{% for key, h in sec.heatmaps.items() %}{% if h %}{{ heat(h, ('土地面積' if key == 'land_area_m2' else '建物面積' if key == 'building_area_m2' else '専有面積') ~ '×価格') }}{% endif %}{% endfor %}</div>
-{% elif sec.heatmap_image %}<figure class="fig"><img src="{{ sec.heatmap_image }}" alt="{{ label }}の面積と価格の分布表" loading="lazy"></figure>
+{% elif sec.heatmap_image %}<figure class="fig"><img class="uimg" src="{{ sec.heatmap_image }}" alt="{{ label }}の面積と価格の分布表" loading="lazy"></figure>
 {% else %}{{ slot('面積×価格の分布', ['inputs.listings_csv(物件データCSV)', 'inputs.' ~ id ~ '.heatmap_image(画像)']) }}{% endif %}
 </div>
 <ul class="notes note">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>
@@ -90,7 +90,7 @@
 {% if tr.yearly_pct %}<div class="kpi flat" style="grid-column:span 2"><div style="display:flex;gap:24px;flex-wrap:wrap">{% for lab in ['初年度','2年目','3年目'] %}<div><div class="kpi-num num" style="font-size:1.75rem">{{ tr.yearly_pct[loop.index0]|num(2) }}<span class="u">%</span></div><div class="kpi-label" style="display:block">{{ lab }}</div></div>{% endfor %}</div></div>{% endif %}
 </div>
 <div class="card">
-{% if trend_svg %}<div class="chart-d">{{ trend_svg|safe }}</div><div class="chart-c">{{ trend_svg_c|safe }}</div>{% elif tr.image %}<figure class="fig" style="border:0;padding:0"><img src="{{ tr.image }}" alt="{{ m.city }}の住宅価格推移グラフ"></figure>{% else %}{{ slot('価格推移グラフ', ['inputs.price_trend.series(labels と 中古マンション/中古戸建て/土地 の数値)', 'または inputs.price_trend.image(画像)']) }}{% endif %}
+{% if trend_svg %}<div class="chart-d">{{ trend_svg|safe }}</div><div class="chart-c">{{ trend_svg_c|safe }}</div>{% elif tr.image %}<figure class="fig" style="border:0;padding:0"><img class="uimg" src="{{ tr.image }}" alt="{{ m.city }}の住宅価格推移グラフ"></figure>{% else %}{{ slot('価格推移グラフ', ['inputs.price_trend.series(labels と 中古マンション/中古戸建て/土地 の数値)', 'または inputs.price_trend.image(画像)']) }}{% endif %}
 <ul class="notes note" style="margin-top:14px">{% for n in tr.ai_note %}<li>{{ n }}</li>{% endfor %}</ul></div>
 {{ srcline(tr) }}
 </div></section>

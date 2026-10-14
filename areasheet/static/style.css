@@ -134,6 +134,8 @@ a{color:var(--c-ink)}
 .comp .cnt{font-size:.9375rem;margin-top:10px}.comp .cnt b{font-size:1.75rem;color:var(--c-ink)}
 .fig{background:#fff;border:1px solid var(--c-line);border-radius:var(--r);padding:12px;margin:0}
 .fig img{width:100%;display:block;border-radius:6px}
+/* お客様が貼った画像(価格推移・分布表)は、少し小さめに中央寄せで表示 */
+.fig img.uimg{width:auto;max-width:min(100%,38rem);margin:0 auto}
 
 /* question */
 .q{text-align:center}
@@ -195,6 +197,7 @@ a{color:var(--c-ink)}
   .area-map{max-width:340px}
   .chart{max-height:80mm}
   .fig img{max-height:92mm;width:auto;margin:0 auto}
+  .fig img.uimg{max-width:min(100%,32rem)}
   .heat{font-size:10px}.heat th,.heat td{padding:3px 5px}
   .foot{padding:6mm 0;break-before:avoid;page-break-before:avoid}
   a{text-decoration:none;color:inherit}

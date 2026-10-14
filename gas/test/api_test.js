@@ -52,6 +52,7 @@ const res = vm.runInContext(`
   r.lpImgCount = lp.split('data:image/jpeg;base64,/9j/').length - 1;
   r.lpFixedSources = ["LIFULL HOME'S調べ", 'REINS調べ', 'Google広告調べ', '総務省統計局 令和2年国勢調査'].every(function (s) { return lp.indexOf(s) >= 0; });
   r.lpHas414 = lp.indexOf('414') >= 0 && lp.indexOf('上田市') >= 0 && lp.indexOf('株式会社○○') >= 0;
+  r.uimg = lp.split('class="uimg"').length - 1;
   r.lpNoCta = lp.indexOf('お問い合わせ') < 0; r.lpAnon = true;
   // LPはログインしていなくても見られる(メールが取れない匿名アクセス)
   __setEmail(''); r.lpAnonOk = doGet({ parameter: { id: a1 } }).html.indexOf('414') >= 0; __setEmail('ishikawa@bukkenking.com');
