@@ -84,12 +84,29 @@ log.trendOnAgain = (await page.locator('.field[data-grp="trend"] input:not([disa
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 await page.locator('.field[data-k="inputs.price_trend.image"] input[type=file]').setInputFiles({ name: 'g.png', mimeType: 'image/png', buffer: png });
 await page.waitForFunction(() => /アップロード済み/.test(document.querySelector('.field[data-k="inputs.price_trend.image"]').textContent), null, { timeout: 8000 });
+// APIキー未設定のときは、表への作り直しの案内だけを出す
+vm.runInContext("PropertiesService.getScriptProperties().deleteProperty('ANTHROPIC_KEY')", ctx);
+await page.reload(); await page.waitForSelector('.field');
+log.aiHint = /APIキーを入れる/.test(await page.locator('.field[data-k="inputs.used_house.heatmap_image"]').textContent());
+vm.runInContext("PropertiesService.getScriptProperties().setProperty('ANTHROPIC_KEY', 'sk-ant-testtesttesttesttesttest')", ctx);
+await page.reload(); await page.waitForSelector('.field');
 // 画像はペーストでも貼れる(クリップボードの画像)
 await page.locator('.field[data-k="inputs.used_house.heatmap_image"] .paste').click();
 await page.evaluate(() => { const b = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
   const dt = new DataTransfer(); dt.items.add(new File([b], 'p.png', { type: 'image/png' }));
   document.dispatchEvent(new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true })); });
 await page.waitForFunction(() => /アップロード済み/.test(document.querySelector('.field[data-k="inputs.used_house.heatmap_image"]').textContent), null, { timeout: 8000 });
+// 貼った画像をAIが表に読み取る → 確認して数字を直し → 保存すると、LPは表になる
+const hf = page.locator('.field[data-k="inputs.used_house.heatmap_image"]');
+await hf.locator('.tbl table').waitFor({ timeout: 8000 });
+log.aiDraftShown = /AIが読み取った表/.test(await hf.textContent()) && /要確認/.test(await hf.textContent());
+log.aiCells = await hf.locator('.tbl td input').evaluateAll(l => l.map(x => x.value).join(','));
+await hf.locator('.tbl td input').nth(3).fill('9');
+await hf.locator('button:has-text("この内容で保存")').click();
+await page.waitForFunction(() => /表に作り直し済み/.test(document.querySelector('.field[data-k="inputs.used_house.heatmap_image"]').textContent), null, { timeout: 8000 });
+log.aiSaved = vm.runInContext("JSON.parse(areaById_(listAreas_()[0].id).values['tbl.inputs.used_house.heatmap_image']).cells[1][0]", ctx);
+await page.reload(); await page.waitForSelector('.field');
+log.aiPersisted = /表に作り直し済み/.test(await page.locator('.field[data-k="inputs.used_house.heatmap_image"]').textContent());
 log.pasted = vm.runInContext("/^drive:/.test(areaById_(listAreas_()[0].id).values['inputs.used_house.heatmap_image'])", ctx);
 log.imageSaved = vm.runInContext("/^drive:/.test(areaById_(listAreas_()[0].id).values['inputs.price_trend.image'])", ctx);
 log.fieldsNoCta = await page.locator('.field[data-k="cta_url"], .field[data-k="company"]').count();

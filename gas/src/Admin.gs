@@ -64,6 +64,7 @@ function api_get(areaId) {
   FIELDS_.forEach(function (f) { if (f.t === 'image') images[f.k] = /^drive:/.test(a.values[f.k] || ''); });
   var siblings = listAreas_().filter(function (x) { return x.companyId === a.companyId; }).map(function (x) { return { id: x.id, label: x.pref + ' ' + x.city }; });
   return { id: a.id, company: c ? { id: c.id, name: c.name } : { id: '', name: '' }, fields: fieldsMeta_(), values: a.values, images: images,
+    tables: TABLE_KEYS_.reduce(function (o, k) { o[k] = savedTable_(a.values, k); return o; }, {}), aiReady: !!aiKey_(),
     autoHouseholds: a.values['auto.households'] ? Number(a.values['auto.households']) : null, hasEstat: !!st.estat,
     url: lpUrl_(st, a.id), provisional: !st.url, prefectures: PREFECTURES, siblings: siblings };
 }
@@ -79,7 +80,7 @@ function api_save(areaId, changes) {
       var isImg = isImageKey_(k);
       var err = isImg ? (v.trim() === '' ? '' : '画像はアップロードで登録してください') : validateValue_(k, v);
       if (err) { errors[k] = err; return; }
-      if (isImg && values[k]) trashImage_(values[k]);
+      if (isImg && values[k]) { trashImage_(values[k]); delete values[tableValueKey_(k)]; }
       if (v.trim() === '') delete values[k]; else values[k] = v.trim();
       var dk = dateKeyFor_(k); if (dk) touched[dk] = 1;
       saved++;
@@ -108,6 +109,7 @@ function api_uploadImage(areaId, key, dataUrl) {
   var file = imageFolder_().createFile(Utilities.newBlob(bytes, 'image/' + m[1], areaId + '_' + key.replace(/[^A-Za-z0-9_]/g, '_') + (m[1] === 'png' ? '.png' : '.jpg')));
   writeAreaValues_(areaId, function (values) {
     if (values[key]) trashImage_(values[key]);
+    delete values[tableValueKey_(key)];
     values[key] = 'drive:' + file.getId();
     var dk = dateKeyFor_(key); if (dk) values[dk] = todayStr_();
   });
@@ -179,7 +181,7 @@ function api_fr_import(text) {
 function api_settings_get() {
   requireUser_();
   var s = readSettings_();
-  return { estat: s.estat, max: s.max, threshold: s.threshold, url: s.url, email: currentEmail_() };
+  return { aiKeySet: !!aiKey_(), estat: s.estat, max: s.max, threshold: s.threshold, url: s.url, email: currentEmail_() };
 }
 
 function api_settings_set(v) {

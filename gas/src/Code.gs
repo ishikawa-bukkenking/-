@@ -156,6 +156,7 @@ function buildArea_(areaId) {
   var vals = Object.assign({}, a.values, { company: c ? c.name : '', prefecture: a.values.prefecture || a.pref, city: a.values.city || a.city });
   var cfg = valuesToConfig_(vals, todayIso_());
   cfg.options = settings.opts;
+  TABLE_KEYS_.forEach(function (k) { var t = savedTable_(vals, k); if (t) setPath_(cfg, k.replace(/heatmap_image$/, 'table'), t); });
   resolveImages_(cfg);
   var frSh = ss.getSheetByName(SHEET_FR_);
   var data = { franchiseRows: frSh && frSh.getLastRow() > 1 ? franchiseRowsFrom_(frSh.getRange(2, 1, frSh.getLastRow() - 1, 6).getDisplayValues()) : [], listingRows: [] };

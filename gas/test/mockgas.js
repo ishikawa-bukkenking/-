@@ -41,7 +41,7 @@ function makeEnv(geoDir) {
   const ctx = vm.createContext({
     console, Math, JSON, Date, Object, Array, String, Number, isNaN, parseInt, parseFloat, RegExp, Error,
     SpreadsheetApp: { getActiveSpreadsheet: () => ss, openById: () => ss, getUi: () => { throw new Error('no ui'); } },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = v; } }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = v; }, deleteProperty: k => { delete props[k]; } }) },
     CacheService: { getScriptCache: () => ({ get: k => cache.get(k) || null, put: (k, v) => cache.set(k, v), remove: k => cache.delete(k), putAll: kv => Object.keys(kv).forEach(k => cache.set(k, kv[k])) }) },
     Utilities: { formatDate: () => '2026-01-19', base64Decode: b => Array.from(Buffer.from(b, 'base64')), base64Encode: b => Buffer.from(b).toString('base64'),
     newBlob: (bytes, mime, name) => ({ bytes, mime, name, getBytes: () => bytes, getContentType: () => mime }) },
@@ -53,7 +53,16 @@ function makeEnv(geoDir) {
     const folder = { getId: () => 'folder1', createFile: mk };
     return { createFolder: () => folder, getFolderById: () => folder, getFileById: id => { if (!files.has(id)) throw new Error('not found'); return files.get(id); }, __files: files }; })(),
     HtmlService: { XFrameOptionsMode: { ALLOWALL: 1 }, createHtmlOutput: html => { const o = { html, setTitle() { return o; }, addMetaTag() { return o; }, setXFrameOptionsMode() { return o; } }; return o; } },
-    UrlFetchApp: { fetch: url => {
+    UrlFetchApp: { fetch: function (url) {
+    if (url.indexOf('api.anthropic.com') >= 0) {   // Claude APIの模擬(応答の形は公開仕様どおり)
+      const o = arguments[1] || {}; global.__aiCalls = (global.__aiCalls || []).concat([{ url, key: (o.headers || {})['x-api-key'], body: JSON.parse(o.payload) }]);
+      const reply = (code, body) => ({ getResponseCode: () => code, getContentText: () => JSON.stringify(body) });
+      if ((o.headers || {})['x-api-key'] !== 'sk-ant-testtesttesttesttesttest') return reply(401, { error: { message: 'invalid x-api-key' } });
+      if (global.__aiMode === 'refusal') return reply(200, { stop_reason: 'refusal', content: [] });
+      if (global.__aiMode === 'junk') return reply(200, { stop_reason: 'end_turn', content: [{ type: 'text', text: '読み取れません' }] });
+      const t = { caption: '土地面積×価格', cols: ['〜1000', '1000〜2000', '2000〜'], rows: ['〜100㎡', '100〜150㎡'], cells: [[3, 12, null], [5, '8', 1]], warnings: ['左下の数字がやや不鮮明'] };
+      return reply(200, { stop_reason: 'end_turn', content: [{ type: 'text', text: '```json\n' + JSON.stringify(t) + '\n```' }] });
+    }
     if (url.indexOf('api.e-stat.go.jp') >= 0) {   // e-Stat APIの模擬(応答の形は公開仕様に基づく想定。実機での検証は未実施)
       global.__estatCalls = (global.__estatCalls || 0) + 1;
       const q = Object.fromEntries(new URL(url).searchParams), path = new URL(url).pathname.split('/').pop();
@@ -69,6 +78,7 @@ function makeEnv(geoDir) {
   });
 
   ctx.__sheetNames = () => sheets.map(x => x.name);
+  ctx.__aiMode = m => { global.__aiMode = m; }; ctx.__aiCalls = () => global.__aiCalls || [];
   ctx.__estatMode = m => { global.__estatMode = m; }; ctx.__estatCalls = () => global.__estatCalls || 0;
   ctx.__setEmail = e => { global.__email = e; };
   for (const f of ['Bundle.gs', 'Assets.gs']) vm.runInContext(fs.readFileSync(path.join(dist, f), 'utf8'), ctx, { filename: f });

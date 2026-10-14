@@ -34,7 +34,9 @@ function houseSection_(id, no, sec, label) {   // no: 表示用の連番(文字�
   s += '<div class="grid g2" style="max-width:640px">' + kpi_(sec.price_man, '万円', '売却価格相場') + kpi_(sec.listings, '件', '物件数') + '</div>';
   if (!ok) s += '<div style="margin-top:16px">' + slot_(label + 'の相場・物件数', [label + 'の相場・物件数']) + '</div>';
   s += '<div style="margin-top:28px">';
-  if (sec.heatmap_image) {
+  if (sec.table) {
+    s += '<div class="grid">' + heat_html_(tableToHeat_(sec.table), sec.table.caption || '面積×価格') + '</div>';
+  } else if (sec.heatmap_image) {
     s += '<figure class="fig"><img class="uimg" src="' + esc_(sec.heatmap_image) + '" alt="' + esc_(label) + 'の面積と価格の分布表" loading="lazy"></figure>';
   } else if (sec.heatmaps) {
     var keys = Object.keys(sec.heatmaps).filter(function (k) { return sec.heatmaps[k]; });

@@ -14,7 +14,7 @@ from PIL import Image
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-ORDER = ["Jp", "Compute", "Geo", "Franchise", "Listings", "Charts", "Pipeline", "Render", "Sheet", "Store", "Admin", "Code"]
+ORDER = ["Jp", "Compute", "Geo", "Franchise", "Listings", "Charts", "Pipeline", "Render", "Sheet", "Store", "Tables", "Admin", "Code"]
 
 
 def data_uri(path: Path, height: int | None = None, fmt: str = "PNG", quality: int = 82) -> str:

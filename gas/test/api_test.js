@@ -129,6 +129,37 @@ const res = vm.runInContext(`
   var stB = api_status(autoB); r.estatFail = stB.missing.filter(function (m) { return m.key === 'area.households'; })[0].reason;
   var callsB = __estatCalls(); api_status(autoB); r.estatFailCached = __estatCalls() === callsB;   // 失敗は10分間だけ覚えて連打しない
   __estatMode('');
+  // --- 分布表の画像をAIで表に作り直す ---
+  var HK = 'inputs.used_house.heatmap_image';
+  api_uploadImage(a1, HK, PX);
+  r.aiNoKey = tryCall(function () { return api_readTable(a1, HK); }).err;
+  r.aiKeyBad = tryCall(function () { return api_ai_set('hello'); }).err;
+  r.aiKeySet = api_ai_set('sk-ant-testtesttesttesttesttest').set && api_settings_get().aiKeySet === true && !JSON.stringify(api_settings_get()).match(/sk-ant/) && !JSON.stringify(api_get(a1)).match(/sk-ant/);
+  r.aiKeyNotInSheet = !JSON.stringify(__sheetNames().map(function (n) { var sh = ss.getSheetByName(n); return sh.getLastRow() ? sh.getRange(1, 1, sh.getLastRow(), 12).getValues() : []; })).match(/sk-ant/);
+  r.aiBadKind = [tryCall(function () { return api_readTable(a1, 'inputs.price_trend.image'); }).err, tryCall(function () { return api_saveTable(a1, 'inputs.price_trend.image', {}); }).err];
+  var t1 = api_readTable(a1, HK);
+  var call0 = __aiCalls()[__aiCalls().length - 1];
+  r.aiCall = call0.url === 'https://api.anthropic.com/v1/messages' && call0.body.model === 'claude-opus-5-5' && call0.body.messages[0].content[0].type === 'image' && call0.body.messages[0].content[0].source.type === 'base64' && !('temperature' in call0.body) && !('thinking' in call0.body);
+  r.aiTable = [t1.rows.length, t1.cols.length, t1.cells[1][1], t1.cells[0][2], t1.total, t1.warnings.length];
+  r.aiNotSaved = !areaById_(a1).values['tbl.' + HK];
+  var lp0 = doGet({ parameter: { id: a1 } }).html;
+  r.aiLpBefore = lp0.indexOf('土地面積×価格') < 0 && lp0.indexOf('class="uimg"') >= 0;
+  r.aiSaveBad = [tryCall(function () { return api_saveTable(a1, HK, { cols: ['a'], rows: ['b'], cells: [['x']] }); }).err, tryCall(function () { return api_saveTable(a1, HK, { cols: [], rows: [], cells: [] }); }).err, tryCall(function () { return api_saveTable(a1, HK, { cols: ['a'], rows: ['b'], cells: [[-3]] }); }).err];
+  var edited = { caption: t1.caption, cols: t1.cols, rows: t1.rows, cells: [[3, 12, ''], [5, '9', 1]] };
+  r.aiSaved = api_saveTable(a1, HK, edited).total === 30 && api_get(a1).tables[HK].cells[1][1] === 9;
+  var lp1 = doGet({ parameter: { id: a1 } }).html;
+  r.aiLpTable = lp1.indexOf('<table class="heat">') >= 0 && lp1.indexOf('土地面積×価格') >= 0 && lp1.indexOf('100〜150㎡') >= 0 && lp1.split('class="uimg"').length - 1 === 1;
+  r.aiStatusOk = api_status(a1).missing.filter(function (m) { return m.key === 'used_house.heatmap'; }).length === 0;
+  api_uploadImage(a1, HK, PX); r.aiClearedOnUpload = !areaById_(a1).values['tbl.' + HK] && api_get(a1).tables[HK] === null;
+  api_saveTable(a1, HK, edited); api_deleteTable(a1, HK); r.aiDeleted = !areaById_(a1).values['tbl.' + HK];
+  api_saveTable(a1, HK, edited); api_save(a1, (function () { var o = {}; o[HK] = ''; return o; })()); r.aiClearedOnImgDelete = !areaById_(a1).values['tbl.' + HK] && !areaById_(a1).values[HK];
+  api_uploadImage(a1, HK, PX);
+  __aiMode('junk'); r.aiJunk = tryCall(function () { return api_readTable(a1, HK); }).err;
+  __aiMode('refusal'); r.aiRefusal = tryCall(function () { return api_readTable(a1, HK); }).err;
+  __aiMode('');
+  api_ai_set('sk-ant-wrongwrongwrongwrongwrong'); r.aiWrongKey = tryCall(function () { return api_readTable(a1, HK); }).err;
+  api_ai_set(''); r.aiKeyRemoved = api_settings_get().aiKeySet === false;
+  r.aiDenied = (function () { __setEmail('x@gmail.com'); var e = ['api_readTable', 'api_saveTable', 'api_deleteTable', 'api_ai_set'].map(function (n) { var m = tryCall(function () { return this[n](a1, HK, {}); }.bind(this)).err; return !!m && (m.indexOf('メールアドレス') >= 0 || m.indexOf('使えません') >= 0); }, this); __setEmail('ishikawa@bukkenking.com'); return e.every(Boolean); }).call(this);
   // --- 商談先一覧(自動で記載・更新) ---
   function idxRows() { var sh = ss.getSheetByName('商談先一覧'); var last = sh.getLastRow(); return { head: sh.getRange(1, 1, 1, 9).getValues()[0], rows: last > 1 ? sh.getRange(2, 1, last - 1, 9).getValues() : [] }; }
   function idxOf(id) { return idxRows().rows.filter(function (x) { return x[8] === id; })[0]; }
@@ -150,7 +181,7 @@ const res = vm.runInContext(`
   var dA = dupC.areas.filter(function (x) { return x.city === '上田市'; })[0];
   var dv = areaById_(dA.id).values, sv = areaById_(a1).values;
   r.dupValues = dv['inputs.income.city_avg_man'] === sv['inputs.income.city_avg_man'] && dv['compare.0'] === sv['compare.0'] && dv['auto.date.income'] === sv['auto.date.income'] && dv['inputs.price_trend.image'] !== sv['inputs.price_trend.image'] && dv['inputs.price_trend.image'].indexOf('drive:') === 0;
-  r.dupNewFiles = DriveApp.__files.size === filesBefore + 1;                              // 画像は別ファイルにコピー
+  r.dupNewFiles = DriveApp.__files.size === filesBefore + 2;                              // 画像は別ファイルにコピー
   r.dupLp = doGet({ parameter: { id: dA.id } }).html.indexOf('414') >= 0 && doGet({ parameter: { id: dA.id } }).html.indexOf(dupC.name) >= 0;
   r.dupIndex = idxRows().rows.filter(function (x) { return x[0] === dupC.name; }).length === 2;
   api_save(dA.id, { 'inputs.income.city_avg_man': '999' }); r.dupIndependent = areaById_(a1).values['inputs.income.city_avg_man'] === '476' && areaById_(dA.id).values['inputs.income.city_avg_man'] === '999';

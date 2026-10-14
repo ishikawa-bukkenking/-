@@ -39,10 +39,10 @@ function src_(sec, created, rep, key) {
 var KEYS_ = {
   income: ['city_avg_man', 'prefecture_avg_man', 'national_avg_man', 'rank_in_prefecture', 'municipalities_in_prefecture', 'headline', 'body', 'brackets', 'largest_bracket', 'share_sum', 'diff_vs_national_man'],
   price_trend: ['city_3y_pct', 'prefecture_3y_pct', 'yearly_pct', 'series', 'image', 'body', 'judgement_vs_prefecture'],
-  land: ['tsubo_price_man', 'tsubo_price_low_rise_residential_man', 'tsubo_price_other_residential_man', 'listings', 'price_man', 'price_per_m2_man', 'land_area_median_m2', 'heatmaps', 'heatmap_image'],
-  used_house: ['price_man', 'listings', 'building_area_median_m2', 'land_area_median_m2', 'age_median_years', 'heatmaps', 'heatmap_image'],
-  used_mansion: ['price_man', 'listings', 'exclusive_area_median_m2', 'age_median_years', 'heatmaps', 'heatmap_image'],
-  new_house: ['price_man', 'listings', 'building_area_median_m2', 'land_area_median_m2', 'heatmaps', 'heatmap_image']
+  land: ['tsubo_price_man', 'tsubo_price_low_rise_residential_man', 'tsubo_price_other_residential_man', 'listings', 'price_man', 'price_per_m2_man', 'land_area_median_m2', 'heatmaps', 'heatmap_image', 'table'],
+  used_house: ['price_man', 'listings', 'building_area_median_m2', 'land_area_median_m2', 'age_median_years', 'heatmaps', 'heatmap_image', 'table'],
+  used_mansion: ['price_man', 'listings', 'exclusive_area_median_m2', 'age_median_years', 'heatmaps', 'heatmap_image', 'table'],
+  new_house: ['price_man', 'listings', 'building_area_median_m2', 'land_area_median_m2', 'heatmaps', 'heatmap_image', 'table']
 };
 
 /**
@@ -143,7 +143,7 @@ function buildModel_(cfg, services, data) {
     model[key] = sec;
     status_(rep, key + '.price_man', label + ' 売却価格相場', sec.price_man, label + 'の入力');
     status_(rep, key + '.listings', label + ' 物件数', sec.listings, label + 'の入力');
-    if (key !== 'land') status_(rep, key + '.heatmap', label + ' 面積×価格の分布', sec.heatmaps || sec.heatmap_image, '分布表の画像');
+    if (key !== 'land') status_(rep, key + '.heatmap', label + ' 面積×価格の分布', sec.heatmaps || sec.table || sec.heatmap_image, '分布表の画像');
   });
   var land = model.land;
   [['tsubo_price_man', '坪単価'], ['tsubo_price_low_rise_residential_man', '低層住居専用地域の坪単価'], ['tsubo_price_other_residential_man', 'その他の住居専用地域の坪単価']].forEach(function (p) {

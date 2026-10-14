@@ -208,10 +208,17 @@ def test_input_system_api(tmp_path):
     assert r["areaDeleted"] and r["imagesTrashed"] and r["renamed"] and r["companyDeleted"]
     # 商談先一覧(自動で記載・更新)
     assert r["idxHead"] == "会社名,都道府県,市区町村,LPのURL,状態,作成日,更新日時,作成者,エリアID" and r["idxRow"] and r["idxCount"] and r["idxUpdated"]
-    assert r["idxStatus"] in ("入力完了", "未入力 3件") and r["idxRotated"] and r["idxAfterRename"] and r["idxAreaDeleted"]
+    assert r["idxStatus"] in ("入力完了", "未入力 2件", "未入力 3件") and r["idxRotated"] and r["idxAfterRename"] and r["idxAreaDeleted"]
     # 会社の複製(エリア・入力内容・画像ごと。複製後は独立)
     assert r["dupName"] == "株式会社○○（コピー）" and r["dupAreas"] and r["dupValues"] and r["dupNewFiles"] and r["dupLp"] and r["dupIndex"]
     assert r["dupIndependent"] and r["dupDeleted"] and r["dupIdxGone"] and r["dupNamed"] and r["dupBad"]
+    # 分布表の画像をAI(Claude API)で読み取って、内容そのままの表に作り直す
+    assert "APIキーが未設定" in r["aiNoKey"] and r["aiKeyBad"] and r["aiKeySet"] and r["aiKeyNotInSheet"]   # キーは画面にもシートにも出さない
+    assert all(r["aiBadKind"]) and r["aiCall"]                                         # 価格推移グラフは対象外(推測になるため)/画像はbase64で送る
+    assert r["aiTable"] == [2, 3, 8, None, 29, 1] and r["aiNotSaved"] and r["aiLpBefore"]   # 読み取り結果は確認するまで保存・LP反映しない
+    assert all(r["aiSaveBad"]) and r["aiSaved"] and r["aiLpTable"] and r["aiStatusOk"]    # 確認・修正して保存 → LPは表を表示(画像は出さない)
+    assert r["aiClearedOnUpload"] and r["aiDeleted"] and r["aiClearedOnImgDelete"]       # 画像を差し替え/削除したら古い表は消す
+    assert "読み取れ" in r["aiJunk"] and "手入力" in r["aiRefusal"] and "APIキーが正しくない" in r["aiWrongKey"] and r["aiKeyRemoved"] and r["aiDenied"]
     assert r["appPage"] and r["noOldFns"] == ["undefined"] * 6                      # パスワード方式・旧メニューは残さない
 
 
@@ -271,4 +278,5 @@ def test_input_screen_in_browser(tmp_path):
     assert log["listUrlText"].startswith("LPのURL(仮)：https://script.test/exec?id=") and log["editUrlText"].startswith("LPのURL(仮")   # 一覧・入力画面にURLが文字でも出る
     assert log["pct"] == "39.0" and log["noHhInputs"] == 0 and "世帯数の構成比" in log["pctLabel"]       # 構成比は1つだけ・小数点第1位まで
     assert log["trendDefaultOn"] and log["trendDisabled"] == 0 and log["trendNeedGone"] and log["trendStored"] == "0" and log["trendOnAgain"]
+    assert log["aiDraftShown"] and log["aiCells"] == "3,12,,5,8,1" and log["aiSaved"] == 9 and log["aiPersisted"]   # 貼る→AIが表に→直して保存
     assert log["pasted"] and "接続できました" in log["estatTest"] and log["noUnitField"] == 0 and log["noHpListed"]
