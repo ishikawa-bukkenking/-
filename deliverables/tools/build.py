@@ -3,8 +3,8 @@ sys.path.insert(0,'/tmp/claude-0/-home-user--/db782ef1-e569-59dc-97e4-a77616c95c
 from lxml import etree
 from fmt import *
 from sheetset import apply_settings
-SRC='/tmp/claude-0/-home-user--/db782ef1-e569-59dc-97e4-a77616c95c04/scratchpad/orig/orig.xlsx'
-NAMES=["社名","全体フロー","研修詳細","店舗内装","ターゲットエリア","免許","目標設定","事業検討","簡易PL","PL（1年目）","PL（2年目以降）","決定事項"]
+SRC='/tmp/claude-0/-home-user--/db782ef1-e569-59dc-97e4-a77616c95c04/scratchpad/orig_plus.xlsx'
+NAMES=["社名","全体フロー","研修詳細","店舗内装","ターゲットエリア","免許","目標設定","事業検討","簡易PL","PL（1年目）","PL（2年目以降）","決定事項","給与整合性","インセンティブ検討","能力判定"]
 def load_roles():
     rows=pickle.load(open('/tmp/claude-0/-home-user--/db782ef1-e569-59dc-97e4-a77616c95c04/scratchpad/rows.pkl','rb'))
     roles={n:{} for n in NAMES}
@@ -15,6 +15,8 @@ def load_roles():
     # ご回答による変更: Q5 採用費=A、Q8 簡易PL件数=B(残す)
     roles['事業検討']['C43']='A'
     for c in('D7','D8','D9','I7'): roles['簡易PL'][c]='B'
+    from newroles import new_roles
+    roles.update(new_roles()[0])
     return roles
 def build(out,jobs,print_areas=None,active_tab=None,unlock=False,extra_parts=None):
     """jobs: {sheet番号(1始まり): cfg}"""

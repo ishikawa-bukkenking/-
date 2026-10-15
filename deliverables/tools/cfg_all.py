@@ -12,6 +12,9 @@ def cfgs(first_input):
     c[8]=dict(tab=IN,zoom=100,select='F11',orient='portrait',fit=(1,1),align={'E52':{'shrinkToFit':None,'horizontal':'left','wrapText':None},'S39':{'shrinkToFit':None,'horizontal':'left','wrapText':None}})
     c[9]=dict(tab=CALC,zoom=85,select=first_input[9],orient='portrait',fit=(1,1),work=('AL1:BI16',))
     for k in(10,11): c[k]=dict(tab=CALC,zoom=100,select=first_input[k],orient='landscape',fit=(1,1),freeze='D2',work=('W1:AI77',))
+    c[13]=dict(tab=CALC,zoom=100,select=first_input[13],orient='landscape',fit=(1,1))
+    c[14]=dict(tab=IN,zoom=100,select=first_input[14],orient='landscape',fit=(1,1),work=('CL1:DC17',))
+    c[15]=dict(tab=IN,zoom=100,select=first_input[15],orient='portrait',fit=(1,1),work=('CN1:DK62',))
     c[12]=dict(tab=OUT,zoom=100,select='A1',orient='portrait',fit=(1,1))
     return c
 PRINT_AREAS={1:'A1:I18',2:'A1:GO66',4:'A1:AB66',5:'A1:BA102'}

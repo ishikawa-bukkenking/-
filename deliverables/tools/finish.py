@@ -5,7 +5,10 @@ D=sys.argv[1]
 def recalc(x,j): subprocess.run(['python3','-I',SD+'tools/recalc.py',x,j],check=True)
 import add_summary_run, shutil
 # 「まとめ」シートを追加(整形版=先頭、テンプレート版=「使い方」の次)
-add_summary_run.run(D+'/formatted.xlsx',D+'/formatted_s.xlsx',0,False,True); shutil.copy(D+'/formatted_s.xlsx',D+'/formatted.xlsx')
+add_summary_run.run(D+'/formatted.xlsx',D+'/formatted_s.xlsx',0,False,True)
+# 取り込んだ3シートの保存済み計算値を、現在の入力に基づく再計算値に更新(整形版)
+recalc(D+'/formatted_s.xlsx',D+'/formatted_s.json')
+inject_cache(D+'/formatted_s.xlsx',D+'/formatted_s.json',D+'/formatted.xlsx',only={'給与整合性','インセンティブ検討','能力判定'})
 add_summary_run.run(D+'/template_pre.xlsx',D+'/template_pre2.xlsx',1,True,False)
 recalc(D+'/template_pre2.xlsx',D+'/template_pre.json')
 n=inject_cache(D+'/template_pre2.xlsx',D+'/template_pre.json',D+'/template.xlsx'); print('キャッシュ値を更新した数式セル',n)
@@ -16,7 +19,7 @@ saved,cleared=pickle.load(open(D+'/saved.pkl','rb'))
 zt=zipfile.ZipFile(D+'/template.xlsx'); zf=zipfile.ZipFile(D+'/formatted.xlsx')
 parts={n_:zt.read(n_) for n_ in zt.namelist()}
 parts['xl/sharedStrings.xml']=zf.read('xl/sharedStrings.xml')
-for i in range(1,13):
+for i in range(1,16):
     p=f'xl/worksheets/sheet{i}.xml'; root=etree.fromstring(parts[p])
     for c in root.iterfind('.//m:sheetData/m:row/m:c',N):
         k=(i,c.get('r'))

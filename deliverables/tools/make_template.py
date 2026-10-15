@@ -6,7 +6,7 @@ from sheetset import put,E,FOOTER
 from openpyxl.utils import column_index_from_string as ci
 SD='/tmp/claude-0/-home-user--/db782ef1-e569-59dc-97e4-a77616c95c04/scratchpad/'
 roles=load_roles()
-KEEP0={'PL（1年目）','PL（2年目以降）'}           # Q10: PLの入力欄は0のまま
+KEEP0={'PL（1年目）','PL（2年目以降）','給与整合性'}           # Q10: PLの入力欄は0のまま
 CHECKS={('目標設定','D38'),('目標設定','K38'),('目標設定','U38')}   # Q9: □(未選択)
 REL_NS='http://schemas.openxmlformats.org/officeDocument/2006/relationships'
 def first_input():
@@ -15,7 +15,7 @@ def first_input():
         if not cs: return 'A1'
         def key(c): m=re.match(r'([A-Z]+)(\d+)',c); return (int(m.group(2)),ci(m.group(1)))
         return sorted(cs,key=key)[0]
-    return {i:first(NAMES[i-1]) for i in range(1,13)}
+    return {i:first(NAMES[i-1]) for i in range(1,16)}
 
 NEW_NAME='株式会社〇〇'
 def anonymize_name(path):
@@ -101,7 +101,10 @@ def make_usage(st,constants):
       ('6','店舗内装','店舗に必要な面積の説明資料です(入力なし。面積は前提値)','―','入力系(参考)'),
       ('7','簡易PL','1年目・2年目の損益のまとめとグラフです。件数は前提値','D7:D9、I7(前提値)','確認'),
       ('8','PL(1年目) / PL(2年目以降)','月ごとの損益計算です。自動計算が中心です','水色の入力欄(初期値0:支払利息、支払元本など)','確認'),
-      ('9','決定事項','署名・捺印する決定事項確認書です。内容は自動表示。A4・1ページで印刷','―(印刷して署名)','提出・印刷'),
+      ('9','給与整合性','各人の給与水準の確認表です(目標設定・事業検討・PLと連動)。資格手当・役職手当を入れて、年収・人件費外費用・労働分配率を確認します','F5:F10、H5:H10、F22:F27、H22:H27(手当の入力欄)。手当額(F15:I15)や分配率(Z5:Z8)などは前提値','確認'),
+      ('10','インセンティブ検討','インセンティブの原資と配分を検討する表です(給与整合性と連動)。原資・基準日・各人の半期成果と入社日を入れ、□を■にして評価方法を選びます','L2、L3、T9:T14、AB9:AB14、BE9:BE14、□/■(プルダウン)','入力'),
+      ('11','能力判定','本人・指導者・店舗長の3者評価の能力判定表です。各項目の評価点(Step別の数字)をプルダウンで入れると、技能評価・個人評価(S〜D)が自動で出ます','AK4・BE4・BY4(評価者名)、E6(コメント)、評価点の入力欄(AC12:CJ56)','入力'),
+      ('12','決定事項','署名・捺印する決定事項確認書です。内容は自動表示。A4・1ページで印刷','―(印刷して署名)','提出・印刷'),
       ('―','全体フロー / 研修詳細','加盟から営業開始までの流れと研修内容の説明資料です(入力なし)','―','提出・印刷')]
     for s_ in sheets: add([('B',s_[0],S['cellc']),('C',s_[1],S['cell']),('D',s_[2],S['cell']),('E',s_[3],S['cell']),('F',s_[4],S['cellc'])],ht=32)
     blank()
@@ -154,7 +157,7 @@ def lo_to_excel(f):
 def constants_list():
     """数式内の直書き定数(共有数式の展開後を含む全数式)。LibreOfficeで展開した数式文字列から抽出"""
     import collections
-    r=json.load(open(SD+'orig/recalc.json')); grp=collections.OrderedDict()
+    r=json.load(open(SD+'orig_plus.json')); grp=collections.OrderedDict()
     for sh,d in r.items():
         for c,v in d.items():
             f=v['f']
@@ -174,6 +177,7 @@ def assemble(formatted_unlocked,pre_out):
     cleared=[] # 変更レポート用
     SST=etree.fromstring(parts['xl/sharedStrings.xml'])
     sis=SST.findall('m:si',N)
+    PH_IDX=[k for k,si in enumerate(sis) if si.xpath('string(.)')=='\u3000'][0]
     # 1) 入力を空にする
     for i,name in enumerate(NAMES,1):
         path=f'xl/worksheets/sheet{i}.xml'; root=etree.fromstring(parts[path])
@@ -186,6 +190,10 @@ def assemble(formatted_unlocked,pre_out):
             if (name,ref) in CHECKS:
                 saved[(i,ref)]=(c.get('t'),v.text); c.set('t','s'); v.text='__CHECK__'; cleared.append((name,ref,'□')); continue
             if name in KEEP0 and c.get('t') is None and float(v.text)==0: continue
+            if name=='能力判定':   # 評価点の入力欄: 空欄は「全角スペース」(元の初期状態。条件付き書式の色が付かない)に戻す
+                if c.get('t')=='s' and sis[int(v.text)].xpath('string(.)')=='\u3000': continue
+                if c.get('t') is None:
+                    saved[(i,ref)]=(c.get('t'),v.text); cleared.append((name,ref,v.text)); c.set('t','s'); v.text=str(PH_IDX); continue
             saved[(i,ref)]=(c.get('t'),v.text)
             cleared.append((name,ref,sis[int(v.text)].xpath('string(.)') if c.get('t')=='s' else v.text))
             c.remove(v); c.attrib.pop('t',None)
@@ -197,7 +205,7 @@ def assemble(formatted_unlocked,pre_out):
         parts[path]=etree.tostring(root,xml_declaration=True,encoding='UTF-8',standalone=True)
     # 2) 文字列表: 使われなくなった文字列を空にし、「□」を追加
     used=set(); refs=0
-    for i in range(1,13):
+    for i in range(1,16):
         root=etree.fromstring(parts[f'xl/worksheets/sheet{i}.xml'])
         for c in root.iterfind('.//m:sheetData/m:row/m:c',N):
             if c.get('t')=='s':
@@ -211,13 +219,13 @@ def assemble(formatted_unlocked,pre_out):
     el=etree.SubElement(SST,q('si')); etree.SubElement(el,q('t')).text='□'
     SST.set('count',str(refs)); SST.set('uniqueCount',str(len(SST.findall('m:si',N))))
     parts['xl/sharedStrings.xml']=etree.tostring(SST,xml_declaration=True,encoding='UTF-8',standalone=True)
-    for i in range(1,13):
+    for i in range(1,16):
         p=f'xl/worksheets/sheet{i}.xml'; s=parts[p].decode('utf8').replace('<v>__CHECK__</v>','<v>%d</v>'%new_idx); parts[p]=s.encode('utf8')
     # 3) 使い方シート
     st=Styles(parts['xl/styles.xml'])
     consts=constants_list()
     usage,last=make_usage(st,consts)
-    parts['xl/styles.xml']=st.tostring(); parts['xl/worksheets/sheet13.xml']=usage; order.append('xl/worksheets/sheet13.xml')
+    parts['xl/styles.xml']=st.tostring(); parts['xl/worksheets/sheet20.xml']=usage; order.append('xl/worksheets/sheet20.xml')
     wb=etree.fromstring(parts['xl/workbook.xml'])
     sheets=wb.find('m:sheets',N); ns_r='{%s}id'%REL_NS
     el=etree.Element(q('sheet')); el.set('name','使い方'); el.set('sheetId','41'); el.set(ns_r,'rId101'); sheets.insert(0,el)
@@ -227,10 +235,10 @@ def assemble(formatted_unlocked,pre_out):
     cp=wb.find('m:calcPr',N); cp.set('fullCalcOnLoad','1')
     parts['xl/workbook.xml']=etree.tostring(wb,xml_declaration=True,encoding='UTF-8',standalone=True)
     rels=etree.fromstring(parts['xl/_rels/workbook.xml.rels'])
-    r_=etree.SubElement(rels,'{http://schemas.openxmlformats.org/package/2006/relationships}Relationship'); r_.set('Id','rId101'); r_.set('Type',REL_NS+'/worksheet'); r_.set('Target','worksheets/sheet13.xml')
+    r_=etree.SubElement(rels,'{http://schemas.openxmlformats.org/package/2006/relationships}Relationship'); r_.set('Id','rId101'); r_.set('Type',REL_NS+'/worksheet'); r_.set('Target','worksheets/sheet20.xml')
     parts['xl/_rels/workbook.xml.rels']=etree.tostring(rels,xml_declaration=True,encoding='UTF-8',standalone=True)
     ct=parts['[Content_Types].xml'].decode('utf8')
-    ct=ct.replace('</Types>','<Override PartName="/xl/worksheets/sheet13.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>')
+    ct=ct.replace('</Types>','<Override PartName="/xl/worksheets/sheet20.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>')
     parts['[Content_Types].xml']=ct.encode('utf8')
     # app.xml(シート名・名前の一覧)
     dns=[d.text for d in wb.findall('m:definedNames/m:definedName',N)]
@@ -246,7 +254,7 @@ def assemble(formatted_unlocked,pre_out):
     zout.close()
     return saved,cleared
 
-def inject_cache(zin_path,recalc_json,out):
+def inject_cache(zin_path,recalc_json,out,only=None):
     """数式セルの保存済み計算値を、LibreOfficeの再計算結果で入れ直す(数式は変更しない)"""
     rc=json.load(open(recalc_json)); zin=zipfile.ZipFile(zin_path)
     wb=etree.fromstring(zin.read('xl/workbook.xml'))
@@ -254,7 +262,7 @@ def inject_cache(zin_path,recalc_json,out):
     new={}; n=0
     for s in wb.xpath('//m:sheets/m:sheet',namespaces=N):
         name=s.get('name'); path='xl/'+rels[s.get('{%s}id'%REL_NS)]
-        if name not in rc: continue
+        if name not in rc or (only and name not in only): continue
         root=etree.fromstring(zin.read(path))
         for c in root.iterfind('.//m:sheetData/m:row/m:c',N):
             f=c.find('m:f',N)

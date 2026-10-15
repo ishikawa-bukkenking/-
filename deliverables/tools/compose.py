@@ -3,9 +3,9 @@ import os
 S='/tmp/claude-0/-home-user--/db782ef1-e569-59dc-97e4-a77616c95c04/scratchpad/img/'
 O='/home/user/-/deliverables/report/img/'; os.makedirs(O,exist_ok=True)
 f=ImageFont.truetype('/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf',30)
-names=["社名","全体フロー","研修詳細","店舗内装","ターゲットエリア","免許","目標設定","事業検討","簡易PL","PL（1年目）","PL（2年目以降）","決定事項"]
-before=[(1,2),(3,4),(5,6),(7,8),(9,12),(13,14),(15,16),(17,18),(19,20),(21,24),(25,28),(29,32)]
-after=[(4,4),(5,5),(6,6),(7,7),(8,9),(10,10),(11,11),(12,12),(13,13),(14,14),(15,15),(16,16)]
+names=["社名","全体フロー","研修詳細","店舗内装","ターゲットエリア","免許","目標設定","事業検討","簡易PL","PL（1年目）","PL（2年目以降）","給与整合性","インセンティブ検討","能力判定","決定事項"]
+before=[('b',(1,2)),('b',(3,4)),('b',(5,6)),('b',(7,8)),('b',(9,12)),('b',(13,14)),('b',(15,16)),('b',(17,18)),('b',(19,20)),('b',(21,24)),('b',(25,28)),('nb',(29,30)),('nb',(31,32)),('nb',(33,34)),('b',(29,32))]
+after=[(4,4),(5,5),(6,6),(7,7),(8,9),(10,10),(11,11),(12,12),(13,13),(14,14),(15,15),(16,16),(17,17),(18,18),(19,19)]
 def grid(pref,rng,four):
     ims=[Image.open(S+f'{pref}-{i:02d}.png').convert('RGB') for i in range(rng[0],rng[1]+1)]
     if four and len(ims)==4:
@@ -16,11 +16,11 @@ def grid(pref,rng,four):
     for i in ims: M.paste(i,(x,0)); x+=i.width+10
     return M
 for k,n in enumerate(names):
-    four=(before[k][1]-before[k][0]==3)
-    b=grid('b',before[k],four); a=grid('a',after[k],False)
+    bp,br=before[k]; four=(br[1]-br[0]==3)
+    b=grid(bp,br,four); a=grid('a',after[k],False)
     H=max(b.height,a.height); W=b.width+a.width+60
     M=Image.new('RGB',(W,H+60),'white'); d=ImageDraw.Draw(M)
-    d.text((10,12),'変更前(元ファイル / PDF化・%dページ)'%(before[k][1]-before[k][0]+1),fill='black',font=f); d.text((b.width+60,12),'変更後(整形版 / PDF化・%dページ)'%(after[k][1]-after[k][0]+1),fill='black',font=f)
+    d.text((10,12),'変更前(元ファイル%s / PDF化・%dページ)'%(('(260708)' if bp=='nb' else ''),br[1]-br[0]+1),fill='black',font=f); d.text((b.width+60,12),'変更後(整形版 / PDF化・%dページ)'%(after[k][1]-after[k][0]+1),fill='black',font=f)
     M.paste(b,(0,60)); M.paste(a,(b.width+60,60))
     s=min(1.0,2600/M.width); M=M.resize((int(M.width*s),int(M.height*s))); M.save(O+f'{k+1:02d}_{n}.png')
 print('ok')

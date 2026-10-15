@@ -321,8 +321,8 @@ def add_summary(zin_path,out_path,position,protect,vals=None,select=False):
     sx,last,reg=sheet_xml(st,vals,protect)
     parts['xl/styles.xml']=st.tostring()
     c1=make_charts(reg,vals)
-    new={'xl/worksheets/sheet14.xml':sx,'xl/drawings/drawing6.xml':drawing_xml(reg),'xl/charts/chart2.xml':c1,
-         'xl/worksheets/_rels/sheet14.xml.rels':('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="%s/drawing" Target="../drawings/drawing6.xml"/></Relationships>'%REL).encode('utf8'),
+    new={'xl/worksheets/sheet21.xml':sx,'xl/drawings/drawing6.xml':drawing_xml(reg),'xl/charts/chart2.xml':c1,
+         'xl/worksheets/_rels/sheet21.xml.rels':('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="%s/drawing" Target="../drawings/drawing6.xml"/></Relationships>'%REL).encode('utf8'),
          'xl/drawings/_rels/drawing6.xml.rels':('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="%s/chart" Target="../charts/chart2.xml"/></Relationships>'%REL).encode('utf8')}
     for k,v in new.items(): parts[k]=v; order.append(k)
     wb=etree.fromstring(parts['xl/workbook.xml']); sheets=wb.find('m:sheets',N)
@@ -333,16 +333,16 @@ def add_summary(zin_path,out_path,position,protect,vals=None,select=False):
     if select:
         wb.find('m:bookViews/m:workbookView',N).set('activeTab',str(position))
         for n in list(parts):
-            if re.match(r'xl/worksheets/sheet\d+\.xml$',n) and n!='xl/worksheets/sheet14.xml':
+            if re.match(r'xl/worksheets/sheet\d+\.xml$',n) and n!='xl/worksheets/sheet21.xml':
                 t=parts[n]
                 if b'tabSelected="1"' in t[:3000]: parts[n]=t.replace(b' tabSelected="1"',b'',1)
-        s14=parts['xl/worksheets/sheet14.xml'].replace(b'<sheetView ',b'<sheetView tabSelected="1" ',1); parts['xl/worksheets/sheet14.xml']=s14
+        s14=parts['xl/worksheets/sheet21.xml'].replace(b'<sheetView ',b'<sheetView tabSelected="1" ',1); parts['xl/worksheets/sheet21.xml']=s14
     parts['xl/workbook.xml']=etree.tostring(wb,xml_declaration=True,encoding='UTF-8',standalone=True)
     rels=etree.fromstring(parts['xl/_rels/workbook.xml.rels'])
-    r_=etree.SubElement(rels,'{http://schemas.openxmlformats.org/package/2006/relationships}Relationship'); r_.set('Id','rId102'); r_.set('Type',REL+'/worksheet'); r_.set('Target','worksheets/sheet14.xml')
+    r_=etree.SubElement(rels,'{http://schemas.openxmlformats.org/package/2006/relationships}Relationship'); r_.set('Id','rId102'); r_.set('Type',REL+'/worksheet'); r_.set('Target','worksheets/sheet21.xml')
     parts['xl/_rels/workbook.xml.rels']=etree.tostring(rels,xml_declaration=True,encoding='UTF-8',standalone=True)
     ct=parts['[Content_Types].xml'].decode('utf8')
-    add=('<Override PartName="/xl/worksheets/sheet14.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+    add=('<Override PartName="/xl/worksheets/sheet21.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
          '<Override PartName="/xl/drawings/drawing6.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
          '<Override PartName="/xl/charts/chart2.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>')
     parts['[Content_Types].xml']=ct.replace('</Types>',add+'</Types>').encode('utf8')

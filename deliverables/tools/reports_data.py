@@ -3,7 +3,7 @@ sys.path.insert(0,'/tmp/claude-0/-home-user--/db782ef1-e569-59dc-97e4-a77616c95c
 from make_template import *
 from openpyxl.utils import get_column_letter as gl
 R='/home/user/-/deliverables/report/'
-t=json.load(open(SD+'out/template.json')); o=json.load(open(SD+'orig/recalc.json'))
+t=json.load(open(SD+'out/template.json')); o=json.load(open(SD+'orig_plus.json'))
 # ---- 1. エラー一覧と起点 ----
 err={(sh,c) for sh,d in t.items() for c,v in d.items() if v['e']!=0}
 oerr={(sh,c) for sh,d in o.items() for c,v in d.items() if v['e']!=0}
@@ -62,6 +62,18 @@ for sh,c,val,k,act,why,q in rows:
     if (sh,c)==('社名','C15'): act2='「株式会社〇〇」(仮の社名)に置き換える(整形版・テンプレート版とも)'; why='社名(ご指示で仮名に変更)'
     if k.startswith('A') and act2=='空にする' : pass
     out.append([sh,c,val,cls,act2,why])
+# 取り込んだ3シートの分類(行ごと)
+from newroles import new_roles
+_roles,_rows,_A,_B=new_roles()
+ACT={'A':'空にする','B':'残す','C':'残す'}
+for sh,c,val,cls in _rows:
+    act=ACT[cls[0]]; why='取り込みシートの定数'
+    if sh=='給与整合性' and cls[0]=='A': act='0のまま'; why='資格手当・役職手当の入力欄(元から0)'
+    if sh=='インセンティブ検討' and cls[0]=='B' and val=='□': why='評価方法の選択(初期値は□)'
+    if sh=='能力判定' and cls[0]=='A': act='全角スペース(元の空欄表記)に戻す' if val.replace('.','').isdigit() else '空にする'; why='評価点・コメントの入力欄'
+    out.append([sh,c,val,cls,act,why])
+for sh,rng,why in(('給与整合性','F5:F10, H5:H10, F22:F27, H22:H27','手当の入力欄(空欄・0を含む)'),('インセンティブ検討','L2, L3, T9:T14, AB9:AB14, BE9:BE14','原資・基準日・半期成果・入社日・マネジメント評価の入力欄(空欄を含む)'),('能力判定','AC12:CJ56 の評価点の入力欄、AK4・BE4・BY4(評価者名)、E6(コメント)','入力規則のある評価点の入力欄(空欄を含む)')):
+    out.append([sh,rng,'(入力欄)','A 会社固有→空にする','空欄のまま使う',why])
 wb=openpyxl.Workbook(); ws=wb.active; ws.title='入力分類(確定)'
 ws.append(['シート','セル','元の値','分類','テンプレート版での扱い','根拠']); 
 for r in out: ws.append(r)
