@@ -6,9 +6,9 @@ def recalc(x,j): subprocess.run(['python3','-I',SD+'tools/recalc.py',x,j],check=
 import add_summary_run, shutil
 # 「まとめ」シートを追加(整形版=先頭、テンプレート版=「使い方」の次)
 add_summary_run.run(D+'/formatted.xlsx',D+'/formatted_s.xlsx',0,False,True)
-# 取り込んだ3シートの保存済み計算値を、現在の入力に基づく再計算値に更新(整形版)
+# 記入例を260708に合わせたため、全シートの保存済み計算値を、現在の入力に基づく再計算値に更新(整形版)
 recalc(D+'/formatted_s.xlsx',D+'/formatted_s.json')
-inject_cache(D+'/formatted_s.xlsx',D+'/formatted_s.json',D+'/formatted.xlsx',only={'給与整合性','インセンティブ検討','能力判定'})
+inject_cache(D+'/formatted_s.xlsx',D+'/formatted_s.json',D+'/formatted.xlsx')
 add_summary_run.run(D+'/template_pre.xlsx',D+'/template_pre2.xlsx',1,True,False)
 recalc(D+'/template_pre2.xlsx',D+'/template_pre.json')
 n=inject_cache(D+'/template_pre2.xlsx',D+'/template_pre.json',D+'/template.xlsx'); print('キャッシュ値を更新した数式セル',n)

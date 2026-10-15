@@ -107,4 +107,4 @@ def build(src_path,dst_path,out_path):
         zi=zipfile.ZipInfo(n,(2026,10,15,0,0,0)); zi.compress_type=zipfile.ZIP_DEFLATED; zo.writestr(zi,parts[n])
     zo.close()
 if __name__=='__main__':
-    build(SD+'new/new.xlsx',SD+'orig/orig.xlsx',SD+'orig_plus.xlsx'); print('ok')
+    build(SD+'new/new.xlsx',SD+'orig/orig.xlsx',SD+'orig_plus_base.xlsx'); print('ok')
