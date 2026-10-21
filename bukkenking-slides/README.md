@@ -3,7 +3,7 @@
 | ファイル | 内容 |
 |---|---|
 | `slides.html` | **成果物**。1ファイル完結(CSS・JS・ロゴ埋め込み)。ダブルクリックでブラウザで開く |
-| `slides.pdf` | 上記を印刷した PDF(A4横・1スライド=1ページ・16ページ) |
+| `slides.pdf` | 上記を印刷した PDF(A4横・1スライド=1ページ・16ページ。HTMLの各ページもA4横と同じ比率) |
 | `slides-text.md` | 全ページの文言(Gamma等で作り直す用) |
 | `transcript-original.md` | 元のGamma資料の書き起こし(照合用) |
 | `src/slides.src.html` | `slides.html` の元(ロゴだけ `__LOGO__` の印) |

@@ -28,14 +28,13 @@ html,body{height:100%}
 body{font-family:var(--font);color:var(--ink);background:#DDE6E5;font-size:30px;line-height:1.7;-webkit-text-size-adjust:100%;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
-/* ---------- スライドの枠(1920×1080で設計し、画面に合わせて拡縮) ---------- */
+/* ---------- スライドの枠(1920×1358(A4横と同じ比率)で設計し、画面に合わせて拡縮) ---------- */
 .frame{position:relative;overflow:hidden}
-.slide{width:1920px;height:1080px;background:var(--paper);display:flex;flex-direction:column;padding:56px 96px 0;transform-origin:0 0;position:absolute;left:0;top:0}
-.hd{display:flex;justify-content:space-between;align-items:center;gap:48px;min-height:112px}
+.slide{width:1920px;height:1358px;background:var(--paper);display:flex;flex-direction:column;padding:72px 96px 0;transform-origin:0 0;position:absolute;left:0;top:0}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:48px;min-height:132px}
 .hd h2{font-size:60px;line-height:1.3;font-weight:700;padding-left:28px;border-left:12px solid var(--teal)}
 .logo{flex:none;width:226px;aspect-ratio:1042/294;background:var(--logo) center/contain no-repeat}
-.bd{flex:1;min-height:0;padding-top:20px;display:flex;flex-direction:column}
-.bd.mid{justify-content:center;padding-bottom:40px}
+.bd{flex:1;min-height:0;padding-top:20px;padding-bottom:180px;display:flex;flex-direction:column;justify-content:center}
 .ft{display:flex;justify-content:space-between;align-items:center;height:84px;border-top:2px solid var(--line);font-size:24px}
 .ft .pn{font-variant-numeric:tabular-nums}
 
@@ -43,7 +42,7 @@ body{font-family:var(--font);color:var(--ink);background:#DDE6E5;font-size:30px;
 p+p{margin-top:.5em}
 strong{font-weight:700}
 .em{font-weight:700;background:linear-gradient(transparent 55%,rgba(5,150,140,.28) 55%)}   /* 元の赤字の強調 → 落ち着いた蛍光線 */
-.card{background:var(--tint);border-top:10px solid var(--teal);border-radius:18px;padding:30px 40px 34px}
+.card{background:var(--tint);border-top:10px solid var(--teal);border-radius:18px;padding:38px 44px 44px}
 .card h3{font-size:44px;line-height:1.4;font-weight:700;margin-bottom:10px}
 .card p{font-size:36px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:32px}
@@ -57,7 +56,7 @@ ul.dots li::before{content:"";position:absolute;left:6px;top:.72em;width:14px;he
 .ico{flex:none;width:56px;height:56px}
 .notice{display:flex;gap:28px;align-items:flex-start;background:var(--tint-2);border:4px solid var(--ink);border-radius:20px;padding:28px 36px}
 .notice h3{font-size:42px;line-height:1.4;font-weight:700}
-.notice p{font-size:33px}
+.notice p{font-size:35px}
 
 /* ---------- 1 表紙 ---------- */
 .cover{padding:0}
@@ -82,7 +81,7 @@ ul.dots li::before{content:"";position:absolute;left:6px;top:.72em;width:14px;he
 .s4 .note{margin-top:28px;font-size:32px;line-height:1.6}
 /* ---------- 5 ---------- */
 .rows{display:flex;flex-direction:column;gap:28px}
-.row{display:grid;grid-template-columns:330px 1fr;gap:36px;align-items:center;background:var(--tint);border-left:12px solid var(--teal);border-radius:14px;padding:48px 48px}
+.row{display:grid;grid-template-columns:340px 1fr;gap:36px;align-items:center;background:var(--tint);border-left:12px solid var(--teal);border-radius:14px;padding:64px 52px}
 .row .lb{font-size:48px;font-weight:700}
 .row .tx{font-size:42px;line-height:1.55}
 /* ---------- 6 ---------- */
@@ -91,24 +90,24 @@ ul.dots li::before{content:"";position:absolute;left:6px;top:.72em;width:14px;he
 /* ---------- 7 ---------- */
 .s7 .grid2{gap:28px 32px}
 /* ---------- 8 表 ---------- */
-.s8 .lead{font-size:32px;margin-bottom:22px}
-table.cmp{width:100%;border-collapse:separate;border-spacing:0;border:3px solid var(--ink);border-radius:16px;overflow:hidden;font-size:30px;line-height:1.55}
-table.cmp th,table.cmp td{padding:14px 28px;text-align:left;vertical-align:top;font-weight:400}
-table.cmp thead th{background:var(--ink);color:#fff;font-weight:700;font-size:32px}
+.s8 .lead{font-size:34px;margin-bottom:28px}
+table.cmp{width:100%;border-collapse:separate;border-spacing:0;border:3px solid var(--ink);border-radius:16px;overflow:hidden;font-size:33px;line-height:1.55}
+table.cmp th,table.cmp td{padding:20px 28px;text-align:left;vertical-align:top;font-weight:400}
+table.cmp thead th{background:var(--ink);color:#fff;font-weight:700;font-size:35px}
 table.cmp tbody th{width:19%;font-weight:700;background:var(--tint)}
 table.cmp tbody td{width:40.5%}
 table.cmp tbody tr:nth-child(even) td{background:var(--tint-2)}
 table.cmp tbody tr+tr th,table.cmp tbody tr+tr td{border-top:2px solid var(--line)}
-.s8 .closing{margin-top:20px;font-size:32px}
+.s8 .closing{margin-top:28px;font-size:34px}
 /* ---------- 9(NG例) ---------- */
 .band{display:flex;align-items:center;gap:22px;background:var(--tint-2);border:4px solid var(--ink);border-radius:16px;padding:22px 32px;font-size:42px;font-weight:700;margin-bottom:40px}
 .band .ico{width:48px;height:48px}
 .s9 .card{border-top-color:var(--ink)}
 /* ---------- 10(助成内容) ---------- */
-.s10 .card{padding:18px 44px 22px}
-.s10 .n{font-size:108px;line-height:1.15;font-weight:700;letter-spacing:-.01em}
-.s10 .l{font-size:40px;font-weight:700;line-height:1.4;margin:4px 0 8px}
-.s10 .d{font-size:33px;line-height:1.6}
+.s10 .card{padding:30px 48px 34px}
+.s10 .n{font-size:132px;line-height:1.15;font-weight:700;letter-spacing:-.01em}
+.s10 .l{font-size:44px;font-weight:700;line-height:1.4;margin:4px 0 8px}
+.s10 .d{font-size:36px;line-height:1.6}
 .s10 .grid2{gap:28px 32px}
 .s10 .note{margin-top:16px;font-size:30px}
 /* ---------- 11(スケジュール) ---------- */
@@ -117,30 +116,30 @@ table.cmp tbody tr+tr th,table.cmp tbody tr+tr td{border-top:2px solid var(--lin
 .step:not(:last-child)::after{content:"";position:absolute;right:-50px;top:62px;width:0;height:0;border-left:34px solid var(--teal);border-top:24px solid transparent;border-bottom:24px solid transparent}
 .step h3{display:flex;align-items:center;gap:18px;font-size:44px;line-height:1.3;margin-bottom:16px}
 .step .badge{width:64px;height:64px;font-size:40px}
-.step ul{font-size:33px;line-height:1.6}
-.step .ex{font-size:33px;line-height:1.6;margin:.4em 0 .4em}
-.step .wn{font-size:33px;line-height:1.6;margin-bottom:.4em}
+.step ul{font-size:35px;line-height:1.6}
+.step .ex{font-size:35px;line-height:1.6;margin:.4em 0 .4em}
+.step .wn{font-size:35px;line-height:1.6;margin-bottom:.4em}
 /* ---------- 12(ポイント) ---------- */
 .pts{display:flex;flex-direction:column;gap:18px}
-.pt{display:grid;grid-template-columns:72px 400px 1fr;gap:32px;align-items:center;background:var(--tint);border-radius:16px;padding:22px 36px;border-left:12px solid var(--teal)}
+.pt{display:grid;grid-template-columns:72px 400px 1fr;gap:32px;align-items:center;background:var(--tint);border-radius:16px;padding:32px 36px;border-left:12px solid var(--teal)}
 .pt .badge{width:60px;height:60px;font-size:36px}
-.pt h3{font-size:40px;line-height:1.35}
-.pt p{font-size:33px;line-height:1.5}
-.s12 .closing{margin-top:24px;font-size:34px;font-weight:500}
+.pt h3{font-size:42px;line-height:1.35}
+.pt p{font-size:35px;line-height:1.5}
+.s12 .closing{margin-top:36px;font-size:36px;font-weight:500}
 /* ---------- 13(社労士) ---------- */
 .s13 .lead{margin-bottom:30px}
-blockquote.quote{border-left:10px solid var(--teal);background:var(--tint);border-radius:0 14px 14px 0;padding:30px 40px;font-size:36px;line-height:1.75;margin-bottom:34px}
+blockquote.quote{border-left:10px solid var(--teal);background:var(--tint);border-radius:0 14px 14px 0;padding:36px 44px;font-size:38px;line-height:1.75;margin-bottom:34px}
 /* ---------- 14(ご注意) ---------- */
-.s14a .notice{margin-bottom:28px;padding:22px 36px}
+.s14a .notice{margin-bottom:32px;padding:28px 40px}
 .s14a .card{border-top-color:var(--ink);padding:26px 38px 30px}
-.s14a .card p{font-size:30px;line-height:1.65}
-.s14b .disc{background:var(--tint-2);border:4px solid var(--ink);border-radius:20px;padding:44px 56px;font-size:40px;line-height:1.85}
+.s14a .card p{font-size:34px;line-height:1.65}
+.s14b .disc{background:var(--tint-2);border:4px solid var(--ink);border-radius:20px;padding:56px 64px;font-size:44px;line-height:1.85}
 /* ---------- 15(今後の流れ) ---------- */
 .tasks{display:grid;grid-template-columns:repeat(3,1fr);gap:40px 52px;position:relative}
 .task{position:relative;background:var(--tint);border-top:10px solid var(--teal);border-radius:18px;padding:30px 36px 34px}
 .task:not(:nth-child(3n))::after{content:"";position:absolute;right:-40px;top:50%;margin-top:-18px;border-left:24px solid var(--teal);border-top:18px solid transparent;border-bottom:18px solid transparent}
-.task h3{font-size:37px;line-height:1.4;margin-bottom:12px}
-.task p{font-size:31px;line-height:1.6}
+.task h3{font-size:40px;line-height:1.4;margin-bottom:14px}
+.task p{font-size:34px;line-height:1.6}
 
 /* =========================================================
    ビューア(操作部)
@@ -259,7 +258,7 @@ body.mobile #progress{display:none}
 <!-- ==================== 2. 申請の前にご確認ください ==================== -->
 <div class="frame"><section class="slide s2" data-section="2" data-section-title="申請の前にご確認ください" aria-labelledby="h-2">
   <header class="hd"><h2 id="h-2">申請の前にご確認ください</h2><div class="logo" role="img" aria-label="物件王"></div></header>
-  <div class="bd mid">
+  <div class="bd">
     <p class="lead">人材開発支援助成金を申請される事業主の皆様は、以下の重要な準備を事前に行う必要があります。</p>
     <div class="grid2" style="margin-top:36px">
       <div class="card">
@@ -279,7 +278,7 @@ body.mobile #progress{display:none}
 <!-- ==================== 3. 助成金の概要と目的 ==================== -->
 <div class="frame"><section class="slide s3" data-section="3" data-section-title="助成金の概要と目的" aria-labelledby="h-3">
   <header class="hd"><h2 id="h-3">助成金の概要と目的</h2><div class="logo" role="img" aria-label="物件王"></div></header>
-  <div class="bd mid">
+  <div class="bd">
     <p class="lead">この助成金は、企業が新たな分野で必要となる専門的な知識や技能を従業員に習得させるための訓練を実施する事業主を支援する制度です。</p>
     <div class="grid3" >
       <div class="card"><h3>新規事業の立ち上げ</h3><p>事業展開に取り組む際に必要な人材育成を支援</p></div>
@@ -293,7 +292,7 @@ body.mobile #progress{display:none}
 <!-- ==================== 4. 対象となる事業主と労働者 ==================== -->
 <div class="frame"><section class="slide s4" data-section="4" data-section-title="対象となる事業主と労働者" aria-labelledby="h-4">
   <header class="hd"><h2 id="h-4">対象となる事業主と労働者</h2><div class="logo" role="img" aria-label="物件王"></div></header>
-  <div class="bd mid">
+  <div class="bd">
     <div class="grid2" style="margin-top:12px">
       <div class="card">
         <h3>対象事業主の要件</h3>
@@ -320,7 +319,7 @@ body.mobile #progress{display:none}
 <!-- ==================== 5. 助成対象となる訓練の条件 ==================== -->
 <div class="frame"><section class="slide s5" data-section="5" data-section-title="助成対象となる訓練の条件" aria-labelledby="h-5">
   <header class="hd"><h2 id="h-5">助成対象となる訓練の条件</h2><div class="logo" role="img" aria-label="物件王"></div></header>
-  <div class="bd mid">
+  <div class="bd">
     <div class="rows" style="margin-top:20px">
       <div class="row"><div class="lb">訓練時間</div><div class="tx">訓練時間数が10時間以上であること</div></div>
       <div class="row"><div class="lb">訓練形式</div><div class="tx">OFF-JT（企業の通常の事業活動と区別して行われる訓練）であること</div></div>
@@ -333,7 +332,7 @@ body.mobile #progress{display:none}
 <!-- ==================== 5(続き). 対象となる訓練の種類 ==================== -->
 <div class="frame"><section class="slide s6" data-section="5" aria-labelledby="h-6">
   <header class="hd"><h2 id="h-6">対象となる訓練の種類</h2><div class="logo" role="img" aria-label="物件王"></div></header>
-  <div class="bd mid">
+  <div class="bd">
     <div class="grid3" style="margin-top:20px">
       <div class="card"><div class="badge" aria-hidden="true">1</div><h3>事業展開型</h3><p>企業において事業展開を行うにあたり、新たな分野で必要となる専門的な知識及び技能の習得をさせるための訓練</p></div>
       <div class="card"><div class="badge" aria-hidden="true">2</div><h3>DX推進型</h3><p>企業内のデジタル・デジタルトランスフォーメーション（DX）化を進めるにあたり必要となる専門的な知識及び技能の習得をさせるための訓練</p></div>
@@ -346,7 +345,7 @@ body.mobile #progress{display:none}
 <!-- ==================== 6. DX化推進のための訓練例 ==================== -->
 <div class="frame"><section class="slide s7" data-section="6" data-section-title="DX化推進のための訓練例" aria-labelledby="h-7">
   <header class="hd"><h2 id="h-7">DX化推進のための訓練例</h2><div class="logo" role="img" aria-label="物件王"></div></header>
-  <div class="bd mid">
+  <div class="bd">
     <div class="grid2" style="margin-top:20px">
       <div class="card"><h3>情報セキュリティ強化</h3><p>企業内の情報通信、情報セキュリティに関する部署を強化するための訓練</p></div>
       <div class="card"><h3>デジタルマーケティング</h3><p>営業部門におけるITツールを活用したWEB集客講座</p></div>
@@ -380,7 +379,7 @@ body.mobile #progress{display:none}
 <!-- ==================== 8. 助成対象とならない訓練の例 ==================== -->
 <div class="frame"><section class="slide s9" data-section="8" data-section-title="助成対象とならない訓練の例" aria-labelledby="h-9">
   <header class="hd"><h2 id="h-9">助成対象とならない訓練の例</h2><div class="logo" role="img" aria-label="物件王"></div></header>
-  <div class="bd mid">
+  <div class="bd">
     <div class="band"><svg class="ico" viewBox="0 0 48 48" role="img" aria-label="注意"><path d="M24 5 46 43H2Z" fill="none" stroke="#374141" stroke-width="4" stroke-linejoin="round"/><path d="M24 18v13" stroke="#374141" stroke-width="4" stroke-linecap="round"/><circle cx="24" cy="37" r="2.6" fill="#374141"/></svg>注意が必要な訓練内容</div>
     <div class="grid3">
       <div class="card"><h3>初歩的な操作のみの訓練</h3><p>一般的なアプリケーションの初歩的な操作（文章・数値入力、書式・レイアウト変更程度）のみを学ぶ訓練</p></div>
@@ -409,7 +408,7 @@ body.mobile #progress{display:none}
 <!-- ==================== 10. 申請のスケジュール(3ステップ) ==================== -->
 <div class="frame"><section class="slide s11" data-section="10" data-section-title="申請のスケジュール" aria-labelledby="h-11">
   <header class="hd"><h2 id="h-11">申請のスケジュール</h2><div class="logo" role="img" aria-label="物件王"></div></header>
-  <div class="bd mid">
+  <div class="bd">
     <div class="flow" style="margin-top:16px">
       <div class="step">
         <h3><span class="badge" aria-hidden="true">1</span>計画届の提出</h3>
@@ -527,7 +526,7 @@ body.mobile #progress{display:none}
 <script>
 /* ビューア: ←→/Space/スワイプで移動、Fで全画面、Lで一覧、Tで目次、#番号でページ指定 */
 (function(){
-  var W=1920,H=1080,BAR=72;
+  var W=1920,H=1358,BAR=72;
   var body=document.body;
   var frames=[].slice.call(document.querySelectorAll('.frame'));
   var slides=frames.map(function(f){return f.querySelector('.slide')});
