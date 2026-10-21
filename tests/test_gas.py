@@ -275,7 +275,7 @@ def test_input_screen_in_browser(tmp_path):
     log = json.loads(r.stdout)
     assert "使えません" in log["deniedMsg"] and log["who"] == "ishikawa@bukkenking.com" and log["noLogin"] == 0   # パスワード欄は無い
     assert log["title"].endswith("岡崎市") and log["errors"] == []
-    assert log["stored"]["hh"] == "150000" and log["stored"]["cmp"] == "豊田市,12,80" and log["stored"]["pref"] == ""  # 不正値は保存されない
+    assert log["stored"]["hh"] == "150000" and log["stored"]["cmp"] == "豊田市,12" and log["stored"]["pref"] == ""  # 不正値は保存されない
     assert log["stored"]["date"] and log["badShown"] == 1 and log["hscroll"] == "375/375"
     assert log["imageSaved"] and log["fieldsNoCta"] == 0 and log["noSourceFields"] == 0
     assert log["sibChips"] == 2 and log["areasOfCompany"] == 2 and log["sheetNames"] == "エリア,会社,加盟店一覧,商談先一覧,設定"   # 会社にエリアを追加。タブは増えない

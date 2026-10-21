@@ -55,7 +55,6 @@ await inputOf('世帯数').first().fill('150000');
 await inputOf('市の平均世帯年収').first().fill('520');
 await page.locator('.field[data-k="compare.0"] input').nth(0).fill('豊田市');
 await page.locator('.field[data-k="compare.0"] input').nth(1).fill('12');
-await page.locator('.field[data-k="compare.0"] input').nth(2).fill('80');
 await inputOf('県の平均世帯年収').first().fill('abc');   // 不正値
 await page.waitForFunction(() => /保存/.test(document.getElementById('saved').textContent) && !/保存中|入力中/.test(document.getElementById('saved').textContent), null, { timeout: 8000 });
 await page.waitForTimeout(600);

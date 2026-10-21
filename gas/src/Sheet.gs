@@ -9,7 +9,7 @@ var BRACKET_LABELS_ = ['300万未満', '300万〜500万未満', '500万〜700万
  */
 var FIXED_SOURCES_ = {
   area: '総務省統計局 令和2年国勢調査', income: 'LIFULL HOME\'S調べ', price_trend: 'LIFULL HOME\'S調べ',
-  listings: 'REINS調べ', keywords: 'Google広告調べ'
+  listings: 'REINS・SUUMO調べ', keywords: 'Google広告調べ'
 };
 var FIELDS_ = [
   { h: 'エリア' },
@@ -38,7 +38,7 @@ var FIELDS_ = [
   { k: 'yearly.1', grp: 'trend', l: '内訳: 2年目(%)', t: 'num', req: 1 },
   { k: 'yearly.2', grp: 'trend', l: '内訳: 3年目(%)', t: 'num', req: 1 },
   { k: 'inputs.price_trend.image', grp: 'trend', l: '価格推移グラフ(画像)', t: 'image', req: 1, d: 'グラフのスクリーンショットなどの画像' },
-  { h: '土地(出典: REINS調べ)' },
+  { h: '土地(出典: REINS・SUUMO調べ)' },
   { k: 'inputs.land.tsubo_price_man', l: '坪単価(万円/坪)', t: 'num', req: 1 },
   { k: 'inputs.land.tsubo_price_low_rise_residential_man', l: '低層住居専用地域の相場(万円/坪)', t: 'num', req: 1 },
   { k: 'inputs.land.tsubo_price_other_residential_man', l: 'それ以外の住居専用地域(万円/坪)', t: 'num', req: 1 },
@@ -46,25 +46,25 @@ var FIELDS_ = [
   { k: 'inputs.land.price_man', l: '土地の売却価格相場(万円)', t: 'num', req: 1, d: 'まとめ(P10)に表示' },
   { k: 'inputs.land.price_per_m2_man', l: '土地の平米単価(万円/㎡)', t: 'num', req: 1 },
   { k: 'inputs.land.land_area_median_m2', l: '土地面積の中央値(㎡)', t: 'num', req: 1 },
-  { k: 'compare.0', l: '比較市1', t: 'list', req: 1, d: '対象市を含む5市。対象市の値は上の坪単価・物件数が使われる' },
-  { k: 'compare.1', l: '比較市2', t: 'list', req: 1 },
-  { k: 'compare.2', l: '比較市3', t: 'list', req: 1 },
-  { k: 'compare.3', l: '比較市4', t: 'list', req: 1 },
-  { k: 'compare.4', l: '比較市5', t: 'list', req: 1 },
-  { h: '中古戸建て(出典: REINS調べ)' },
+  { k: 'compare.0', l: '比較市1', t: 'list', d: '対象市と比べる市(最大5市まで。空欄の行は使いません)。対象市の値は上の坪単価が使われます。市名と坪単価を入力' },
+  { k: 'compare.1', l: '比較市2', t: 'list' },
+  { k: 'compare.2', l: '比較市3', t: 'list' },
+  { k: 'compare.3', l: '比較市4', t: 'list' },
+  { k: 'compare.4', l: '比較市5', t: 'list' },
+  { h: '中古戸建て(出典: REINS・SUUMO調べ)' },
   { k: 'inputs.used_house.price_man', l: '売却価格相場(万円)', t: 'num', req: 1 },
   { k: 'inputs.used_house.listings', l: '物件数(件)', t: 'num', req: 1 },
   { k: 'inputs.used_house.building_area_median_m2', l: '建物面積の中央値(㎡)', t: 'num', req: 1 },
   { k: 'inputs.used_house.land_area_median_m2', l: '土地面積の中央値(㎡)', t: 'num', req: 1 },
   { k: 'inputs.used_house.age_median_years', l: '築年数の中央値(年)', t: 'num', req: 1 },
   { k: 'inputs.used_house.heatmap_image', l: '面積×価格の分布表(画像)', t: 'image', req: 1 },
-  { h: '中古マンション(出典: REINS調べ)' },
+  { h: '中古マンション(出典: REINS・SUUMO調べ)' },
   { k: 'inputs.used_mansion.price_man', l: '売却価格相場(万円)', t: 'num', req: 1 },
   { k: 'inputs.used_mansion.listings', l: '物件数(件)', t: 'num', req: 1 },
   { k: 'inputs.used_mansion.exclusive_area_median_m2', l: '専有面積の中央値(㎡)', t: 'num', req: 1 },
   { k: 'inputs.used_mansion.age_median_years', l: '築年数の中央値(年)', t: 'num', req: 1 },
   { k: 'inputs.used_mansion.heatmap_image', l: '面積×価格の分布表(画像)', t: 'image', req: 1 },
-  { h: '新築戸建て(出典: REINS調べ)' },
+  { h: '新築戸建て(出典: REINS・SUUMO調べ)' },
   { k: 'inputs.new_house.price_man', l: '売却価格相場(万円)', t: 'num', req: 1 },
   { k: 'inputs.new_house.listings', l: '物件数(件)', t: 'num', req: 1 },
   { k: 'inputs.new_house.building_area_median_m2', l: '建物面積の中央値(㎡)', t: 'num', req: 1 },
@@ -175,7 +175,7 @@ function franchiseRowsFrom_(values) {
 
 /** 入力システム用: 複数項目をカンマで束ねる欄の列見出し */
 function colsFor_(key) {
-  if (/^compare\./.test(key)) return ['市名', '坪単価(万円/坪)', '物件数(件)'];
+  if (/^compare\./.test(key)) return ['市名', '坪単価(万円/坪)'];
   if (/^comp\./.test(key)) return ['名称', '所在市', 'URL', '掲載物件数(任意)'];
   if (/^kw\./.test(key)) return ['月間検索ボリューム', 'CPC下限(円)', 'CPC上限(円)'];
   return null;
@@ -208,7 +208,7 @@ function validateValue_(key, value) {
   if (f.t === 'date' && parseDate_(value) === undefined) return '日付は 2026-01-19 の形で入力してください';
   if (f.t === 'list' && colsFor_(key)) {
     var parts = splitList_(value);
-    var numCols = /^compare\./.test(key) ? [1, 2] : /^comp\./.test(key) ? [3] : [0, 1, 2];
+    var numCols = /^compare\./.test(key) ? [1] : /^comp\./.test(key) ? [3] : [0, 1, 2];
     for (var i = 0; i < numCols.length; i++) {
       var v = parts[numCols[i]];
       if (v !== undefined && v !== '' && parseNum_(v) === undefined) return colsFor_(key)[numCols[i]] + 'は数値で入力してください';

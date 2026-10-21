@@ -187,12 +187,18 @@ a{color:var(--c-ink)}
 /* 印刷/PDF: A4横・セクションごとに改ページ */
 @page{size:A4 landscape;margin:9mm}
 @media print{
-  html{font-size:15px}
+  html{font-size:17px}
   body{-webkit-print-color-adjust:exact;print-color-adjust:exact;line-height:1.6}
   .nav,.btn,.anchors,.draft{display:none!important}
   .js .rv{opacity:1!important;transform:none!important}
-  .hero,.sec,.point,.q,.foot{break-before:page;break-inside:avoid;page-break-before:always}
+  /* スライドのように、1ページに1セクション。背景色をページいっぱいに敷き、内容は上下中央に置いて下の余白を目立たなくする */
+  .hero,.sec,.point,.q{break-before:page;page-break-before:always}
+  .hero,.sec,.point,.q,.foot{break-inside:avoid;page-break-inside:avoid}
   .hero{break-before:auto;page-break-before:auto}
+  .hero,.sec,.point{min-height:184mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}
+  .q{min-height:150mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center}
+  .hero>.wrap,.sec>.wrap,.point>.wrap,.q>.wrap{width:100%}
+  .sec,.point{border-radius:0}
   .hero .wrap{padding-top:28px;padding-bottom:30px}
   .king{margin-bottom:-30px}
   .sec,.point{padding:6mm 0}

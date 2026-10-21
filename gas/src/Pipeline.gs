@@ -264,11 +264,11 @@ function compare_(cfg, land, city, neighbors, rep, opts) {
     }
   });
   if (!items.length) {
-    rep.add('land.compare', '土地 比較5市の坪単価・物件数', 'missing', '',
-      '比較市の値が未入力。人口データが未接続のため、隣接市(境界の長い順)を候補として提示: ' + suggestion.join('、') + '。入力システムの「比較市」に 市名・坪単価・物件数 を入力');
+    rep.add('land.compare', '土地 近隣・県内主要市の坪単価', 'missing', '',
+      '比較市の値が未入力。人口データが未接続のため、隣接市(境界の長い順)を候補として提示: ' + suggestion.join('、') + '。入力システムの「比較市」に 市名・坪単価 を入力(5市そろっていなくても可)');
   } else {
-    var bad = items.filter(function (r) { return r.tsubo_price_man == null || r.listings == null; }).map(function (r) { return r.city; });
-    rep.add('land.compare', '土地 比較5市の坪単価・物件数', bad.length ? 'missing' : 'input', '設定値', bad.length ? '値が欠けている市: ' + bad.join('、') : '');
+    var bad = items.filter(function (r) { return r.tsubo_price_man == null; }).map(function (r) { return r.city; });
+    rep.add('land.compare', '土地 近隣・県内主要市の坪単価', bad.length === items.length ? 'missing' : 'input', '設定値', bad.length ? '坪単価が空の市はグラフに出しません: ' + bad.join('、') : '');
   }
   return { items: items, suggested: suggestion };
 }

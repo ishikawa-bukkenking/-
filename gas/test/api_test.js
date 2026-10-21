@@ -38,7 +38,7 @@ const res = vm.runInContext(`
   r.metaClean = ['cta_url', 'company'].every(function (k) { return keys.indexOf(k) < 0; }) && !keys.some(function (k) { return k.slice(-6) === 'source' || k.slice(-5) === '.date' || k.indexOf('auto.') === 0; });
   r.siblings = g.siblings.length;
   r.imageKeys = g.fields.filter(function (f) { return f.t === 'image'; }).map(function (f) { return f.k; });
-  r.valErr = api_save(a1, { 'inputs.income.city_avg_man': 'abc', 'inputs.area.households': '70,809', 'bogus': '1', 'auto.date.income': '2020-01-01', 'compare.0': '長野市,25.1,x', 'inputs.price_trend.image': 'drive:abc', 'company': 'ハッキング' });
+  r.valErr = api_save(a1, { 'inputs.income.city_avg_man': 'abc', 'inputs.area.households': '70,809', 'bogus': '1', 'auto.date.income': '2020-01-01', 'compare.0': '長野市,x', 'inputs.price_trend.image': 'drive:abc', 'company': 'ハッキング' });
   var vals = {}; Object.keys(__input.values).forEach(function (k) { if (keys.indexOf(k) >= 0) vals[k] = __input.values[k]; });
   r.save = api_save(a1, vals);
   var v1 = areaById_(a1).values;
@@ -50,7 +50,7 @@ const res = vm.runInContext(`
   api_uploadImage(a1, 'inputs.price_trend.image', PX); r.oldTrashed = DriveApp.getFileById(first.slice(6)).trashed;
   var lp = doGet({ parameter: { id: a1 } }).html;
   r.lpImgCount = lp.split('data:image/jpeg;base64,/9j/').length - 1;
-  r.lpFixedSources = ["LIFULL HOME'S調べ", 'REINS調べ', 'Google広告調べ', '総務省統計局 令和2年国勢調査'].every(function (s) { return lp.indexOf(s) >= 0; });
+  r.lpFixedSources = ["LIFULL HOME'S調べ", 'REINS・SUUMO調べ', 'Google広告調べ', '総務省統計局 令和2年国勢調査'].every(function (s) { return lp.indexOf(s) >= 0; });
   r.lpHas414 = lp.indexOf('414') >= 0 && lp.indexOf('上田市') >= 0 && lp.indexOf('株式会社○○') >= 0;
   r.uimg = lp.split('class="uimg"').length - 1;
   r.lpNoCta = lp.indexOf('お問い合わせ') < 0; r.lpAnon = true;

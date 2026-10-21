@@ -54,9 +54,9 @@ function hbarsSvg_(rows, width) {
 }
 
 function landBarsSvg_(items, compact) {
-  var width = 720, height = 290;
-  if (compact) { width = 340; height = 280; }
-  var n = items.length, top = 40, bottom = 90, side = compact ? 8 : 20;
+  var width = 720, height = 250;
+  if (compact) { width = 340; height = 240; }
+  var n = items.length, top = 40, bottom = 50, side = compact ? 8 : 20;
   var mx = Math.max.apply(null, items.map(function (r) { return r.tsubo_price_man || 0; })) || 1;
   var cw = (width - 2 * side) / n, bw = Math.min(96, cw * (compact ? 0.7 : 0.62)), ph = height - top - bottom, out = [];
   items.forEach(function (r, i) {
@@ -65,11 +65,10 @@ function landBarsSvg_(items, compact) {
     var label = compact ? r.city.replace(/市$/, '') + '市' : r.city;
     out.push('<rect x="' + f1_(x) + '" y="' + f1_(top + ph - bh) + '" width="' + f1_(bw) + '" height="' + f1_(bh) + '" rx="4" fill="' + fill + '"/>' +
       '<text x="' + f1_(cxm) + '" y="' + f1_(top + ph - bh - 8) + '" text-anchor="middle" class="ch-val" font-weight="' + wt + '">' + num_(v) + (compact ? '' : '<tspan class="ch-unit">万円/坪</tspan>') + '</text>' +
-      '<text x="' + f1_(cxm) + '" y="' + (top + ph + 26) + '" text-anchor="middle" class="ch-lab" font-weight="' + wt + '" style="font-size:' + (compact ? 13 : 15) + 'px">' + esc_(label) + '</text>' +
-      '<text x="' + f1_(cxm) + '" y="' + (top + ph + 50) + '" text-anchor="middle" class="ch-sub">' + num_(r.listings) + '件</text>');
+      '<text x="' + f1_(cxm) + '" y="' + (top + ph + 26) + '" text-anchor="middle" class="ch-lab" font-weight="' + wt + '" style="font-size:' + (compact ? 13 : 15) + 'px">' + esc_(label) + '</text>');
   });
   out.push('<line x1="' + side + '" x2="' + (width - side) + '" y1="' + (top + ph) + '" y2="' + (top + ph) + '" stroke="var(--c-line)" stroke-width="1.5"/>');
-  return '<svg class="chart" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="坪単価(万円/坪)と物件数の比較">' + out.join('') + '</svg>';
+  return '<svg class="chart" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="坪単価(万円/坪)の比較">' + out.join('') + '</svg>';
 }
 
 function trendLinesSvg_(series, compact) {

@@ -76,8 +76,8 @@ function renderPage_(model, report, assets, styleCss) {
   var haveBars = inc.city_avg_man != null && inc.prefecture_avg_man != null && inc.national_avg_man != null;
   function barsFor(w) { return hbarsSvg_([[m.city, inc.city_avg_man, true], [m.prefecture, inc.prefecture_avg_man, false], ['全国', inc.national_avg_man, false]], w); }
   var trendD = tr.series ? trendChart_(tr.series, false) : null, trendC = tr.series ? trendChart_(tr.series, true) : null;
-  var items = land.compare.items;
-  var landOk = items.length && items.every(function (r) { return r.tsubo_price_man != null && r.listings != null; });
+  var items = land.compare.items.filter(function (r) { return r.tsubo_price_man != null; });   // 坪単価が入っている市だけ表示(空欄の行は使わない。5市そろっていなくてよい)
+  var landOk = items.length > 0;
   var vols = kw.rows.map(function (r) { return r.monthly_volume; }).filter(function (v) { return v != null; });
   var kwMax = vols.length ? Math.max.apply(null, vols) : 1;
   var kwMissing = kw.rows.some(function (r) { return r.monthly_volume == null || r.cpc_low_yen == null; });
@@ -139,9 +139,9 @@ function renderPage_(model, report, assets, styleCss) {
     kpi_(land.tsubo_price_other_residential_man, '万円/坪', 'それ以外の住居専用地域', 'flat') + kpi_(land.listings, '件', '物件数', 'flat') + '</div>' +
     (land.tsubo_note ? '<p class="note" style="margin-top:12px">※「坪単価」は用途地域を問わず全物件を対象とした中央値のため、用途地域別の相場より低くなる場合があります。</p>' : '') +
     ((land.tsubo_price_man == null || land.listings == null) ? '<div style="margin-top:14px">' + slot_('土地の坪単価・物件数', ['土地の坪単価・物件数']) + '</div>' : '') +
-    '<div class="card" style="margin-top:24px"><p class="sub">' + esc_(m.city) + 'と近隣・県内主要市の比較（坪単価と物件数）</p>' +
+    '<div class="card" style="margin-top:24px"><p class="sub">' + esc_(m.city) + 'と近隣・県内主要市の比較（坪単価）</p>' +
     (landOk ? '<div class="chart-d">' + landBarsSvg_(items, false) + '</div><div class="chart-c">' + landBarsSvg_(items, true) + '</div>' :
-      slot_('比較5市の坪単価・物件数', ['比較市(市名,坪単価,物件数)'].concat(land.compare.suggested.length ? ['候補(隣接市): ' + land.compare.suggested.join('、')] : []))) + '</div>' + srcline_(land) + '</div></section>');
+      slot_('近隣・県内主要市の坪単価', ['比較市(市名,坪単価)'].concat(land.compare.suggested.length ? ['候補(隣接市): ' + land.compare.suggested.join('、')] : []))) + '</div>' + srcline_(land) + '</div></section>');
   h.push(houseSection_('used_house', N(), uh, '中古戸建て'), houseSection_('used_mansion', N(), um, '中古マンション'), houseSection_('new_house', N(), nh, '新築戸建て'));
   // 08 search
   var top0 = kw.rows[0];
