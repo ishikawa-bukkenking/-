@@ -18,9 +18,12 @@ function selectFranchise_(rows, pref, city, neighbors, opt) {
   }
   for (var i = 0; i < tiers.length; i++) {
     var tier = tiers[i], c;
-    if (tier === 'same_city') c = pool.filter(function (r) { return r.city === city; });
+    if (tier === 'same_city') {
+      var wm = String(city).match(/^(.+市)(.+区)$/);   // 政令市の区を選んだとき: 住所にその区が入っている加盟店も「同じ市区」とみなす
+      c = pool.filter(function (r) { return r.city === city || (wm && r.city === wm[1] && String(r.address || '').indexOf(city) >= 0); });
+    }
     else if (tier === 'adjacent') {
-      c = pool.filter(function (r) { return neighbors.indexOf(r.city) >= 0; })
+      c = pool.filter(function (r) { return neighbors.indexOf(r.city) >= 0 && r.city !== city; })
         .sort(function (a, b) { return neighbors.indexOf(a.city) - neighbors.indexOf(b.city); });
     } else c = pool.filter(function (r) { return r.city !== city; });
     add(c, tier);

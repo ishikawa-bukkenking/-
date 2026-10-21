@@ -90,6 +90,17 @@ function copyText(t, btn) {
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, function () { prompt('コピーしてください', t); });
   else prompt('コピーしてください', t);
 }
+/* 市区町村の入力候補(政令指定都市は「横浜市」と「横浜市中区」の両方)。都道府県を選ぶたびに取得 */
+var cityCache = {};
+function cityList() { var d = document.getElementById('citylist'); if (!d) { d = el('datalist', { id: 'citylist' }); document.body.appendChild(d); } return d; }
+function loadCities(pref) {
+  var d = cityList(); d.replaceChildren();
+  if (!pref) return;
+  var fill = function (a) { if (cityList() === d) a.forEach(function (n) { d.appendChild(el('option', { value: n })); }); };
+  if (cityCache[pref]) { fill(cityCache[pref]); return; }
+  google.script.run.withSuccessHandler(function (a) { cityCache[pref] = a; fill(a); }).withFailureHandler(function () {}).api_cities(pref);
+}
+function withCities(sel, inp) { inp.setAttribute('list', 'citylist'); var h = sel.onchange; sel.addEventListener('change', function () { loadCities(sel.value); }); if (sel.value) loadCities(sel.value); }
 function prefSelect(sel) { var s = el('select', {}); [''].concat(PREFS).forEach(function (p) { var o = el('option', { value: p, text: p || '都道府県' }); if (p === sel) o.selected = true; s.appendChild(o); }); return s; }
 
 /* ---- 一覧(会社 > エリア) ---- */
@@ -98,8 +109,8 @@ function viewList() {
   call('api_list', [], function (r) {
     var wrap = el('div', {});
     var add = el('div', { class: 'card' }, [el('h2', { text: '新しい会社を追加', style: 'margin-top:0;font-size:1.1rem' })]);
-    var c1 = el('input', { id: 'nc', placeholder: '先方の会社名(例: 株式会社○○)' }), sel = prefSelect(''), c3 = el('input', { id: 'ncity', placeholder: '最初のエリアの市区町村(例: 上田市)' });
-    sel.id = 'np';
+    var c1 = el('input', { id: 'nc', placeholder: '先方の会社名(例: 株式会社○○)' }), sel = prefSelect(''), c3 = el('input', { id: 'ncity', placeholder: '最初のエリアの市区町村(例: 上田市 / 横浜市中区)' });
+    sel.id = 'np'; withCities(sel, c3);
     var ab = el('button', { text: '追加して入力を始める' });
     ab.onclick = function () {
       if (!c1.value.trim() || !sel.value || !c3.value.trim()) { $('msg').textContent = '会社名・都道府県・市区町村を入力してください。'; return; }
@@ -143,8 +154,9 @@ function companyCard(c, r) {
     var dl = el('button', { class: 'ghost', text: '削除' }); armed(dl, 'もう一度押すと削除', function () { call('api_delete_area', [a.id], function () { viewList(); }); }); row.appendChild(dl);
     card.appendChild(row);
   });
-  var f = el('div', { class: 'row', style: 'margin-top:12px' }), sel = prefSelect(''), ci = el('input', { placeholder: 'エリアを追加(市区町村 例: 東御市)' }), ab = el('button', { class: 'ghost', text: 'エリアを追加' });
+  var f = el('div', { class: 'row', style: 'margin-top:12px' }), sel = prefSelect(''), ci = el('input', { placeholder: 'エリアを追加(市区町村 例: 東御市 / 横浜市中区)' }), ab = el('button', { class: 'ghost', text: 'エリアを追加' });
   ab.onclick = function () { if (!sel.value || !ci.value.trim()) { show('都道府県と市区町村を入力してください。', true); return; } call('api_add_area', [c.id, sel.value, ci.value], function (x) { openArea(x.areaId); }); };
+  withCities(sel, ci);
   f.appendChild(el('div', { style: 'width:150px;flex:none' }, [sel])); f.appendChild(el('div', { class: 'grow' }, [ci])); f.appendChild(ab); card.appendChild(f);
   return card;
 }
@@ -334,10 +346,11 @@ function fieldView(f) {
     wrap.appendChild(grid);
   } else {
     var inp;
-    if (f.k === 'prefecture') { inp = prefSelect(v); inp.onchange = function () { markDirty(f.k, inp.value); }; }
+    if (f.k === 'prefecture') { inp = prefSelect(v); inp.onchange = function () { markDirty(f.k, inp.value); loadCities(inp.value); }; if (v) loadCities(v); }
     else {
       inp = el('input', { type: f.t === 'date' ? 'date' : 'text', value: f.t === 'pct1' ? (v ? fmt1(v) : '') : v, inputmode: (f.t === 'num' || f.t === 'pct1') ? 'decimal' : 'text' });
       inp.oninput = function () { markDirty(f.k, inp.value); };
+      if (f.k === 'city') inp.setAttribute('list', 'citylist');
       if (f.t === 'pct1') { inp.placeholder = '例: 38.9'; inp.onblur = function () { if (inp.value.trim()) { var t = fmt1(inp.value); if (t !== inp.value) { inp.value = t; markDirty(f.k, t); } } }; }
       if (f.k === 'inputs.area.households' && autoHouseholds) inp.placeholder = '自動取得: ' + autoHouseholds.toLocaleString('ja-JP') + '(入力すると、その値を使います)';
     }

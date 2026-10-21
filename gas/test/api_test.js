@@ -209,6 +209,7 @@ const res = vm.runInContext(`
   api_save(pinA, { 'inputs.client.address': '' }); r.pinRemoved = buildArea_(pinA).html.indexOf('pin-client') < 0;
   r.pinSvgValid = (function () { var h = bp.html, i = h.indexOf('<svg class="area-map"'), seg = h.slice(i, h.indexOf('</svg>', i)); return i > 0 && seg.split('<g ').length === seg.split('</g>').length; })();
   api_delete_company(api_list().companies.filter(function (x) { return x.name === 'ピンテスト'; })[0].id);
+  var cl = api_cities('長野県'); r.cities = cl.indexOf('上田市') >= 0 && cl.length > 70 && api_cities('長野') === undefined ? false : (cl.indexOf('上田市') >= 0 && cl.length > 70);
   // --- 商談先一覧(自動で記載・更新) ---
   function idxRows() { var sh = ss.getSheetByName('商談先一覧'); var last = sh.getLastRow(); return { head: sh.getRange(1, 1, 1, 9).getValues()[0], rows: last > 1 ? sh.getRange(2, 1, last - 1, 9).getValues() : [] }; }
   function idxOf(id) { return idxRows().rows.filter(function (x) { return x[8] === id; })[0]; }

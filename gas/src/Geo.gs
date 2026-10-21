@@ -4,6 +4,17 @@ var GEO_URL_ = 'https://raw.githubusercontent.com/smartnews-smri/japan-topograph
 var GEO_SOURCE = '国土数値情報 行政区域データ(2021-01-01時点)';
 var GEO_LICENSE_NOTE = '出典: 国土数値情報(行政区域データ) 国土交通省 / 加工: smartnews-smri/japan-topography';
 
+/** 政令指定都市の団体コード(市全体を選んだときの世帯数取得用) */
+var DESIGNATED_CODES_ = { '札幌市': '01100', '仙台市': '04100', 'さいたま市': '11100', '千葉市': '12100', '横浜市': '14100', '川崎市': '14130', '相模原市': '14150',
+  '新潟市': '15100', '静岡市': '22100', '浜松市': '22130', '名古屋市': '23100', '京都市': '26100', '大阪市': '27100', '堺市': '27140', '神戸市': '28100',
+  '岡山市': '33100', '広島市': '34100', '北九州市': '40100', '福岡市': '40130', '熊本市': '43100' };
+
+/** 政令指定都市の区なら { parent: '横浜市', ward: '横浜市中区' } */
+function wardParts_(p) {
+  var c3 = p.N03_003, c4 = p.N03_004;
+  if (c3 && /市$/.test(c3) && c4 && /区$/.test(c4)) return { parent: c3, ward: c3 + c4 };
+  return null;
+}
 function muniName_(p) {
   var c3 = p.N03_003, c4 = p.N03_004;
   if (c3 && /市$/.test(c3) && c4 && /区$/.test(c4)) return c3;
@@ -14,15 +25,31 @@ function polysOf_(geom) {
   return geom.type === 'Polygon' ? [geom.coordinates] : geom.type === 'MultiPolygon' ? geom.coordinates : [];
 }
 
+/** 政令指定都市は「市全体(横浜市)」と「各区(横浜市中区)」の両方を選べるようにする */
 function buildPrefecture_(pref, geojson) {
   var munis = {}, order = [];
+  function add(name, code, polys, extra) {
+    if (!munis[name]) { munis[name] = Object.assign({ code: code || '', polys: [] }, extra || {}); order.push(name); }
+    polys.forEach(function (p) { munis[name].polys.push(p); });
+  }
   geojson.features.forEach(function (f) {
+    var pr = wardParts_(f.properties), polys = polysOf_(f.geometry), code = f.properties.N03_007 || '';
+    if (pr) {
+      add(pr.parent, DESIGNATED_CODES_[pr.parent] || code, polys, { agg: true });
+      add(pr.ward, code, polys, { ward: true, parent: pr.parent });
+      return;
+    }
     var name = muniName_(f.properties);
-    if (!name) return;
-    if (!munis[name]) { munis[name] = { code: f.properties.N03_007 || '', polys: [] }; order.push(name); }
-    polysOf_(f.geometry).forEach(function (p) { munis[name].polys.push(p); });
+    if (name) add(name, code, polys);
   });
-  return { pref: pref, munis: munis, names: order };
+  var count = order.filter(function (n) { return !munis[n].ward; }).length;   // 市町村数(区は数えない)
+  return { pref: pref, munis: munis, names: order, count: count };
+}
+
+/** 地図・隣接の判定に使う名前の集まり。区を選んだときは区単位、それ以外は市単位(二重に描かない) */
+function viewNames_(P, target) {
+  var wardView = !!(P.munis[target] && P.munis[target].ward);
+  return P.names.filter(function (n) { return wardView ? !P.munis[n].agg : !P.munis[n].ward; });
 }
 
 function resolveCity_(P, city) {
@@ -30,6 +57,10 @@ function resolveCity_(P, city) {
   if (P.munis[key]) return key;
   var sfx = ['市', '区', '町', '村'];
   for (var i = 0; i < sfx.length; i++) if (P.munis[key + sfx[i]]) return key + sfx[i];
+  // 「中区」のように市名を省いた区名: 県内で1つに決まるなら採用(複数あれば候補を出す)
+  var wards = P.names.filter(function (n) { return P.munis[n].ward && n.slice(-key.length) === key; });
+  if (key && /区$/.test(key) && wards.length === 1) return wards[0];
+  if (key && /区$/.test(key) && wards.length > 1) throw new Error(P.pref + 'に「' + city + '」が複数あります。市名から入力してください。候補: ' + wards.join('、'));
   var cands = P.names.filter(function (n) { return key && n.indexOf(key.slice(0, 2)) >= 0; }).slice(0, 8);
   throw new Error(P.pref + 'に「' + city + '」が見つかりません(2021年1月時点の市区町村名)。候補: ' + cands.join('、'));
 }
@@ -41,7 +72,7 @@ function neighborsOf_(P, name) {
   var mine = {};
   P.munis[name].polys.forEach(function (poly) { poly.forEach(function (ring) { ring.forEach(function (pt) { mine[vkey_(pt)] = 1; }); }); });
   var res = [];
-  P.names.forEach(function (other) {
+  viewNames_(P, name).forEach(function (other) {
     if (other === name) return;
     var seen = {}, n = 0;
     P.munis[other].polys.forEach(function (poly) {
@@ -68,7 +99,7 @@ function ringAreaCentroid_(ring) {
 
 function renderMapSvg_(P, target, focus) {   // focus: 市区町村名の配列を渡すと、それらだけを拡大して描く(ピン用)
   var width = 640, rings = [];
-  P.names.forEach(function (name) {
+  viewNames_(P, target).forEach(function (name) {
     P.munis[name].polys.forEach(function (poly) {
       var ac = ringAreaCentroid_(poly[0]);
       rings.push({ name: name, poly: poly, area: ac[0], cx: ac[1], cy: ac[2] });
@@ -140,13 +171,15 @@ function addPinsToSvg_(svg, pins) {
 
 /** 都道府県の境界を取得し、(対象市の)地図SVG・隣接市・市町村数・団体コードを返す。結果はキャッシュする */
 function loadGeo_(services, pref, city) {
-  var cacheKey = 'geo4:' + pref + ':' + city;
+  var cacheKey = 'geo5:' + pref + ':' + city;
   var hit = services.cacheGet(cacheKey);
   if (hit) return JSON.parse(hit);
   var geojson = services.fetchJson(GEO_URL_.replace('{code}', ('0' + prefCode_(pref)).slice(-2)));
   var P = buildPrefecture_(pref, geojson);
   var name = resolveCity_(P, city);
-  var res = { city: name, code: P.munis[name].code, count: P.names.length, neighbors: neighborsOf_(P, name) };
+  var res = { city: name, isWard: !!P.munis[name].ward, code: P.munis[name].code, count: P.count, neighbors: neighborsOf_(P, name) };
+  // 加盟店の隣接判定用: 区は親の市に置き換える(加盟店の市は「横浜市」のように市単位で持っているため)
+  res.neighborCities = res.neighbors.map(function (n) { return P.munis[n].parent || n; }).filter(function (n, i, a) { return a.indexOf(n) === i; });
   var m = renderMapSvg_(P, name); res.svg = m.svg; res.proj = m.proj;
   var z = renderMapSvg_(P, name, [name].concat(res.neighbors)); res.zsvg = z.svg; res.zproj = z.proj;
   services.cachePut(cacheKey, JSON.stringify(res));

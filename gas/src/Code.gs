@@ -123,7 +123,12 @@ function normalizeAddr_(a) {
   a = String(a || '').normalize('NFKC').replace(/〒?\s*\d{3}-?\d{4}/, '').replace(/[‐‑–—−ー－]/g, '-').replace(/\s+/g, '');
   return a;
 }
-function addrHasCity_(text, expect) { return !expect || !expect.city || String(text).indexOf(expect.city) >= 0; }
+/** 期待する市区町村が text に含まれるか。政令市の区(名古屋市中区)は、市(名古屋市)と区(中区)を別々に確認する */
+function addrHasCity_(text, expect) {
+  if (!expect || !expect.city) return true;
+  var t = String(text), wm = String(expect.city).match(/^(.+市)(.+区)$/);
+  return wm ? (t.indexOf(wm[1]) >= 0 && t.indexOf(wm[2]) >= 0) : t.indexOf(expect.city) >= 0;
+}
 
 /** 住所 → 位置。まず Googleマップのジオコーダ、だめなら国土地理院の住所検索。
  *  結果の市区町村・都道府県が、期待する市区町村と違うときは採用しない(別の場所にピンが立つのを防ぐ)。
@@ -140,7 +145,7 @@ function geocode_(addr, expect) {
     if (r && r.status === 'OK' && r.results && r.results.length) {
       var x = r.results[0], comps = JSON.stringify(x.address_components || []), l = x.geometry.location;
       if (expect.pref && comps.indexOf(expect.pref) < 0) why = '住所の都道府県が一致しません';
-      else if (expect.city && comps.indexOf(expect.city) < 0) why = '住所の市区町村が「' + expect.city + '」と一致しません(Googleマップは「' + String(x.formatted_address || '').slice(0, 40) + '」と判断)';
+      else if (!addrHasCity_(comps, expect)) why = '住所の市区町村が「' + expect.city + '」と一致しません(Googleマップは「' + String(x.formatted_address || '').slice(0, 40) + '」と判断)';
       else res = { lat: l.lat, lng: l.lng, source: 'Googleマップ', precise: x.geometry.location_type !== 'APPROXIMATE' };
     } else if (r && r.status && r.status !== 'ZERO_RESULTS') { transient = true; why = 'Googleマップの位置検索を使えませんでした(' + r.status + ')'; }
     else why = '住所から位置を特定できませんでした';

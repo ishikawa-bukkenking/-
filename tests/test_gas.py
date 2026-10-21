@@ -225,6 +225,7 @@ def test_input_system_api(tmp_path):
     assert r["pinNone"] and r["pinClient"] and r["pinFr"] and r["pinCached"] and r["pinOutOfMap"] and r["pinNotFound"] and r["pinGeoFail"] and r["pinRemoved"] and r["pinSvgValid"]
     assert r["pinMismatch"] and r["pinGsi"] and r["pinRough"] and r["pinFrExpect"] and r["geoAddrNorm"]   # 住所と違う場所にはピンを立てない/地理院で補う/概算は報告
     assert r["pinsDefaultOn"] and r["pinsOff"] and r["pinsBackOn"] and r["pinsBad"]            # ピンの表示/非表示(既定は表示。非表示なら位置検索もしない)
+    assert r["cities"]                                                                   # 市区町村の入力候補(都道府県を選ぶと出る)
     assert r["trendBar"] and r["trendLineLabel"]                                          # 価格推移は折れ線・棒グラフ(単位・値を表示)
     assert r["appPage"] and r["noOldFns"] == ["undefined"] * 6                      # パスワード方式・旧メニューは残さない
 
@@ -287,3 +288,18 @@ def test_input_screen_in_browser(tmp_path):
     assert log["trendDefaultOn"] and log["trendDisabled"] == 0 and log["trendNeedGone"] and log["trendStored"] == "0" and log["trendOnAgain"]
     assert log["aiAuto"] and log["aiAutoStored"] and log["trendAuto"] and log["aiCells"] == "3,12,,5,8,1" and log["aiSaved"] == 9 and log["aiPersisted"]   # 貼る→AIが表に→直して保存
     assert log["pasted"] and "接続できました" in log["estatTest"] and log["noUnitField"] == 0 and log["noHpListed"]
+
+
+def test_wards_and_compare_order():
+    """政令指定都市の区・東京23区を選べる/区は市町村数に数えない/加盟店は住所の区で判定/比較は選んだ市区町村が左でオレンジ/グレーの区切りなし"""
+    rows = [dict(name=r["name"], prefecture=r["prefecture"], city=r["city"], address=r["address"], url=r["url"]) for r in franchises()]
+    r = run_node("ward_test.js", dict(geoDirAichi=geo_dir("愛知県"), geoDirTokyo=geo_dir("東京都"), frRows=rows))
+    a, t = r["aichi"], r["tokyo"]
+    assert a["hasCity"] and a["wards"] == 16 and a["count"] == 55 and a["namesN"] == 55 + 16        # 市全体と各区の両方。市町村数は区を数えない
+    assert a["resolve"] == ["名古屋市中区", "名古屋市", "岡崎市", "名古屋市中区"] and a["resolveShort"]["ok"] == "名古屋市中区" and a["resolveBad"]
+    assert a["wardNbNoAgg"] and a["cityNbNoWard"] and a["wardNeighbors"][0] == "名古屋市東区"          # 隣接は同じ単位(区↔区、市↔市)
+    assert a["codes"] == ["23100", "23106"] and a["geo"] == ["名古屋市中区", "23106", 55, True, True, True] and a["geoCity"] == ["名古屋市", "23100", True]
+    assert a["model"][0] == "名古屋市中区" and a["model"][2] == "same_city" and a["lpWard"]
+    assert a["cmpOrder"] == ["岡崎市", "名古屋市", "豊田市"] and a["cmpOrange"] and a["cmpFirstOrange"] and a["cmpBlankSkipped"]
+    assert a["wardPin"] and a["wardZoom"] and a["wardZoomNoPin"] and a["addrCity"] == [True, False, True]   # 区の住所でもピン/区は拡大図
+    assert t["shinjuku"] == "新宿区" and not t["hasAgg"]

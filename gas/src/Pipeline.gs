@@ -69,6 +69,7 @@ function buildModel_(cfg, services, data) {
     rep.add('area.map', '対象市区町村の地図', 'missing', '', String(e.message));
   }
   var munis = geo ? geo.count : null, neighbors = geo ? geo.neighbors : [], areaCode = geo ? geo.code : '';
+  var frNeighbors = geo ? (geo.neighborCities || geo.neighbors) : [];   // 加盟店の市単位の隣接(区は親の市)
 
   var model = { meta: { company: cfg.company, prefecture: pref, city: city, created: created, created_display: fmtDate_(created),
     generated_at: now, municipalities_in_prefecture: munis, area_code: areaCode, map_source: GEO_LICENSE_NOTE } };
@@ -97,7 +98,7 @@ function buildModel_(cfg, services, data) {
     rep.add('area.franchise', '周辺加盟店', 'input', '上書き');
   } else {
     var rows = data.franchiseRows || [];
-    sel = selectFranchise_(rows, pref, city, neighbors, opts.franchise);
+    sel = selectFranchise_(rows, pref, city, frNeighbors, opts.franchise);
     rep.add('area.franchise', '周辺加盟店', rows.length ? 'auto' : 'missing', '加盟店一覧から選定', rows.length ? '' : '加盟店一覧が空です(入力システムの「加盟店」で追加)');
   }
   model.area.franchise = sel;
@@ -228,7 +229,8 @@ function buildModel_(cfg, services, data) {
   });
   // 全ピンが入る範囲で、なるべく拡大した地図(対象市+隣接市)を使う。入らなければ県全体の地図
   var located = pins.filter(function (x) { return x.lat !== null; }), mapSvg = geo ? geo.svg : null, mapProj = geo ? geo.proj : null;
-  if (geo && geo.zproj && located.length && located.every(function (x) { return projectPoint_(geo.zproj, x.lat, x.lng); })) { mapSvg = geo.zsvg; mapProj = geo.zproj; }
+  // 区を選んだときは、県全体では区が小さすぎるので、いつも拡大した地図を使う
+  if (geo && geo.zproj && ((geo.isWard && !located.length) || (located.length && located.every(function (x) { return projectPoint_(geo.zproj, x.lat, x.lng); })))) { mapSvg = geo.zsvg; mapProj = geo.zproj; }
   pins.forEach(function (x) {
     if (x.lat === null || !mapProj) return;
     var xy = projectPoint_(mapProj, x.lat, x.lng);
@@ -253,7 +255,7 @@ function compare_(cfg, land, city, neighbors, rep, opts) {
   var given = cfg.compare_cities || ((cfg.inputs || {}).land || {}).compare_cities;
   var n = opts.compare_city_count;
   var suggestion = neighbors.filter(function (x) { return /市$/.test(x); }).slice(0, Math.max(0, n - 1));
-  var items = (given || []).map(function (r) { var o = Object.assign({}, r); o.highlight = (o.city === city); return o; });
+  var items = (given || []).map(function (r) { var o = Object.assign({}, r); o.highlight = (cityKey_(o.city) === cityKey_(city)); return o; });
   if (items.length && !items.some(function (r) { return r.highlight; })) {
     items.push({ city: city, tsubo_price_man: land.tsubo_price_man, listings: land.listings, highlight: true });
   }

@@ -210,3 +210,13 @@ function api_estat_test(appId) {
     return { ok: true, message: '接続できました。上田市の世帯数: ' + num_(r.value) + '(表: ' + r.table + ' / 項目: ' + r.label + ')' };
   } catch (e) { return { ok: false, message: String(e.message || e) }; }
 }
+
+/** 市区町村の入力候補(都道府県を選んだとき)。政令指定都市は「横浜市」と「横浜市中区」の両方。名前の一覧だけをキャッシュする */
+function api_cities(pref) {
+  requireUser_();
+  var p = normalizePrefecture_(pref), key = 'cities:' + p, hit = cacheGet_(key);
+  if (hit) return JSON.parse(hit);
+  var P = buildPrefecture_(p, fetchJson_(GEO_URL_.replace('{code}', ('0' + prefCode_(p)).slice(-2))));
+  cachePut_(key, JSON.stringify(P.names));
+  return P.names;
+}

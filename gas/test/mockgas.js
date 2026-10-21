@@ -56,11 +56,13 @@ function makeEnv(geoDir) {
     Maps: { newGeocoder: () => ({ setLanguage() { return this; }, setRegion() { return this; }, geocode: addr => {   // ジオコーダの模擬(上田市付近の座標を住所の文字から決める。address_components も返す)
       global.__geoCalls = (global.__geoCalls || 0) + 1;
       const m = addr.match(/^(北海道|東京都|大阪府|京都府|.{2,3}県)(.+?[市区町村])/);
-      const comps = m ? [{ long_name: m[1] }, { long_name: m[2] }] : [];
+      const wd = addr.match(/(?:県|都|府|道)(.+?市)(.+?区)/);   // 政令市の区は、市と区を別の要素で返す
+      const comps = m ? [{ long_name: m[1] }, { long_name: m[2] }].concat(wd ? [{ long_name: wd[2] }] : []) : [];
       const ok = (lat, lng, type) => ({ status: 'OK', results: [{ formatted_address: '日本、' + addr, address_components: comps, geometry: { location: { lat, lng }, location_type: type || 'ROOFTOP' } }] });
       if (global.__geoMode === 'fail') return { status: 'OVER_QUERY_LIMIT', results: [] };
       if (/ZZZ|GSI/.test(addr)) return { status: 'ZERO_RESULTS', results: [] };
       if (/大阪/.test(addr)) return ok(34.69, 135.5);
+      if (/名古屋市中区/.test(addr)) return ok(35.168, 136.908);
       if (/概算/.test(addr)) return ok(36.4, 138.25, 'APPROXIMATE');
       if (/中央1-1-1/.test(addr)) return ok(36.4019, 138.249);
       let h = 0; for (const c of addr) h = (h * 31 + c.charCodeAt(0)) % 1000;

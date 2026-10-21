@@ -76,7 +76,8 @@ function renderPage_(model, report, assets, styleCss) {
   var haveBars = inc.city_avg_man != null && inc.prefecture_avg_man != null && inc.national_avg_man != null;
   function barsFor(w) { return hbarsSvg_([[m.city, inc.city_avg_man, true], [m.prefecture, inc.prefecture_avg_man, false], ['全国', inc.national_avg_man, false]], w); }
   var trendD = tr.series ? trendChart_(tr.series, false) : null, trendC = tr.series ? trendChart_(tr.series, true) : null;
-  var items = land.compare.items.filter(function (r) { return r.tsubo_price_man != null; });   // 坪単価が入っている市だけ表示(空欄の行は使わない。5市そろっていなくてよい)
+  var items = land.compare.items.filter(function (r) { return r.tsubo_price_man != null; })
+    .map(function (r, i) { return { r: r, i: i }; }).sort(function (a, b) { return (b.r.highlight ? 1 : 0) - (a.r.highlight ? 1 : 0) || a.i - b.i; }).map(function (x) { return x.r; });   // 選んだ市区町村を一番左に(オレンジ)   // 坪単価が入っている市だけ表示(空欄の行は使わない。5市そろっていなくてよい)
   var landOk = items.length > 0;
   var vols = kw.rows.map(function (r) { return r.monthly_volume; }).filter(function (v) { return v != null; });
   var kwMax = vols.length ? Math.max.apply(null, vols) : 1;
