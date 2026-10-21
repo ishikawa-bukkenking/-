@@ -20,6 +20,7 @@ var FIELDS_ = [
   { k: 'inputs.client.address', grp: 'pins', l: '商談先の住所', d: '地図にピンを立てます。例: 長野県上田市中央1-1-1(空欄ならピンなし)' },
   { h: '対象エリア(出典: 総務省統計局 令和2年国勢調査)' },
   { k: 'inputs.area.households', l: '世帯数', t: 'num', d: '空欄なら、国勢調査(e-Stat)から自動で取得します(設定にe-StatのアプリケーションIDが必要)。入力した場合はその値を使います' },
+  { k: 'fr.pick', l: '対象エリアに表示する加盟店', t: 'frpick', d: '県内の加盟店がすべて表示されます。表示しない加盟店はチェックを外してください' },
   { h: '年収(出典: LIFULL HOME\'S調べ)' },
   { k: 'inputs.income.city_avg_man', l: '市の平均世帯年収(万円)', t: 'num', req: 1 },
   { k: 'inputs.income.prefecture_avg_man', l: '県の平均世帯年収(万円)', t: 'num', req: 1 },

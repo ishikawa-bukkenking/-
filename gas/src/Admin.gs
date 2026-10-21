@@ -220,3 +220,19 @@ function api_cities(pref) {
   cachePut_(key, JSON.stringify(P.names));
   return P.names;
 }
+
+/** 入力画面: このエリアに表示する加盟店の候補(県内の全加盟店)とチェック状態 */
+function api_franchise_pick(areaId) {
+  requireUser_();
+  var a = areaById_(areaId);
+  if (!a) throw new Error('エリアが見つかりません。');
+  return { items: franchiseCandidates_(a) };
+}
+
+/** チェックを外した加盟店(キー: 名称@市)を保存。新しく加盟店が増えたときは、既定で表示される */
+function api_set_franchise_off(areaId, offKeys) {
+  requireUser_();
+  var off = (Array.isArray(offKeys) ? offKeys : []).map(String).filter(function (k) { return k.length < 200; }).slice(0, 500);
+  writeAreaValues_(areaId, function (values) { if (off.length) values['fr.off'] = JSON.stringify(off); else delete values['fr.off']; });
+  return { ok: true, off: off.length };
+}

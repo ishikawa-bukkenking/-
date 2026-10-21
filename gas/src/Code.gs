@@ -97,7 +97,7 @@ function readSettings_() {
     if (mx) o.max = mx; if (th !== undefined) o.threshold = th;
   }
   try { o.urlAuto = String(ScriptApp.getService().getUrl() || '').replace(/\/+$/, ''); } catch (e) { o.urlAuto = ''; }   // いま動いているウェブアプリ自身のURL(仮のURL用)
-  o.opts.franchise = { max: o.max }; o.opts.trend_same_threshold_pt = o.threshold;
+  o.opts.franchise = { max: o.max, all: true };   // 県内の全加盟店を表示(表示する加盟店は入力画面のチェックで選ぶ) o.opts.trend_same_threshold_pt = o.threshold;
   return o;
 }
 
@@ -206,6 +206,7 @@ function buildArea_(areaId) {
   var vals = Object.assign({}, a.values, { company: c ? c.name : '', prefecture: a.values.prefecture || a.pref, city: a.values.city || a.city });
   var cfg = valuesToConfig_(vals, todayIso_());
   cfg.options = settings.opts;
+  cfg.franchise_off = parseOff_(vals['fr.off']);
   TABLE_KEYS_.forEach(function (k) {
     var t = savedTable_(vals, k);
     if (!t) return;
@@ -293,4 +294,18 @@ function setupSheets_(ss) {
     fr.setFrozenRows(1); fr.setColumnWidth(1, 260); fr.setColumnWidth(4, 300); fr.setColumnWidth(5, 280);
   }
   if (fr.getLastRow() < 2 && typeof SEED_FRANCHISES_CSV_ !== 'undefined') importFranchiseRows_(fr, parseFranchiseAny_(SEED_FRANCHISES_CSV_).rows);
+}
+
+function parseOff_(s) { try { var a = JSON.parse(s || '[]'); return Array.isArray(a) ? a.map(String) : []; } catch (e) { return []; } }
+
+/** そのエリアで表示する候補の加盟店(県内の全加盟店。同じ市区→隣接→その他の順)。チェックの状態つき */
+function franchiseCandidates_(a) {
+  var ss = ss_(), pref = a.values.prefecture || a.pref, city = a.values.city || a.city, frSh = ss.getSheetByName(SHEET_FR_);
+  var rows = frSh && frSh.getLastRow() > 1 ? franchiseRowsFrom_(frSh.getRange(2, 1, frSh.getLastRow() - 1, 6).getDisplayValues()) : [];
+  var neighbors = [];
+  try { var g = loadGeo_({ cacheGet: cacheGet_, cachePut: cachePut_, fetchJson: fetchJson_ }, pref, city); city = g.city; neighbors = g.neighborCities || g.neighbors; } catch (e) { /* 地図が取れなくても一覧は出す */ }
+  var off = parseOff_(a.values['fr.off']);
+  return selectFranchise_(rows, pref, city, neighbors, { all: true }).items.map(function (f) {
+    return { key: f.key, name: f.name, city: f.city, address: f.address, url: f.url, tier: f.tier, on: off.indexOf(f.key) < 0 };
+  });
 }

@@ -184,7 +184,7 @@ const res = vm.runInContext(`
   var bp = buildArea_(pinA), pm = bp.model.area.pins;
   r.pinClient = pm.filter(function (x) { return x.kind === 'client'; }).length === 1 && pm[0].on_map === true && bp.html.indexOf('class="pin pin-client"') >= 0 && bp.html.indexOf('map-legend') >= 0 && bp.html.indexOf('>御社</text>') >= 0 && bp.html.indexOf('商談先') < 0;
   var frPins = pm.filter(function (x) { return x.kind === 'fr' && x.on_map; });
-  r.pinFr = frPins.length >= 1 && bp.html.split('class="pin pin-fr"').length - 1 === frPins.length && bp.html.indexOf('class="pinno"') >= 0 && frPins.every(function (x) { return x.n >= 1 && x.n <= 3; });
+  r.pinFr = frPins.length >= 1 && bp.html.split('class="pin pin-fr"').length - 1 === frPins.length && bp.html.indexOf('class="pinno"') >= 0 && frPins.every(function (x) { return x.n >= 1 && x.n <= 40; });
   var gc = __geoCalls(); buildArea_(pinA); doGet({ parameter: { id: pinA } }); r.pinCached = __geoCalls() === gc;   // 住所の位置はキャッシュ(連打しない)
   api_save(pinA, { 'inputs.client.address': '大阪府大阪市北区1-1' }); var far = buildArea_(pinA);
   r.pinOutOfMap = far.model.area.pins[0].on_map === false && far.html.indexOf('pin-client') < 0 && far.report.missing().length >= 0;
@@ -199,6 +199,20 @@ const res = vm.runInContext(`
   r.pinRough = rough.model.area.pins[0].precise === false && rough.report.items.some(function (i) { return i.key === 'area.pin_client' && /概算/.test(i.reason); });
   r.pinFrExpect = bp.model.area.pins.filter(function (x) { return x.kind === 'fr'; }).every(function (x) { return x.source === 'Googleマップ'; });
   r.geoAddrNorm = normalizeAddr_('〒386-0012　長野県上田市中央１－１－１') === '長野県上田市中央1-1-1';
+  // 対象エリアには県内の全加盟店を表示。表示する加盟店は入力画面のチェックで選ぶ
+  var pk = api_franchise_pick(pinA).items, nagano = api_fr_list().items.filter(function (x) { return x.prefecture === '長野県' && x.active !== false; }).length;
+  r.pickAll = pk.length >= 10 && pk.every(function (x) { return x.on === true && x.key.indexOf('@') > 0; }) && pk[0].tier === 'same_city' && pk.some(function (x) { return x.tier !== 'same_city'; });
+  var allHtml = buildArea_(pinA).html;
+  r.lpAllFr = (allHtml.match(/class="pinno"/g) || []).length + (allHtml.match(/<li><b>/g) || []).length >= pk.length && allHtml.indexOf('長野県の物件王加盟店（' + pk.length + '社）') >= 0 && allHtml.indexOf('class="sec many"') >= 0;
+  var offKeys = [pk[0].key, pk[pk.length - 1].key];
+  r.offSaved = api_set_franchise_off(pinA, offKeys).off === 2 && api_franchise_pick(pinA).items.filter(function (x) { return !x.on; }).map(function (x) { return x.key; }).join('|') === offKeys.join('|');
+  var offHtml = buildArea_(pinA);
+  r.offLp = offHtml.model.area.franchise.items.length === pk.length - 2 && offHtml.html.indexOf(pk[0].name + '様') < 0 && offHtml.html.indexOf('（' + (pk.length - 2) + '社）') >= 0;
+  r.offModelPins = offHtml.model.area.pins.every(function (x) { return x.kind !== 'fr' || x.name !== pk[0].name; });
+  api_set_franchise_off(pinA, []); r.offCleared = !areaById_(pinA).values['fr.off'] && api_franchise_pick(pinA).items.every(function (x) { return x.on; });
+  r.offBadArea = !!tryCall(function () { return api_franchise_pick('nope'); }).err;
+  r.offDenied = (function () { __setEmail('x@gmail.com'); var e = !!tryCall(function () { return api_franchise_pick(pinA); }).err && !!tryCall(function () { return api_set_franchise_off(pinA, []); }).err; __setEmail('ishikawa@bukkenking.com'); return e; })();
+  r.offDup = (function () { api_set_franchise_off(pinA, [pk[1].key]); var d = api_duplicate_company(api_list().companies.filter(function (x) { return x.name === 'ピンテスト'; })[0].id, 'ピンコピー'); var da = api_list().companies.filter(function (x) { return x.id === d.companyId; })[0].areas[0]; var ok = areaById_(da.id).values['fr.off'] === JSON.stringify([pk[1].key]); api_delete_company(d.companyId); api_set_franchise_off(pinA, []); return ok; })();
   // ピンの表示/非表示(既定は表示)
   api_save(pinA, { 'inputs.client.address': '長野県上田市中央1-1-1' });
   r.pinsDefaultOn = buildArea_(pinA).html.indexOf('class="pin pin-client"') >= 0 && api_get(pinA).fields.some(function (f) { return f.k === 'show.pins' && f.t === 'bool'; });

@@ -32,7 +32,7 @@ function mapLegend_(pins) {
   if (!on.length) return '';
   var parts = [];
   if (on.some(function (x) { return x.kind === 'client'; })) parts.push('<span><i class="lg lg-client" aria-hidden="true"></i>御社</span>');
-  if (on.some(function (x) { return x.kind === 'fr'; })) parts.push('<span><i class="lg lg-fr" aria-hidden="true"></i>周辺加盟店(番号は右の一覧と同じ)</span>');
+  if (on.some(function (x) { return x.kind === 'fr'; })) parts.push('<span><i class="lg lg-fr" aria-hidden="true"></i>加盟店(番号は加盟店一覧と同じ)</span>');
   return '<p class="map-legend">' + parts.join('') + '</p>';
 }
 
@@ -102,13 +102,15 @@ function renderPage_(model, report, assets, styleCss) {
     '<nav class="anchors" aria-label="セクション">' + toc.filter(function (x) { return x[0] !== 'top'; }).map(function (x) { return '<a href="#' + x[0] + '">' + x[1] + '</a>'; }).join('') + '</nav>' +
     (model.cta_url ? '<div><a class="btn" href="' + esc_(model.cta_url) + '">お問い合わせ・資料請求</a></div>' : '') + '</div></header><main>');
   // 01 area
-  h.push('<section class="sec' + alt() + '" id="area"><div class="wrap rv"><p class="sec-no">' + N() + '　対象エリア</p><h2>' +
+  var frN = a.franchise.items.length;
+  h.push('<section class="sec' + alt() + (frN > 6 ? ' many' : '') + '" id="area"><div class="wrap rv"><p class="sec-no">' + N() + '　対象エリア</p><h2>' +
     (a.households != null ? esc_(m.city) + 'を商圏に、<span class="em">' + num_(a.households) + '世帯</span>のエリアを調査しました' : esc_(m.city) + 'を商圏としたエリアを調査しました') +
     '</h2><div class="split"><div>' + (model._mapSvg || slot_('地図', ['行政区域データの取得に失敗'])) + mapLegend_(a.pins) + '</div><div class="grid">' + kpi_(a.households, '世帯', '世帯数', 'flat') +
-    (a.households == null ? slot_('世帯数', ['世帯数']) : '') + '<div class="card"><p class="sub">周辺加盟店</p>' +
-    (a.franchise.items.length ? '<ul class="fr">' + a.franchise.items.map(function (f) {
+    (a.households == null ? slot_('世帯数', ['世帯数']) : '') + '</div></div>' +
+    '<div class="card fr-card"><p class="sub">' + esc_(m.prefecture) + 'の物件王加盟店' + (frN ? '（' + frN + '社）' : '') + '</p>' +
+    (frN ? '<ul class="fr fr-all">' + a.franchise.items.map(function (f) {
       return '<li><b>' + (f.pin_no ? '<span class="pinno">' + f.pin_no + '</span>' : '') + esc_(f.name) + '様</b><span>※' + esc_(f.area) + '</span>' + (f.url ? '<br><span class="note">不動産HP：</span><a href="' + esc_(f.url) + '" rel="noopener noreferrer" target="_blank">' + esc_(f.url) + '</a>' : '') + '</li>';
-    }).join('') + '</ul>' : '<p class="empty">周辺に加盟店なし</p>') + '</div></div></div>' +
+    }).join('') + '</ul>' : '<p class="empty">表示する加盟店がありません</p>') + '</div>' +
     (a.households != null ? '<p class="src">（' + esc_(a.households_date) + '　' + esc_(a.households_source) + '）</p>' : '') + '</div></section>');
   // 02 income
   h.push('<section class="sec' + alt() + '" id="income"><div class="wrap rv"><p class="sec-no">' + N() + '　年収</p><h2>' + esc_(inc.headline || (m.city + 'の平均世帯年収')) + '</h2>' +

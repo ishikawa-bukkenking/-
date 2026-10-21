@@ -101,6 +101,8 @@ function buildModel_(cfg, services, data) {
     sel = selectFranchise_(rows, pref, city, frNeighbors, opts.franchise);
     rep.add('area.franchise', '周辺加盟店', rows.length ? 'auto' : 'missing', '加盟店一覧から選定', rows.length ? '' : '加盟店一覧が空です(入力システムの「加盟店」で追加)');
   }
+  var off = cfg.franchise_off || [];   // 入力画面でチェックを外した加盟店(キー: 名称@市)
+  if (off.length) sel.items = sel.items.filter(function (f) { return off.indexOf(f.key) < 0; });
   model.area.franchise = sel;
   var noHp = sel.items.filter(function (f) { return !f.url; }).map(function (f) { return f.name; });
   rep.add('area.franchise_hp', '周辺加盟店の不動産HP', noHp.length ? 'optional' : 'input', '加盟店一覧のURL',
@@ -224,6 +226,7 @@ function buildModel_(cfg, services, data) {
     f.pin_no = null;
     if (!pinsOn) return;
     if (!f.address) { frNoAddr.push(f.name); return; }
+    if (i >= 40) { frNoAddr.push(f.name); return; }   // 位置検索の回数を抑えるため、ピンは先頭40社まで
     var fp = locate_(/^(北海道|東京都|大阪府|京都府|.{2,3}県)/.test(f.address) ? f.address : f.prefecture + f.address, f.name, 'fr', i + 1, { pref: f.prefecture, city: f.city });
     if (fp) pins.push(fp);
   });

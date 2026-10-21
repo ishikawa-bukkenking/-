@@ -5,7 +5,7 @@ var FR_TIERS_ = ['same_city', 'adjacent', 'same_prefecture'];
 /** 既定: 同一市 → 隣接市 → 同一県 の順に、最初に該当があった段階の加盟店(最大 max 社) */
 function selectFranchise_(rows, pref, city, neighbors, opt) {
   opt = opt || {};
-  var max = opt.max || 3, tiers = opt.tiers || FR_TIERS_, stop = opt.stop_at_first_tier !== false;
+  var max = opt.all ? 1e9 : (opt.max || 3), tiers = opt.tiers || FR_TIERS_, stop = opt.all ? false : opt.stop_at_first_tier !== false;   // all: 県内の全加盟店(同じ市区→隣接→その他の順)
   tiers.forEach(function (t) { if (FR_TIERS_.indexOf(t) < 0) throw new Error('franchise.tiers が不正です: ' + t); });
   var pool = rows.filter(function (r) { return r.prefecture === pref; });
   var picked = [], used = [];
@@ -30,7 +30,7 @@ function selectFranchise_(rows, pref, city, neighbors, opt) {
     if (picked.length && stop) break;
   }
   return { items: picked.map(function (r) {
-    return { name: r.name, prefecture: r.prefecture, city: r.city, address: r.address || '', url: r.url || '', area: r.prefecture + ' ' + r.city, tier: r._tier };
+    return { key: r.name + '@' + r.city, name: r.name, prefecture: r.prefecture, city: r.city, address: r.address || '', url: r.url || '', area: r.prefecture + ' ' + r.city, tier: r._tier };
   }), tiers_used: used };
 }
 

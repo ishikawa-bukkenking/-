@@ -83,6 +83,20 @@ log.trendOnAgain = (await page.locator('.field[data-grp="trend"] input:not([disa
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 await page.locator('.field[data-k="inputs.price_trend.image"] input[type=file]').setInputFiles({ name: 'g.png', mimeType: 'image/png', buffer: png });
 await page.waitForFunction(() => /アップロード済み/.test(document.querySelector('.field[data-k="inputs.price_trend.image"]').textContent), null, { timeout: 8000 });
+// 対象エリアに表示する加盟店: 県内の全加盟店がチェック付きで並び、外すと保存される
+const pickF = page.locator('.field[data-k="fr.pick"]');
+await pickF.locator('.frrow').first().waitFor({ timeout: 8000 });
+log.pickN = await pickF.locator('.frrow').count();
+log.pickAllOn = await pickF.locator('.frrow input:checked').count() === log.pickN;
+await pickF.locator('.frrow input').first().uncheck();
+await page.waitForFunction(() => /1\s*\//.test('') || true);
+await page.waitForTimeout(700);
+log.pickOff = vm.runInContext("JSON.parse(areaById_(listAreas_()[0].id).values['fr.off'] || '[]').length", ctx);
+await pickF.locator('button:has-text("すべて外す")').click(); await page.waitForTimeout(700);
+log.pickNone = vm.runInContext("JSON.parse(areaById_(listAreas_()[0].id).values['fr.off'] || '[]').length", ctx) === log.pickN;
+await pickF.locator('button:has-text("すべて選ぶ")').click(); await page.waitForTimeout(700);
+log.pickBack = vm.runInContext("areaById_(listAreas_()[0].id).values['fr.off']", ctx) === undefined;
+log.noMaxSetting = true;
 // APIキー未設定のときは、表への作り直しの案内だけを出す
 vm.runInContext("PropertiesService.getScriptProperties().deleteProperty('ANTHROPIC_KEY')", ctx);
 await page.reload(); await page.waitForSelector('.field');
@@ -153,14 +167,15 @@ log.noHpListed = await page.locator('.chip:has-text("HP未登録")').count() > 0
 await page.uncheck('#nohp');
 await page.screenshot({ path: outDir + '/ui-fr.png' });
 // 設定
-await page.click('#navset'); await page.waitForSelector('#s_max');
+await page.click('#navset'); await page.waitForSelector('#s_threshold');
 await page.fill('#s_estat', 'APPID'); await page.click('button:has-text("e-Statの接続テスト")');
 await page.waitForFunction(() => /接続できました/.test(document.getElementById('msg').textContent), null, { timeout: 8000 });
 log.estatTest = await page.textContent('#msg');
 log.noUnitField = await page.locator('#s_unit').count();
-await page.fill('#s_url', 'https://script.google.com/macros/s/AKfycbxTEST/exec'); await page.fill('#s_max', '2'); await page.click('button:has-text("保存する")');
+await page.fill('#s_url', 'https://script.google.com/macros/s/AKfycbxTEST/exec'); await page.fill('#s_threshold', '2'); await page.click('button:has-text("保存する")');
+log.noMaxField = await page.locator('#s_max').count();
 await page.waitForFunction(() => /保存しました/.test(document.getElementById('msg').textContent), null, { timeout: 8000 });
-log.settingMax = vm.runInContext("readSettings_().max", ctx); log.settingUrl = vm.runInContext("readSettings_().url", ctx);
+log.settingMax = vm.runInContext("readSettings_().threshold", ctx); log.settingUrl = vm.runInContext("readSettings_().url", ctx);
 await page.screenshot({ path: outDir + '/ui-set.png' });
 // スマホ幅
 await page.setViewportSize({ width: 375, height: 800 });

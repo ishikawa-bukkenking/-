@@ -92,6 +92,8 @@ a{color:var(--c-ink)}
 .map-sub{font:500 12px var(--f);fill:#5f7377;paint-order:stroke;stroke:#fff;stroke-width:3px}
 .map-label{font:700 16px var(--f);fill:var(--c-text);paint-order:stroke;stroke:#fff;stroke-width:4px}
 .fr{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.fr-card{margin-top:24px}
+.fr-all{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
 .fr li{background:#fff;border:1px solid var(--c-line);border-radius:10px;padding:12px 16px;line-height:1.6}
 .fr b{display:block}.fr span{font-size:.875rem;color:var(--c-sub)}
 .fr a{font-size:.875rem;word-break:break-all}
@@ -215,7 +217,17 @@ a{color:var(--c-ink)}
   .kpi-num{font-size:2.2rem}
   .foot{padding:6mm 0;break-before:avoid;page-break-before:avoid}
   /* 各ページの内容が小さく見えないよう、セクションごとに拡大率を決める(内容が1ページに収まる範囲で最大に。価格推移は文章とグラフを1ページに収めるため少し縮める) */
-  #top>.wrap{zoom:1.3}#area>.wrap{zoom:1.02}#income>.wrap{zoom:.96}#trend>.wrap{zoom:.8}#land>.wrap{zoom:.92}
+  /* 対象エリア: 左に地図、右に世帯数と加盟店一覧(県内の全加盟店が並んでも1ページに収める) */
+  #area>.wrap{display:grid;grid-template-columns:42% 1fr;column-gap:20px;align-items:start}
+  #area>.wrap>.sec-no,#area>.wrap>h2,#area>.wrap>.src{grid-column:1/-1}
+  #area .split{display:contents}
+  #area .split>div:first-child{grid-column:1;grid-row:3/5}
+  #area .split>.grid{grid-column:2;grid-row:3}
+  #area .fr-card{grid-column:2;grid-row:4;margin-top:10px}
+  #area .fr-all{grid-template-columns:repeat(2,1fr);gap:8px}
+  #area .fr li{padding:8px 12px}
+  #area .area-map{max-height:150mm}
+  #top>.wrap{zoom:1.3}#area>.wrap{zoom:.9}#area.many>.wrap{zoom:.76}#income>.wrap{zoom:.96}#trend>.wrap{zoom:.8}#land>.wrap{zoom:.92}
   #used_house>.wrap,#used_mansion>.wrap,#new_house>.wrap{zoom:1}
   #search>.wrap{zoom:1.3}#summary>.wrap{zoom:1.05}.point>.wrap{zoom:1.3}#competitors>.wrap{zoom:1.4}#listings>.wrap{zoom:1.3}.q>.wrap{zoom:1.15}
   a{text-decoration:none;color:inherit}

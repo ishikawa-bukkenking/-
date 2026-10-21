@@ -42,6 +42,9 @@ details.sec .body{padding:8px 18px 18px}
 .imgbox{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .imgbox img{max-height:90px;max-width:160px;border:1px solid var(--line);border-radius:6px;background:#fff}
 .imgbox input[type=file]{display:none}
+.frlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px 14px;max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
+.frrow{display:flex;gap:8px;align-items:flex-start;font-weight:400;cursor:pointer}
+.frrow b{font-weight:600}
 .tbl{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;overflow-x:auto}
 .tbl table{border-collapse:collapse;font-size:.8125rem}
 .tbl td,.tbl th{border:1px solid var(--line);padding:0}
@@ -324,7 +327,46 @@ function applyGroups() {
   });
   refreshNeed();
 }
+/* ---- 対象エリアに表示する加盟店(県内の全加盟店をチェックで選ぶ) ---- */
+function frPick(f) {
+  var wrap = el('div', { class: 'field', 'data-k': f.k, 'data-req': '0', 'data-grp': '' });
+  wrap.appendChild(el('label', { text: f.l }));
+  if (f.d) wrap.appendChild(el('div', { class: 'hint', text: f.d }));
+  var box = el('div', { class: 'frpick' }, [el('p', { class: 'note', text: '読み込み中…' })]);
+  wrap.appendChild(box);
+  var items = [], timer2 = null, TIER = { same_city: '同じ市区', adjacent: '隣接', same_prefecture: '県内' };
+  function save() {
+    clearTimeout(timer2);
+    timer2 = setTimeout(function () {
+      var off = items.filter(function (x) { return !x.on; }).map(function (x) { return x.key; });
+      setSaved('保存中…');
+      google.script.run.withSuccessHandler(function () { setSaved('保存しました'); loadStatus(); })
+        .withFailureHandler(function (e) { setSaved('保存できませんでした: ' + (e.message || e), true); }).api_set_franchise_off(cur, off);
+    }, 300);
+  }
+  function draw() {
+    box.replaceChildren();
+    if (!items.length) { box.appendChild(el('p', { class: 'note', text: 'この都道府県の加盟店が「加盟店」に登録されていません。' })); return; }
+    var n = items.filter(function (x) { return x.on; }).length;
+    var cnt = el('span', { class: 'note', text: '表示する加盟店: ' + n + ' / ' + items.length + '社' });
+    var all = el('button', { class: 'ghost', type: 'button', text: 'すべて選ぶ' }), none = el('button', { class: 'ghost', type: 'button', text: 'すべて外す' });
+    all.onclick = function () { items.forEach(function (x) { x.on = true; }); draw(); save(); };
+    none.onclick = function () { items.forEach(function (x) { x.on = false; }); draw(); save(); };
+    box.appendChild(el('div', { class: 'row', style: 'margin-bottom:8px;gap:10px;align-items:center' }, [cnt, all, none]));
+    var list = el('div', { class: 'frlist' });
+    items.forEach(function (x, i) {
+      var ck = el('input', { type: 'checkbox', id: 'frp' + i }); ck.checked = x.on;
+      ck.onchange = function () { x.on = ck.checked; cnt.textContent = '表示する加盟店: ' + items.filter(function (y) { return y.on; }).length + ' / ' + items.length + '社'; save(); };
+      list.appendChild(el('label', { class: 'chk frrow', for: 'frp' + i }, [ck, el('span', {}, [el('b', { text: x.name }), el('span', { class: 'note', text: '  ' + x.city + '・' + (TIER[x.tier] || '') + (x.url ? '' : '・HP未登録') })])]));
+    });
+    box.appendChild(list);
+  }
+  google.script.run.withSuccessHandler(function (r) { items = r.items; draw(); })
+    .withFailureHandler(function (e) { box.replaceChildren(el('p', { class: 'msg', text: '加盟店を読み込めませんでした: ' + (e.message || e) })); }).api_franchise_pick(cur);
+  return wrap;
+}
 function fieldView(f) {
+  if (f.t === 'frpick') return frPick(f);
   var wrap = el('div', { class: 'field', 'data-k': f.k, 'data-req': f.req ? '1' : '0', 'data-grp': f.grp || '' });
   var v = vals[f.k] || '';
   if (f.t === 'bool') {
@@ -467,12 +509,12 @@ function viewSettings() {
     }
     var card = el('div', { class: 'card' }, [
       line('LPの公開URL', 'url', r.url, 'お客様に見せる「LP用」にデプロイしたウェブアプリのURL(https://script.google.com/macros/s/…/exec)。各エリアのLPのURLは、これに ?id=… を付けたものになります'),
-      line('周辺加盟店の最大社数', 'max', r.max, '1〜10'), line('県との差が「同程度」とみなす範囲(ポイント)', 'threshold', r.threshold, '価格推移の文章で「同程度」と判定する範囲'),
+      line('県との差が「同程度」とみなす範囲(ポイント)', 'threshold', r.threshold, '価格推移の文章で「同程度」と判定する範囲'),
       line('e-Stat アプリケーションID', 'estat', r.estat, '入れると、世帯数が空欄のエリアで国勢調査から自動取得します'),
       line('AI(Claude)のAPIキー' + (r.aiKeySet ? '(設定済み・変更するときだけ入力)' : '(未設定)'), 'ai', '', '画像の分布表を、内容そのままの表に作り直すために使います。画像はAnthropic社のAPIに送られます。キーはスプレッドシートには保存されません。空のまま保存すると今のキーを残し、「削除」と入力すると消えます')]);
     var sv = el('button', { text: '保存する' });
     sv.onclick = function () {
-      call('api_settings_set', [{ url: f.url.value, max: f.max.value, threshold: f.threshold.value, estat: f.estat.value }], function () {
+      call('api_settings_set', [{ url: f.url.value, max: r.max, threshold: f.threshold.value, estat: f.estat.value }], function () {
         var k = f.ai.value.trim();
         if (!k) { $('msg').textContent = '保存しました'; $('msg').className = 'note'; return; }
         call('api_ai_set', [k === '削除' ? '' : k], function () { f.ai.value = ''; $('msg').textContent = '保存しました(AIのAPIキーも更新)'; $('msg').className = 'note'; });
