@@ -1,0 +1,40 @@
+<!doctype html><html lang="ja"><meta charset="utf-8"><title>ラフ</title>
+<style>
+:root{--teal:#05968c;--ink:#374141;--paper:#fff;--tint:#e8f4f3;--line:#c9dcda;
+--font:"Noto Sans JP","Yu Gothic","游ゴシック","Hiragino Sans","Hiragino Kaku Gothic ProN","Meiryo",sans-serif}
+*{box-sizing:border-box;margin:0}
+body{font-family:var(--font);color:var(--ink);background:#999}
+.s{width:1920px;height:1080px;background:var(--paper);position:relative;overflow:hidden;margin-bottom:20px}
+.foot{position:absolute;left:96px;right:96px;bottom:36px;display:flex;justify-content:space-between;font-size:24px;border-top:2px solid var(--line);padding-top:16px}
+.logo-s{position:absolute;right:96px;top:48px;height:56px}
+/* cover */
+.cover .band{position:absolute;left:0;top:0;bottom:0;width:36px;background:var(--teal)}
+.cover .logo{position:absolute;left:160px;top:120px;width:640px}
+.cover h1{position:absolute;left:160px;top:420px;font-size:96px;line-height:1.25;font-weight:700}
+.cover h1 small{display:block;font-size:56px;font-weight:500;margin-top:8px}
+.cover p{position:absolute;left:160px;top:760px;font-size:36px;padding-left:24px;border-left:8px solid var(--teal)}
+/* body */
+h2{position:absolute;left:96px;top:72px;font-size:64px;font-weight:700;padding-left:28px;border-left:12px solid var(--teal)}
+.grid{position:absolute;left:96px;right:96px;top:196px;display:grid;grid-template-columns:1fr 1fr;gap:32px}
+.card{background:var(--tint);border-radius:20px;padding:24px 48px 28px;border-top:10px solid var(--teal)}
+.card .n{font-size:104px;font-weight:700;line-height:1.1}
+.card .l{font-size:36px;font-weight:700;margin:6px 0 10px}
+.card .d{font-size:28px;line-height:1.6}
+.note{position:absolute;left:96px;top:936px;font-size:26px}
+</style>
+<!-- 表紙 -->
+<section class="s cover"><div class="band"></div>
+<img class="logo" src="../assets/logo-color.png" alt="物件王 BUKKENKING.COM">
+<h1>人材開発支援助成金<small>(事業展開等リスキリング支援コース)</small></h1>
+<p>企業の持続的発展と労働者のキャリア形成を支援する制度です</p>
+<div class="foot"><span>物件王</span><span>1 / 14</span></div></section>
+<!-- 9 助成内容 -->
+<section class="s"><img class="logo-s" src="../assets/logo-color.png" alt="物件王">
+<h2>中小企業事業主の助成内容</h2>
+<div class="grid">
+<div class="card"><div class="n">75%</div><div class="l">経費助成率</div><div class="d">訓練にかかる経費の75%(60%)が助成されます</div></div>
+<div class="card"><div class="n">1,000円</div><div class="l">賃金助成額</div><div class="d">1人1時間あたり1,000円(500円)の賃金が助成されます</div></div>
+<div class="card"><div class="n">30万円</div><div class="l">経費助成限度額</div><div class="d">訓練時間10時間以上100時間未満の場合、1人あたり30万円(20万円)が限度額です</div></div>
+<div class="card"><div class="n">1億円</div><div class="l">年間助成限度額</div><div class="d">1事業所あたりの1年度の助成限度額は1億円<br>(申請は3回まで)</div></div></div>
+<div class="note">※()内は大企業の場合</div>
+<div class="foot"><span>物件王</span><span>9 / 14</span></div></section>
