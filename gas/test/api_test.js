@@ -50,7 +50,7 @@ const res = vm.runInContext(`
   api_uploadImage(a1, 'inputs.price_trend.image', PX); r.oldTrashed = DriveApp.getFileById(first.slice(6)).trashed;
   var lp = doGet({ parameter: { id: a1 } }).html;
   r.lpImgCount = lp.split('data:image/jpeg;base64,/9j/').length - 1;
-  r.lpFixedSources = ["LIFULL HOME'S調べ", 'REINS・SUUMO調べ', 'Google広告調べ', '総務省統計局 令和2年国勢調査'].every(function (s) { return lp.indexOf(s) >= 0; });
+  r.lpFixedSources = ["LIFULL HOME'S調べ", 'REINS・SUUMO調べ', 'Google広告調べ'].every(function (s) { return lp.indexOf(s) >= 0; }) && lp.indexOf('総務省統計局') < 0;   // 世帯数の出典の行はLPに出さない
   r.lpHas414 = lp.indexOf('414') >= 0 && lp.indexOf('上田市') >= 0 && lp.indexOf('株式会社○○') >= 0;
   r.uimg = lp.split('class="uimg"').length - 1;
   r.lpNoCta = lp.indexOf('お問い合わせ') < 0; r.lpAnon = true;
@@ -119,7 +119,7 @@ const res = vm.runInContext(`
   r.estat = { hh: stA.households, auto: stA.householdsAuto, stored: vA['auto.households'], code: vA['auto.households_code'], date: vA['auto.date.households'] };
   var calls1 = __estatCalls(); api_status(auto); api_get(auto); doGet({ parameter: { id: auto } });
   r.estatNoRefetch = __estatCalls() === calls1 && calls1 > calls0;
-  r.estatLp = doGet({ parameter: { id: auto } }).html.indexOf('70,809世帯') >= 0 && doGet({ parameter: { id: auto } }).html.indexOf('国勢調査(e-Stat)') >= 0;
+  r.estatLp = doGet({ parameter: { id: auto } }).html.indexOf('70,809世帯') >= 0 && doGet({ parameter: { id: auto } }).html.indexOf('国勢調査(e-Stat)') < 0;   // 世帯数は表示するが、出典の行は出さない
   r.estatField = api_get(auto).autoHouseholds;
   api_save(auto, { 'inputs.area.households': '12345' }); r.estatManualWins = doGet({ parameter: { id: auto } }).html.indexOf('12,345世帯') >= 0;
   api_save(auto, { 'inputs.area.households': '' }); r.estatBackToAuto = api_status(auto).households === 70809;

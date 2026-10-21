@@ -111,7 +111,7 @@ function renderPage_(model, report, assets, styleCss) {
     (frN ? '<ul class="fr fr-all">' + a.franchise.items.map(function (f) {
       return '<li><b>' + (f.pin_no ? '<span class="pinno">' + f.pin_no + '</span>' : '') + esc_(f.name) + '様</b><span>※' + esc_(f.area) + '</span>' + (f.url ? '<br><span class="note">不動産HP：</span><a href="' + esc_(f.url) + '" rel="noopener noreferrer" target="_blank">' + esc_(f.url) + '</a>' : '') + '</li>';
     }).join('') + '</ul>' : '<p class="empty">表示する加盟店がありません</p>') + '</div>' +
-    (a.households != null ? '<p class="src">（' + esc_(a.households_date) + '　' + esc_(a.households_source) + '）</p>' : '') + '</div></section>');
+    '</div></section>');   // 世帯数の出典の行(日付・総務省統計局)はLPに出さない
   // 02 income
   h.push('<section class="sec' + alt() + '" id="income"><div class="wrap rv"><p class="sec-no">' + N() + '　年収</p><h2>' + esc_(inc.headline || (m.city + 'の平均世帯年収')) + '</h2>' +
     (inc.body ? '<p class="lead">' + esc_(inc.body) + '</p>' : slot_('年収の説明文', ['平均年収・順位・階級別世帯数'])) +
