@@ -200,18 +200,29 @@ a{color:var(--c-ink)}
   .hero>.wrap,.sec>.wrap,.point>.wrap,.q>.wrap{width:100%}
   .sec,.point{border-radius:0}
   .hero .wrap{padding-top:28px;padding-bottom:30px}
-  .king{margin-bottom:-30px}
   .sec,.point{padding:6mm 0}
   .sec h2{margin-bottom:12px}.lead{margin-bottom:12px}
   .sec.alt{background:var(--c-alt)}
   .card,.kpi,.fr li{break-inside:avoid}
   .src{margin-top:10px}
-  .area-map{max-width:340px}
-  .chart{max-height:80mm}
-  .fig img{max-height:92mm;width:auto;margin:0 auto}
-  .fig img.uimg{max-width:min(100%,32rem)}
-  .heat{font-size:10px}.heat th,.heat td{padding:3px 5px}
+  .area-map{max-width:none;max-height:128mm}
+  .chart{max-height:96mm;margin:0 auto}
+  #trend .chart{max-height:none}
+  /* 印刷ではグラフ内の文字を大きく */
+  .chart .ch-lab{font-size:17px}.chart .ch-val{font-size:19px}.chart .ch-val-lg{font-size:25px}.chart .ch-sub{font-size:15px}.chart .ch-unit{font-size:14px}
+  .heat{font-size:14px}.heat th,.heat td{padding:5px 8px}
+  .kw td,.kw th{font-size:1rem}
+  .fig img{max-height:100mm;width:auto;margin:0 auto}
+  .fig img.uimg{max-width:min(100%,40rem)}
+  /* 表紙: 文字とキングを大きく */
+  .hero h1{font-size:3rem}.hero h1 small{font-size:.5em}
+  .king{width:200px;margin-bottom:-30px}
+  .kpi-num{font-size:2.2rem}
   .foot{padding:6mm 0;break-before:avoid;page-break-before:avoid}
+  /* 各ページの内容が小さく見えないよう、セクションごとに拡大率を決める(内容が1ページに収まる範囲で最大に。価格推移は文章とグラフを1ページに収めるため少し縮める) */
+  #top>.wrap{zoom:1.3}#area>.wrap{zoom:1.02}#income>.wrap{zoom:.96}#trend>.wrap{zoom:.8}#land>.wrap{zoom:.92}
+  #used_house>.wrap,#used_mansion>.wrap,#new_house>.wrap{zoom:1}
+  #search>.wrap{zoom:1.3}#summary>.wrap{zoom:1.05}.point>.wrap{zoom:1.3}#competitors>.wrap{zoom:1.4}#listings>.wrap{zoom:1.3}.q>.wrap{zoom:1.15}
   a{text-decoration:none;color:inherit}
   /* 印刷はつねにPC幅のレイアウト */
   .wrap{max-width:none;padding:0 4mm}

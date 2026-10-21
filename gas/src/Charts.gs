@@ -76,7 +76,7 @@ function trendLinesSvg_(series, compact) {
   var lines = Object.keys(series).filter(function (k) { return k !== 'labels' && Array.isArray(series[k]) && series[k].length === labels.length && labels.length; })
     .map(function (k) { return [k, series[k]]; });
   if (!lines.length) return null;
-  var width = 760, height = 340, left = 56, right = 120, top = 16, bottom = 44;
+  var width = 760, height = 230, left = 56, right = 120, top = 24, bottom = 40;
   if (compact) { width = 340; height = 300; left = 44; right = 112; }
   right += 40;
   var unit = series.unit || '';
@@ -97,15 +97,25 @@ function trendLinesSvg_(series, compact) {
   for (var i = 0; i < labels.length; i += step) {
     out.push('<text x="' + f1_(X(i)) + '" y="' + (height - 14) + '" text-anchor="middle" class="ch-sub">' + esc_(labels[i]) + '</text>');
   }
+  var ends = [];
   lines.forEach(function (l) {
     var k = l[0], v = l[1], pts = [];
     v.forEach(function (x, i) { if (x != null) pts.push(f1_(X(i)) + ',' + f1_(Y(x))); });
     var c = cols[k] || 'var(--c-teal-400)', last = null;
     for (var j = v.length - 1; j >= 0; j--) if (v[j] != null) { last = j; break; }
     out.push('<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + c + '" stroke-width="3" stroke-linejoin="round"/>');
-    if (last !== null) out.push('<text x="' + f1_(X(last) + 8) + '" y="' + f1_(Y(v[last]) + 5) + '" class="ch-lab" font-weight="700" fill="' + c + '">' + esc_(k) + '</text><text x="' + f1_(X(last) + 8) + '" y="' + f1_(Y(v[last]) + 24) + '" class="ch-val" fill="' + c + '">' + num_(v[last], Math.abs(v[last]) < 100 && v[last] % 1 ? 1 : 0) + unit + '</text>');
+    if (last !== null) ends.push({ k: k, c: c, x: X(last) + 8, y: Y(v[last]), val: num_(v[last], Math.abs(v[last]) < 100 && v[last] % 1 ? 1 : 0) + unit });
   });
-  if (unit) out.push('<text x="' + left + '" y="10" class="ch-sub">単位: ' + esc_(unit) + '</text>');
+  // 線の右端の名前と値は、重ならないよう上下に離して置く
+  ends.sort(function (p, q) { return p.y - q.y; });
+  var gap = Math.min(46, (ph + 30) / Math.max(ends.length, 1)), prev = -1e9;
+  ends.forEach(function (e) { e.ly = Math.max(e.y, prev + gap); prev = e.ly; });
+  var over = ends.length ? ends[ends.length - 1].ly - (top + ph + 6) : 0;
+  if (over > 0) ends.forEach(function (e) { e.ly -= over; });
+  ends.forEach(function (e) {
+    out.push('<text x="' + f1_(e.x) + '" y="' + f1_(e.ly + 2) + '" class="ch-lab" font-weight="700" fill="' + e.c + '">' + esc_(e.k) + '</text><text x="' + f1_(e.x) + '" y="' + f1_(e.ly + 22) + '" class="ch-val" fill="' + e.c + '">' + e.val + '</text>');
+  });
+  if (unit) out.push('<text x="' + left + '" y="12" class="ch-sub">単位: ' + esc_(unit) + '</text>');
   return '<svg class="chart" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="直近3年間の価格推移(万円)">' + out.join('') + '</svg>';
 }
 
