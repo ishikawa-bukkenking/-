@@ -123,7 +123,7 @@ a{color:var(--c-ink)}
 .kw{width:100%;border-collapse:collapse}
 .kw th{font-size:.875rem;color:var(--c-sub);font-weight:500;text-align:left;padding:8px 12px;border-bottom:2px solid var(--c-line)}
 .kw td{padding:14px 12px;border-bottom:1px solid var(--c-line);vertical-align:middle}
-.kw td.v{font-size:1.5rem;font-weight:700;color:var(--c-ink)}
+.kw td.v{font-size:1.25rem;font-weight:700;color:var(--c-ink)}
 .bar{display:block;height:8px;border-radius:4px;background:var(--c-teal-400);margin-top:6px}
 .kw tr:first-child .bar{background:var(--c-accent)}
 @media (max-width:640px){.kw thead{display:none}.kw,.kw tbody,.kw tr,.kw td{display:block}.kw tr{padding:10px 0;border-bottom:1px solid var(--c-line)}.kw td{border:0;padding:2px 0}}
