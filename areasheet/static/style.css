@@ -249,3 +249,4 @@ a{color:var(--c-ink)}
   .sec{padding:4mm 0}.card{padding:12px}
   .kpi{padding:10px 14px}
 }
+.sec-no+.card{margin-top:18px}
