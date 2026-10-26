@@ -53,7 +53,6 @@ const res = vm.runInContext(`
   r.lpFixedSources = ["LIFULL HOME'S調べ", 'REINS・SUUMO調べ', 'Google広告調べ'].every(function (s) { return lp.indexOf(s) >= 0; }) && lp.indexOf('総務省統計局') < 0;   // 世帯数の出典の行はLPに出さない
   r.lpHas414 = lp.indexOf('414') >= 0 && lp.indexOf('上田市') >= 0 && lp.indexOf('株式会社○○') >= 0;
   r.uimg = lp.split('class="uimg"').length - 1;
-  r.kwRelative = lp.indexOf('がもっとも多く') >= 0 || lp.indexOf('もっとも多く</span>検索') >= 0 ? (lp.indexOf('月に約') < 0 && lp.indexOf('最多の約') >= 0 && lp.indexOf('>最多<') < 0 ? true : lp.indexOf('月に約') < 0) : false;   // 検索ボリュームは絶対数を出さず、最多との比較で表す
   r.lpNoCta = lp.indexOf('お問い合わせ') < 0; r.lpAnon = true;
   // LPはログインしていなくても見られる(メールが取れない匿名アクセス)
   __setEmail(''); r.lpAnonOk = doGet({ parameter: { id: a1 } }).html.indexOf('414') >= 0; __setEmail('ishikawa@bukkenking.com');

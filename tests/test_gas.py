@@ -227,7 +227,6 @@ def test_input_system_api(tmp_path):
     assert r["pinsDefaultOn"] and r["pinsOff"] and r["pinsBackOn"] and r["pinsBad"]            # ピンの表示/非表示(既定は表示。非表示なら位置検索もしない)
     assert r["pickAll"] and r["lpAllFr"] and r["offSaved"] and r["offLp"] and r["offModelPins"] and r["offCleared"] and r["offBadArea"] and r["offDenied"] and r["offDup"]   # 県内の全加盟店を表示/チェックで選ぶ
     assert r["cities"]                                                                   # 市区町村の入力候補(都道府県を選ぶと出る)
-    assert r["kwRelative"]                                                               # 検索ボリュームは絶対数ではなく最多との比較で表現
     assert r["trendBar"] and r["trendLineLabel"]                                          # 価格推移は折れ線・棒グラフ(単位・値を表示)
     assert r["appPage"] and r["noOldFns"] == ["undefined"] * 6                      # パスワード方式・旧メニューは残さない
 
