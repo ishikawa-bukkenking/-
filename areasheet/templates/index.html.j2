@@ -117,7 +117,7 @@
 
 <section class="sec alt" id="search"><div class="wrap rv">
 <p class="sec-no">08　検索ボリューム</p>
-<h2>{% if kw.rows and kw.rows[0].monthly_volume is not none %}「{{ kw.rows[0].keyword }}」は<span class="em">月に約{{ kw.rows[0].monthly_volume|num }}回</span>検索されています{% else %}{{ m.city }}の不動産関連キーワードの検索ボリューム{% endif %}</h2>
+{% set kw_sorted = kw.rows|selectattr('monthly_volume')|sort(attribute='monthly_volume')|list %}{% set kw_top = kw_sorted[-1] if kw_sorted else none %}<h2>{% if kw_top %}「{{ kw_top.keyword }}」が<span class="em">もっとも多く</span>検索されています{% else %}{{ m.city }}の不動産関連キーワードの検索ボリューム{% endif %}</h2>
 <div class="card"><table class="kw"><thead><tr><th scope="col">検索キーワード</th><th scope="col">月間平均検索ボリューム</th><th scope="col">予想クリック単価</th></tr></thead><tbody>
 {% for r in kw.rows %}<tr><td>{{ r.keyword }}</td>
 <td class="v num">{% if r.monthly_volume is not none %}{{ r.monthly_volume|num }}<span class="bar" style="width:{{ (100*r.monthly_volume/kw_max)|round(1) }}%" aria-hidden="true"></span>{% else %}<span class="note">未入力</span>{% endif %}</td>

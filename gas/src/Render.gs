@@ -147,9 +147,10 @@ function renderPage_(model, report, assets, styleCss) {
       slot_('近隣・県内主要市の坪単価', ['比較市(市名,坪単価)'].concat(land.compare.suggested.length ? ['候補(隣接市): ' + land.compare.suggested.join('、')] : []))) + '</div>' + srcline_(land) + '</div></section>');
   h.push(houseSection_('used_house', N(), uh, '中古戸建て'), houseSection_('used_mansion', N(), um, '中古マンション'), houseSection_('new_house', N(), nh, '新築戸建て'));
   // 08 search
-  var top0 = kw.rows[0];
+  var top0 = null;   // 検索が最も多いキーワード(見出しは回数ではなく「もっとも多く」と表現。表の数値はそのまま)
+  kw.rows.forEach(function (r) { if (r.monthly_volume != null && (!top0 || r.monthly_volume > top0.monthly_volume)) top0 = r; });
   h.push('<section class="sec' + alt() + '" id="search"><div class="wrap rv"><p class="sec-no">' + N() + '　検索ボリューム</p><h2>' +
-    (top0 && top0.monthly_volume != null ? '「' + esc_(top0.keyword) + '」は<span class="em">月に約' + num_(top0.monthly_volume) + '回</span>検索されています' : esc_(m.city) + 'の不動産関連キーワードの検索ボリューム') +
+    (top0 ? '「' + esc_(top0.keyword) + '」が<span class="em">もっとも多く</span>検索されています' : esc_(m.city) + 'の不動産関連キーワードの検索ボリューム') +
     '</h2><div class="card"><table class="kw"><thead><tr><th scope="col">検索キーワード</th><th scope="col">月間平均検索ボリューム</th><th scope="col">予想クリック単価</th></tr></thead><tbody>' +
     kw.rows.map(function (r) {
       return '<tr><td>' + esc_(r.keyword) + '</td><td class="v num">' + (r.monthly_volume != null ? num_(r.monthly_volume) + '<span class="bar" style="width:' + roundHalfUp_(100 * r.monthly_volume / kwMax, 1) + '%" aria-hidden="true"></span>' : '<span class="note">未入力</span>') +
