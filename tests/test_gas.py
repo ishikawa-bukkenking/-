@@ -327,3 +327,13 @@ def test_multi_area_lp(tmp_path):
     cfg = _plain(yaml.safe_load((ROOT / "configs" / "example-ueda.yaml").read_text("utf8")))
     r = run_node("multi_test.js", dict(values=sheet_values(cfg), geoDir=str(d)))
     assert all(r.values()), {k: v for k, v in r.items() if not v}
+
+
+def test_suumo_import():
+    """SUUMOの売却相場取り込み: 保存したページの抜粋から値を読む/空欄に入れる/手直しは守る/市を変えたら消す/取得失敗はエラー記録/メールで利用者確認"""
+    r = run_node("suumo_test.js", {})
+    assert r["parse"] == [2480, 3310] and r["links"] and r["find"] == ["https://suumo.jp/baikyaku/aichi/sa_nagoya/top/", None]
+    assert r["num"] == [None, 1234, 21.6] and r["res"] == [True, 10, 0]
+    assert r["vals"] == ["2480", "73", "30", "3310", "21.6", "154", "3550", "106", "128", "21"] and r["rec"]
+    assert r["kept"] == ["9999", 1, "2480"] and r["reset"] == [True, "9999", True]
+    assert r["err"] == [False, True, True, True] and r["changed"] and r["denied"]

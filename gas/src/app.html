@@ -414,10 +414,42 @@ function srcPick(f) {
   }).withFailureHandler(function (e) { box.replaceChildren(el('p', { class: 'msg', text: '参照元を読み込めませんでした: ' + (e.message || e) })); }).api_sources_get(cur);
   return wrap;
 }
+/* ---- SUUMOの売却相場を取り込む(地域名から。初めて開いたときは自動で1回) ---- */
+function suumoPick(f) {
+  var wrap = el('div', { class: 'field', 'data-k': f.k, 'data-req': '0', 'data-grp': '' });
+  wrap.appendChild(el('label', { text: f.l }));
+  if (f.d) wrap.appendChild(el('div', { class: 'hint', text: f.d }));
+  var st = el('p', { class: 'note', style: 'margin:8px 0 0' }), btn = el('button', { type: 'button', class: 'ghost', text: 'SUUMOから取り込む' }), box = el('div', { class: 'row', style: 'gap:10px;align-items:center;flex-wrap:wrap' }, [btn]);
+  wrap.appendChild(box); wrap.appendChild(st);
+  var info = null; try { info = JSON.parse(vals['auto.suumo'] || 'null'); } catch (e) { info = null; }
+  function show(i) {
+    st.replaceChildren();
+    if (!i) { st.textContent = 'まだ取り込んでいません。'; return; }
+    if (i.error) { st.appendChild(el('span', { class: 'msg', text: '取り込めませんでした: ' + i.error })); return; }
+    st.appendChild(document.createTextNode('取り込み済み(' + (i.at || '') + '): '));
+    st.appendChild(el('a', { href: i.url, target: '_blank', rel: 'noopener', text: 'SUUMO「' + (i.name || '') + '」のページ' }));
+  }
+  function run(auto) {
+    btn.disabled = true; st.replaceChildren(el('span', { class: 'note', text: 'SUUMOから取り込んでいます…' }));
+    google.script.run.withSuccessHandler(function (r) {
+      btn.disabled = false;
+      if (!r.ok) { show({ error: r.message }); return; }
+      var msg = r.filled + '項目を取り込みました。' + (r.kept ? '(手で入力済みの' + r.kept + '項目は変えていません)' : '') + (r.missing.length ? ' SUUMOに数値が無い項目: ' + r.missing.join('、') : '');
+      setSaved('SUUMOから取り込みました');
+      viewEdit(cur, msg);   // 入力欄に反映して開き直す
+    }).withFailureHandler(function (e) { btn.disabled = false; show({ error: e.message || e }); }).api_suumo_fetch(cur);
+  }
+  btn.onclick = function () { run(false); };
+  show(info);
+  if (!info && !suumoTried[cur]) { suumoTried[cur] = 1; run(true); }   // 初めて開いたときだけ自動で取り込む(失敗しても繰り返さない)
+  return wrap;
+}
+var suumoTried = {};
 function fieldView(f) {
   if (f.t === 'frpick') return frPick(f);
+  if (f.t === 'suumo') return suumoPick(f);
   if (f.t === 'srcpick') return srcPick(f);
-  if (f.t && ['text', 'num', 'pct1', 'date', 'list', 'image', 'bool', 'frpick', 'srcpick'].indexOf(f.t) < 0) {   // この画面が知らない種類の項目(画面が古い)は、入力欄にせず再読み込みを案内する
+  if (f.t && ['text', 'num', 'pct1', 'date', 'list', 'image', 'bool', 'frpick', 'srcpick', 'suumo'].indexOf(f.t) < 0) {   // この画面が知らない種類の項目(画面が古い)は、入力欄にせず再読み込みを案内する
     return el('div', { class: 'field', 'data-k': f.k, 'data-req': '0' }, [el('label', { text: f.l }), el('p', { class: 'msg', text: 'この項目は、画面が古いため表示できません。ページを再読み込みしてください。' })]);
   }
   var wrap = el('div', { class: 'field', 'data-k': f.k, 'data-req': f.req ? '1' : '0', 'data-grp': f.grp || '' });
@@ -454,10 +486,11 @@ function fieldView(f) {
   if (f.d) wrap.appendChild(el('div', { class: 'hint', text: f.d }));
   return wrap;
 }
-function viewEdit(id) {
+function viewEdit(id, note) {
   call('api_get', [id], function (r) {
     cur = r.id; meta = r.fields; vals = r.values; dirty = {}; imgs = r.images || {}; autoHouseholds = r.autoHouseholds; lastImg = null; tables = r.tables || {}; aiReady = !!r.aiReady;
     chrome(r.company.name + '　' + (vals.city || ''), true);
+    if (note) setSaved(note);
     var top = el('div', { class: 'card' }, [
       el('div', { class: 'row' }, [el('span', { id: 'stat', class: 'chip need', text: '確認中…' }), el('span', { id: 'totals', class: 'note' })]),
       el('details', { style: 'margin-top:8px' }, [el('summary', { text: '未入力・未取得の項目を見る', style: 'cursor:pointer' }), el('ul', { id: 'miss' })])]);

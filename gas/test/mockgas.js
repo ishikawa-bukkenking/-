@@ -70,6 +70,15 @@ function makeEnv(geoDir) {
       return ok(36.36 + (h % 50) / 1000, 138.2 + (h % 70) / 1000);
     } }) },
     UrlFetchApp: { fetch: function (url) {
+    if (url.indexOf('suumo.jp/baikyaku/') >= 0) {   // SUUMO売却ページの模擬(保存したページの抜粋を返す。既定は取得不可)
+      global.__suumoCalls = (global.__suumoCalls || 0) + 1;
+      const fx = fs.readFileSync(require('path').join(__dirname, '..', '..', 'tests', 'fixtures', 'suumo_baikyaku_aichi_nagoya_excerpt.html'), 'utf8');
+      const resp = (code, body) => ({ getResponseCode: () => code, getContentText: () => body });
+      const mode = global.__suumoMode || 'off';
+      if (mode === 'off') return resp(404, '');
+      if (mode === 'changed') return resp(200, '<html><body>ページの作りが変わりました</body></html>');
+      return resp(200, fx);
+    }
     if (url.indexOf('msearch.gsi.go.jp') >= 0) {   // 国土地理院の住所検索の模擬
       global.__gsiCalls = (global.__gsiCalls || 0) + 1;
       const q = decodeURIComponent(url.split('q=')[1]);
@@ -102,7 +111,7 @@ function makeEnv(geoDir) {
   });
 
   ctx.__sheetNames = () => sheets.map(x => x.name);
-  ctx.__gsiCalls = () => global.__gsiCalls || 0; ctx.__geoMode = m => { global.__geoMode = m; }; ctx.__geoCalls = () => global.__geoCalls || 0;
+  ctx.__gsiCalls = () => global.__gsiCalls || 0; ctx.__suumoMode = m => { global.__suumoMode = m; }; ctx.__suumoCalls = () => global.__suumoCalls || 0; ctx.__geoMode = m => { global.__geoMode = m; }; ctx.__geoCalls = () => global.__geoCalls || 0;
   ctx.__aiMode = m => { global.__aiMode = m; }; ctx.__aiCalls = () => global.__aiCalls || [];
   ctx.__estatMode = m => { global.__estatMode = m; }; ctx.__estatCalls = () => global.__estatCalls || 0;
   ctx.__setEmail = e => { global.__email = e; };

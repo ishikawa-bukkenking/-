@@ -75,7 +75,7 @@ function api_get(areaId) {
 /** changes: { キー: 値 }。検証に通った項目だけ書き込み、エラーは項目ごとに返す。区分ごとの取得日(入力日)を自動で更新 */
 function api_save(areaId, changes) {
   requireUser_();
-  var errors = {}, saved = 0;
+  var errors = {}, saved = 0, ar0 = areaById_(areaId), base0 = ar0 ? (ar0.values.prefecture || ar0.pref) + '|' + (ar0.values.city || ar0.city) : '';
   writeAreaValues_(areaId, function (values) {
     var touched = {};
     Object.keys(changes || {}).forEach(function (k) {
@@ -89,6 +89,13 @@ function api_save(areaId, changes) {
       saved++;
     });
     Object.keys(touched).forEach(function (dk) { values[dk] = todayStr_(); });
+    // 市区町村を変えたら、SUUMOから自動で入れた数値は(手で直していなければ)消して、取り込み直せるようにする
+    if (values['auto.suumo'] && ((values.prefecture || ar0.pref) + '|' + (values.city || ar0.city)) !== base0) {
+      var f0 = {};
+      try { f0 = JSON.parse(values['auto.suumo']).filled || {}; } catch (e) { f0 = {}; }
+      Object.keys(f0).forEach(function (k) { if (String(values[k]) === String(f0[k])) delete values[k]; });
+      delete values['auto.suumo'];
+    }
   });
   return { saved: saved, errors: errors };
 }

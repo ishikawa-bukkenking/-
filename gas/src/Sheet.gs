@@ -45,6 +45,7 @@ var FIELDS_ = [
   { k: 'show.used_house', l: '中古戸建てを表示する', t: 'bool' },
   { k: 'show.used_mansion', l: '中古マンションを表示する', t: 'bool' },
   { k: 'show.new_house', l: '新築戸建てを表示する', t: 'bool' },
+  { k: 'suumo.pick', l: 'SUUMOの売却相場から取り込み', t: 'suumo', d: '地域名から、SUUMOの「売却価格相場」(中古マンション・土地・中古戸建ての相場・面積・築年数)を取り込みます。空欄の項目に入り、あとから直せます' },
   { k: 'src.pick', l: '物件データの参照元', t: 'srcpick', d: 'LPの出典(「REINS・SUUMO調べ」など)に表示します。チェックで選び、足りないものは追加できます' },
   { h: '土地' },
   { k: 'inputs.land.tsubo_price_man', l: '坪単価(万円/坪)', t: 'num', req: 1 },
