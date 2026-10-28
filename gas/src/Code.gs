@@ -327,8 +327,8 @@ function franchiseCandidates_(a) {
   });
 }
 
-// ---------- 物件データの参照元(LPの出典。REINS・SUUMO・アットホームなど) ----------
-var SRC_BUILTIN_ = ['REINS', 'SUUMO', 'アットホーム'];
+// ---------- 物件データの参照元(LPの出典。REINS・SUUMO・athomeなど) ----------
+var SRC_BUILTIN_ = ['REINS', 'SUUMO', 'athome'];
 var SRC_DEFAULT_ = ['REINS', 'SUUMO'];
 
 /** 選べる参照元の一覧(標準 + 追加したもの) */
@@ -342,6 +342,7 @@ function srcSelected_(values) {
   var master = srcMaster_(), sel = null;
   try { sel = JSON.parse(values['src.sel'] || 'null'); } catch (e) { sel = null; }
   if (!Array.isArray(sel)) sel = SRC_DEFAULT_;
+  sel = sel.map(function (n) { return n === 'アットホーム' ? 'athome' : n; });   // 旧表記からの引き継ぎ
   return master.filter(function (n) { return sel.indexOf(n) >= 0; });
 }
 function sourcesText_(names) { return names.length ? names.join('・') + '調べ' : ''; }

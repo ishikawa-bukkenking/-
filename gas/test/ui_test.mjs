@@ -103,13 +103,13 @@ await srcF.locator('input[type=checkbox]').first().waitFor({ timeout: 8000 });
 await srcF.screenshot({ path: outDir + '/ui-src.png' });
 log.srcN = await srcF.locator('input[type=checkbox]').count();
 log.srcDefault = await srcF.locator('input[type=checkbox]:checked').count();
-await srcF.locator('label:has-text("アットホーム") input').check();
+await srcF.locator('label:has-text("athome") input').check();
 await page.waitForTimeout(700);
 log.srcSaved = vm.runInContext("JSON.parse(areaById_(listAreas_()[0].id).values['src.sel'] || '[]').join(',')", ctx);
 await srcF.locator('input[type=text]').fill('テスト参照元'); await srcF.locator('button:has-text("追加")').click();
 await page.waitForTimeout(700);
 log.srcAdded = (await srcF.textContent()).indexOf('テスト参照元') >= 0 && vm.runInContext("srcMaster_().indexOf('テスト参照元') >= 0", ctx);
-log.srcNote = /REINS・SUUMO・アットホーム・テスト参照元調べ/.test(await srcF.textContent());
+log.srcNote = /REINS・SUUMO・athome・テスト参照元調べ/.test(await srcF.textContent());
 // 物件種別の表示/非表示: 外すと、その種別の入力欄が薄くなる
 await page.locator('.field[data-k="show.land"] input[type=checkbox]').uncheck();
 log.typeDim = await page.locator('.field[data-grp="land"].off').count() >= 5 && await page.locator('.field[data-grp="used_house"].off').count() === 0;

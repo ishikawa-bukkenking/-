@@ -268,7 +268,7 @@ function api_sources_add(name) {
   PropertiesService.getScriptProperties().setProperty('SRC_EXTRA', JSON.stringify(extra));
   return { ok: true, added: true };
 }
-/** 追加した参照元を一覧から消す(標準の REINS・SUUMO・アットホーム は消せない) */
+/** 追加した参照元を一覧から消す(標準の REINS・SUUMO・athome は消せない) */
 function api_sources_remove(name) {
   requireUser_();
   name = String(name || '');

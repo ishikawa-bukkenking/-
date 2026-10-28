@@ -31,7 +31,9 @@ function mapLegend_(pins) {
   var on = (pins || []).filter(function (x) { return x.on_map; });
   if (!on.length) return '';
   var parts = [];
-  if (on.some(function (x) { return x.kind === 'client'; })) parts.push('<span><i class="lg lg-client" aria-hidden="true"></i>御社</span>');
+  var names = [];   // 凡例は、入力した「ピンの名称」(本社・○○店など)。未入力なら「御社」
+  on.forEach(function (x) { if (x.kind === 'client') { var n = x.label === undefined || x.label === '' ? '御社' : String(x.label); if (names.indexOf(n) < 0) names.push(n); } });
+  if (names.length) parts.push('<span><i class="lg lg-client" aria-hidden="true"></i>' + esc_(names.join('・')) + '</span>');
   if (on.some(function (x) { return x.kind === 'fr'; })) parts.push('<span><i class="lg lg-fr" aria-hidden="true"></i>加盟店(番号は加盟店一覧と同じ)</span>');
   return '<p class="map-legend">' + parts.join('') + '</p>';
 }

@@ -238,10 +238,12 @@ const res = vm.runInContext(`
   var sA = api_create_company('ソーステスト', '長野県', '上田市').areaId;
   api_save(sA, { 'inputs.land.listings': '90', 'inputs.land.price_man': '800', 'inputs.land.tsubo_price_man': '10', 'inputs.used_house.listings': '239', 'inputs.used_house.price_man': '1280', 'inputs.used_mansion.listings': '4', 'inputs.used_mansion.price_man': '700', 'inputs.new_house.listings': '81', 'inputs.new_house.price_man': '2280' });
   var g0 = api_sources_get(sA);
-  r.srcDefault = g0.items.map(function (x) { return x.name; }).join(',') === 'REINS,SUUMO,アットホーム' && g0.selected.join(',') === 'REINS,SUUMO' && buildArea_(sA).html.indexOf('REINS・SUUMO調べ') >= 0;
-  api_sources_set(sA, ['REINS', 'SUUMO', 'アットホーム']);
-  r.srcAthome = buildArea_(sA).html.indexOf('REINS・SUUMO・アットホーム調べ') >= 0 && api_sources_get(sA).selected.length === 3;
-  api_sources_set(sA, ['アットホーム']); r.srcOnly = buildArea_(sA).html.indexOf('アットホーム調べ') >= 0 && buildArea_(sA).html.indexOf('REINS') < 0;
+  r.srcDefault = g0.items.map(function (x) { return x.name; }).join(',') === 'REINS,SUUMO,athome' && g0.selected.join(',') === 'REINS,SUUMO' && buildArea_(sA).html.indexOf('REINS・SUUMO調べ') >= 0;
+  api_sources_set(sA, ['REINS', 'SUUMO', 'athome']);
+  r.srcAthome = buildArea_(sA).html.indexOf('REINS・SUUMO・athome調べ') >= 0 && api_sources_get(sA).selected.length === 3;
+  api_sources_set(sA, ['athome']); r.srcOnly = buildArea_(sA).html.indexOf('athome調べ') >= 0 && buildArea_(sA).html.indexOf('REINS') < 0;
+  var oldSel = api_create_company('旧表記', '長野県', '上田市').areaId; writeAreaValues_(oldSel, function (v) { v['src.sel'] = JSON.stringify(['REINS', 'アットホーム']); });
+  r.srcMigrate = api_sources_get(oldSel).selected.join(',') === 'REINS,athome'; api_delete_company(api_list().companies.filter(function (x) { return x.name === '旧表記'; })[0].id);
   r.srcNone = !!tryCall(function () { return api_sources_set(sA, []); }).err && !!tryCall(function () { return api_sources_set(sA, ['存在しない']); }).err;
   r.srcAdd = api_sources_add('LIFULL HOMES').added === true && api_sources_get(sA).items.some(function (x) { return x.name === 'LIFULL HOMES' && !x.builtin; }) && api_sources_add('LIFULL HOMES').added === false;
   api_sources_set(sA, ['REINS', 'LIFULL HOMES']); r.srcCustomLp = buildArea_(sA).html.indexOf('REINS・LIFULL HOMES調べ') >= 0;
@@ -270,7 +272,7 @@ const res = vm.runInContext(`
   // --- ピンの名称(本社・○○店など) ---
   api_save(sA, { 'inputs.client.address': '長野県上田市中央1-1-1' });
   var pDef = buildArea_(sA).html; r.pinLabelDefault = pDef.indexOf('class="map-label"') > 0 && /class="map-label">御社</.test(pDef);
-  api_save(sA, { 'inputs.client.pin_label': '本社' }); var pHq = buildArea_(sA); r.pinLabelHq = /class="map-label">本社</.test(pHq.html) && !/class="map-label">御社</.test(pHq.html) && pHq.model.area.pins[0].label === '本社';
+  api_save(sA, { 'inputs.client.pin_label': '本社' }); var pHq = buildArea_(sA); r.pinLabelHq = pHq.html.indexOf('lg-client" aria-hidden="true"></i>本社</span>') >= 0 && /class="map-label">本社</.test(pHq.html) && !/class="map-label">御社</.test(pHq.html) && pHq.model.area.pins[0].label === '本社';
   api_save(sA, { 'inputs.client.pin_label': '<b>上田店</b>' }); r.pinLabelEsc = buildArea_(sA).html.indexOf('&lt;b&gt;上田店&lt;/b&gt;') >= 0 && buildArea_(sA).html.indexOf('<b>上田店</b>') < 0;
   api_delete_company(api_list().companies.filter(function (x) { return x.name === 'ソーステスト'; })[0].id);
   // --- 商談先一覧(自動で記載・更新) ---
