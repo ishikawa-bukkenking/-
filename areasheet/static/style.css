@@ -231,6 +231,17 @@ a{color:var(--c-ink)}
   #area .fr-all{grid-template-columns:repeat(2,1fr);gap:8px}
   #area .fr li{padding:8px 12px}
   #area .area-map{max-height:150mm}
+  /* 複数エリアの項目: エリアごとに1ページ(連番・項目名は各ページに出す) */
+  .grouped{min-height:0;display:block}
+  .grouped>.wrap>.sec-no{display:none}
+  .sec-no-p{display:block}
+  .grouped>.wrap{zoom:1!important}
+  .grouped .areablk{min-height:calc(184mm / var(--z,1));box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;break-before:page;page-break-before:always;break-inside:avoid;margin:0;padding:0;border:0}
+  .grouped>.wrap>.areablk:first-of-type{break-before:auto;page-break-before:auto}
+  .areatag{font-size:1.1rem}
+  [id^="income"] .areablk{zoom:.92;--z:.92}[id^="trend"] .areablk{zoom:.76;--z:.76}[id^="land"] .areablk{zoom:.88;--z:.88}
+  [id^="used_house"] .areablk,[id^="used_mansion"] .areablk,[id^="new_house"] .areablk{zoom:.9;--z:.9}
+  [id^="search"] .areablk{zoom:1.3;--z:1.3}[id^="summary"] .areablk{zoom:1.05;--z:1.05}
   #top>.wrap{zoom:1.3}#area>.wrap{zoom:.9}#area.many>.wrap{zoom:.76}[id^="income"]>.wrap{zoom:.92}[id^="trend"]>.wrap{zoom:.76}[id^="land"]>.wrap{zoom:.88}
   [id^="used_house"]>.wrap,[id^="used_mansion"]>.wrap,[id^="new_house"]>.wrap{zoom:.9}
   [id^="search"]>.wrap{zoom:1.3}[id^="summary"]>.wrap{zoom:1.05}.point>.wrap{zoom:1.3}#competitors>.wrap{zoom:1.4}#listings>.wrap{zoom:1.3}.q>.wrap{zoom:1.15}
@@ -250,3 +261,8 @@ a{color:var(--c-ink)}
   .kpi{padding:10px 14px}
 }
 .sec-no+.card{margin-top:18px}
+/* 複数エリア: 項目ごとに、各エリアの内容を続けて並べる */
+.grouped .areablk+.areablk{margin-top:56px;padding-top:40px;border-top:2px solid var(--c-line)}
+.areatag{display:inline-block;margin:0 0 14px;padding:4px 18px;border-radius:999px;background:var(--c-teal-700);color:#fff;font-weight:700;font-size:1.0625rem}
+.sec-no-p{display:none}
+.grouped>.wrap>.sec-no{margin-bottom:8px}

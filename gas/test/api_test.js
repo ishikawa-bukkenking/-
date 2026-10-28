@@ -69,9 +69,9 @@ const res = vm.runInContext(`
   r.status2 = api_status(a2).missing.length > 10;
   // 会社のLPは1つ。どのエリアのURLでも同じページ(2エリア分)。2エリア目は1エリア目の下に続く
   var lpBoth = doGet({ parameter: { id: a1 } }).html;
-  r.combinedSame = lpBoth.length === lp2.length && lpBoth.indexOf('id="income-2"') > lpBoth.indexOf('id="income"') && lpBoth.indexOf('id="income"') > 0 && lpBoth.indexOf('414件') >= 0;
+  r.combinedSame = lpBoth.length === lp2.length && (lpBoth.match(/id="income"/g) || []).length === 1 && lpBoth.indexOf('id="income-2"') < 0 && (lpBoth.match(/class="areablk"/g) || []).length === 16 && lpBoth.indexOf('414件') >= 0;   // 項目ごとに1セクション、各エリアの内容をまとめて並べる
   r.combinedMap = (lpBoth.match(/<svg class="area-map"/g) || []).length === 1 && lpBoth.indexOf('class="map-label"') > 0 && (lpBoth.match(/class="map-label"/g) || []).length === 2;   // 地図は1枚に2エリアを強調
-  r.combinedKpi = lpBoth.indexOf('上田市の世帯数') >= 0 && lpBoth.indexOf('東御市の世帯数') >= 0 && lpBoth.indexOf('年収（上田市）') >= 0 && lpBoth.indexOf('年収（東御市）') >= 0;
+  r.combinedKpi = lpBoth.indexOf('上田市の世帯数') >= 0 && lpBoth.indexOf('東御市の世帯数') >= 0 && (lpBoth.match(/class="areatag">上田市</g) || []).length === 8 && (lpBoth.match(/class="areatag">東御市</g) || []).length === 8 && lpBoth.indexOf('class="areatag">上田市<') < lpBoth.indexOf('class="areatag">東御市<') && lpBoth.split('class="sec-no">02　年収<').length === 2;
   r.combinedOnce = (lpBoth.match(/id="point"/g) || []).length === 1 && (lpBoth.match(/id="competitors"/g) || []).length === 1 && (lpBoth.match(/id="listings"/g) || []).length === 1 && (lpBoth.match(/id="question"/g) || []).length === 1;
   r.combinedUrl = api_get(a2).url === api_get(a1).url && api_get(a1).primary === true && api_get(a2).primary === false;
   r.combinedFr = (lpBoth.match(/class="fr fr-all"/g) || []).length === 1 && lpBoth.indexOf('物件王加盟店（') >= 0;

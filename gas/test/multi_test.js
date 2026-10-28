@@ -15,17 +15,17 @@ const r = vm.runInContext(`(function () {
   var lp = doGet({ parameter: { id: a1 } }).html, lp2 = doGet({ parameter: { id: a2 } }).html;
   var idx = function (s) { return lp.indexOf(s); };
   r.same = lp === lp2;
-  r.order = idx('id="area"') < idx('id="income"') && idx('id="income"') < idx('id="summary"') && idx('id="summary"') < idx('id="income-2"') && idx('id="income-2"') < idx('id="summary-2"') && idx('id="summary-2"') < idx('id="point"');
-  r.ids = ['income', 'trend', 'land', 'used_house', 'used_mansion', 'new_house', 'search', 'summary'].every(function (k) { return (lp.match(new RegExp('id="' + k + '(-2)?"', 'g')) || []).length === 2; });
+  r.order = ['area', 'income', 'trend', 'land', 'used_house', 'used_mansion', 'new_house', 'search', 'summary', 'point'].map(function (k) { return idx('id="' + k + '"'); }).every(function (v, n, a) { return v > 0 && (n === 0 || v > a[n - 1]); });
+  r.ids = ['income', 'trend', 'land', 'used_house', 'used_mansion', 'new_house', 'search', 'summary'].every(function (k) { var sec = lp.slice(idx('id="' + k + '"')); sec = sec.slice(0, sec.indexOf('</section>')); return (lp.match(new RegExp('id="' + k + '(-2)?"', 'g')) || []).length === 1 && (sec.match(/class="areablk"/g) || []).length === 2 && sec.indexOf('class="areatag">上田市<') > 0 && sec.indexOf('class="areatag">上田市<') < sec.indexOf('class="areatag">東御市<'); });
   r.once = ['point', 'competitors', 'listings', 'question', 'area'].every(function (k) { return (lp.match(new RegExp('id="' + k + '"', 'g')) || []).length === 1; });
-  r.labels = lp.indexOf('土地（上田市）') >= 0 && lp.indexOf('土地（東御市）') >= 0 && lp.indexOf('検索ボリューム（東御市）') >= 0 && lp.indexOf('物件総数・売却相場まとめ（東御市）') >= 0;
+  r.labels = lp.indexOf('class="sec-no">04　土地<') >= 0 && lp.indexOf('class="sec-no">08　検索ボリューム<') >= 0 && lp.indexOf('class="sec-no">09　物件総数・売却相場まとめ<') >= 0 && lp.indexOf('（東御市）') < 0;   // 連番は項目ごとに1回
   r.heading = lp.indexOf('上田市・東御市を商圏に、合計<span class="em">82,809世帯</span>') >= 0;
   r.hero = lp.indexOf('長野県　上田市・東御市') >= 0 && lp.indexOf('<title>エリア調査シート｜株式会社複数 御中｜上田市・東御市</title>') >= 0;
   var areaSvg = lp.slice(lp.indexOf('<svg class="area-map"'), lp.indexOf('</svg>', lp.indexOf('<svg class="area-map"')));
   r.oneMap = (lp.match(/<svg class="area-map"/g) || []).length === 1 && (areaSvg.match(/class="map-label"[^>]*>(上田市|東御市)</g) || []).length === 2 && areaSvg.indexOf('上田市') > 0 && areaSvg.indexOf('東御市') > 0;
   r.pinsBoth = (areaSvg.match(/class="pin pin-client"/g) || []).length === 2 && lp.indexOf('<p class="map-legend">') > 0;
   r.pointSum = lp.indexOf('約830件') >= 0;   // 414件×2エリア=828件 → 切り上げ
-  r.nav = lp.indexOf('href="#income"') >= 0 && lp.indexOf('href="#income-2"') >= 0 && lp.indexOf('>東御市の調査<') >= 0 && lp.indexOf('href="#trend"') < 0;
+  r.nav = lp.indexOf('href="#income"') >= 0 && lp.indexOf('href="#trend"') >= 0 && lp.indexOf('href="#summary"') >= 0 && lp.indexOf('href="#income-2"') < 0 && lp.indexOf('調査<') < 0;
   var frItems = lp.split('class="fr fr-all"')[1].split('</ul>')[0].split('<li>').length - 1;
   r.frUnion = frItems >= 10 && lp.indexOf('長野県の物件王加盟店（' + frItems + '社）') >= 0;
   // 単一エリアの会社は、これまでどおり1エリアのページ

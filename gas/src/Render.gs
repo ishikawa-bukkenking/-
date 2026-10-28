@@ -69,6 +69,32 @@ function typeCard_(title, sec, rows) {
   return s + '</dl></div>';
 }
 
+/**
+ * 複数エリアのとき、項目(年収・価格推移・…)ごとに、各エリアの内容を1つのセクションにまとめる。
+ * cap: エリアごとに作ったセクションHTMLの配列。見出し(連番・項目名)は項目ごとに1回、各エリアの内容は市名のタグを付けて続ける
+ */
+function groupAreaSections_(cap, models, N) {
+  var ORDER = ['income', 'trend', 'land', 'used_house', 'used_mansion', 'new_house', 'search', 'summary'], by = {};
+  cap.forEach(function (arr, mi) {
+    arr.forEach(function (sec) {
+      var m = String(sec).match(/^<section class="[^"]*" id="([a-z_]+)(?:-\d+)?"><div class="wrap rv"><p class="sec-no">([^<]*)<\/p>([\s\S]*)<\/div><\/section>$/);
+      if (!m) return;
+      (by[m[1]] = by[m[1]] || []).push({ mi: mi, label: m[2].replace(/^\d+　/, ''), body: m[3] });
+    });
+  });
+  var out = [];
+  ORDER.forEach(function (k) {
+    var items = by[k];
+    if (!items || !items.length) return;
+    var no = N(), title = no + '　' + esc_(items[0].label);
+    out.push('<section class="sec grouped" id="' + k + '"><div class="wrap rv"><p class="sec-no">' + title + '</p>' +
+      items.map(function (it) {
+        return '<div class="areablk"><p class="sec-no sec-no-p">' + title + '</p><p class="areatag">' + esc_(models[it.mi].meta.city) + '</p>' + it.body + '</div>';
+      }).join('') + '</div></section>');
+  });
+  return out.join('');
+}
+
 /** 会社の複数エリアをまとめたLPの「対象エリア」: 地図に全エリアを強調し、世帯数はエリアごと、加盟店は1つの一覧にまとめる */
 function areaMultiHtml_(models, multi, no) {
   multi = multi || { maps: [], pins: [], franchise: { items: [] } };
@@ -100,7 +126,9 @@ function renderPage_(models, report, assets, styleCss, multi) {
   var pills = prefs.map(function (p) {
     return '<span class="pill">' + esc_(p) + '　' + esc_(models.filter(function (x) { return x.meta.prefecture === p; }).map(function (x) { return x.meta.city; }).join('・')) + '</span>';
   }).join(' ');
-  var toc = many ? [['top', '表紙'], ['area', '対象エリア']].concat(models.map(function (x, mi) { return ['income' + sfx(mi), x.meta.city + 'の調査']; })).concat([['point', 'POINT'], ['competitors', '近隣HP']])
+  var toc = many ? [['top', '表紙'], ['area', '対象エリア']].concat(TOC_.filter(function (x) {
+      return ['income', 'trend', 'land', 'used_house', 'used_mansion', 'new_house', 'search', 'summary'].indexOf(x[0]) >= 0 && models.some(function (md) { var v = md.visible || {}; return v[x[0]] !== false && (x[0] !== 'trend' || !md.price_trend.hidden); });
+    })).concat([['point', 'POINT'], ['competitors', '近隣HP']])
     : [['top', '表紙']].concat(TOC_.filter(function (x) { var v = model.visible || {}; return (trendOn || x[0] !== 'trend') && v[x[0]] !== false && (x[0] !== 'summary' || ['land', 'used_house', 'used_mansion', 'new_house'].some(function (k) { return v[k] !== false; })); }));
   var n = 0, N = function () { n++; return ('0' + n).slice(-2); };
   var alt = function () { return (n + 1) % 2 === 0 ? ' alt' : ''; };   // 次の連番が偶数なら薄いグレーの背景(非表示のセクションがあっても交互になる)
@@ -131,7 +159,9 @@ function renderPage_(models, report, assets, styleCss, multi) {
     }).join('') + '</ul>' : '<p class="empty">表示する加盟店がありません</p>') + '</div>' +
     '</div></section>');   // 世帯数の出典の行(日付・総務省統計局)はLPに出さない
   }
+  var mainH = h, cap = [], n0 = n;   // 複数エリアは、エリアごとに作ってから項目ごとにまとめる
   models.forEach(function (model, mi) {
+    if (many) h = [];
   var m = model.meta, a = model.area, inc = model.income, tr = model.price_trend, land = model.land, kw = model.keywords,
     t = model.totals, comp = model.competitors, uh = model.used_house, um = model.used_mansion, nh = model.new_house;
   var br = inc.brackets || [];
@@ -147,7 +177,7 @@ function renderPage_(models, report, assets, styleCss, multi) {
   var kwMissing = kw.rows.some(function (r) { return r.monthly_volume == null || r.cpc_low_yen == null; });
   var trendOn = !tr.hidden;
 
-  var trendOn = !tr.hidden, ID = function (k) { return k + sfx(mi); }, SFX = many ? '（' + m.city + '）' : '';
+  var trendOn = !tr.hidden, ID = function (k) { return k + sfx(mi); }, SFX = '';
   // 02 income
   h.push('<section class="sec' + alt() + '" id="' + ID('income') + '"><div class="wrap rv"><p class="sec-no">' + N() + '　年収' + SFX + '</p><h2>' + esc_(inc.headline || (m.city + 'の平均世帯年収')) + '</h2>' +
     (inc.body ? '<p class="lead">' + esc_(inc.body) + '</p>' : slot_('年収の説明文', ['平均年収・順位・階級別世帯数'])) +
@@ -202,8 +232,11 @@ function renderPage_(models, report, assets, styleCss, multi) {
     (vis.land ? typeCard_('土地', land, [['平米単価相場（中央値）', land.price_per_m2_man, '万円/㎡'], ['土地面積（中央値）', land.land_area_median_m2, '㎡']]) : '') +
     (vis.new_house ? typeCard_('新築一戸建て', nh, [['建物面積（中央値）', nh.building_area_median_m2, '㎡'], ['土地面積（中央値）', nh.land_area_median_m2, '㎡']]) : '') +
     (vis.used_house ? typeCard_('中古一戸建て', uh, [['建物面積（中央値）', uh.building_area_median_m2, '㎡'], ['土地面積（中央値）', uh.land_area_median_m2, '㎡'], ['築年数（中央値）', uh.age_median_years, '年']]) : '') +
-    '</div><p class="note" style="margin-top:16px">※仲介単価は加重平均で計算しております</p>' + srcline_(t) + '</div></section></main>');
+    '</div><p class="note" style="margin-top:16px">※仲介単価は加重平均で計算しております</p>' + srcline_(t) + '</div></section>');
+    if (many) { cap[mi] = h; h = mainH; }
   });
+  if (many) { n = n0; h.push(groupAreaSections_(cap, models, N)); }
+  h.push('</main>');
   // point(複数エリアのときは、全エリアの物件総数の合計から求める)
   var pointRounded = many ? (multi && multi.pointRounded != null ? multi.pointRounded : null) : t.point_listings_rounded;
   h.push('<section class="point" id="point"><div class="wrap rv"><img src="' + assets.king + '" alt="物件王の王様キャラクター"><div><span class="tag">POINT</span>' +
