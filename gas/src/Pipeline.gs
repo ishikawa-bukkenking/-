@@ -231,9 +231,9 @@ function buildModel_(cfg, services, data) {
     if (fp) { fp.key = f.key; pins.push(fp); }
   });
   // 全ピンが入る範囲で、なるべく拡大した地図(対象市+隣接市)を使う。入らなければ県全体の地図
-  var located = pins.filter(function (x) { return x.lat !== null; }), mapSvg = geo ? geo.svg : null, mapProj = geo ? geo.proj : null;
+  var located = pins.filter(function (x) { return x.lat !== null; }), mapSvg = geo ? geo.svg : null, mapProj = geo ? geo.proj : null, mapLabels = geo ? geo.labels : [];
   // 区を選んだときは、県全体では区が小さすぎるので、いつも拡大した地図を使う
-  if (geo && geo.zproj && ((geo.isWard && !located.length) || (located.length && located.every(function (x) { return projectPoint_(geo.zproj, x.lat, x.lng); })))) { mapSvg = geo.zsvg; mapProj = geo.zproj; }
+  if (geo && geo.zproj && ((geo.isWard && !located.length) || (located.length && located.every(function (x) { return projectPoint_(geo.zproj, x.lat, x.lng); })))) { mapSvg = geo.zsvg; mapProj = geo.zproj; mapLabels = geo.zlabels; }
   pins.forEach(function (x) {
     if (x.lat === null || !mapProj) return;
     var xy = projectPoint_(mapProj, x.lat, x.lng);
@@ -249,7 +249,7 @@ function buildModel_(cfg, services, data) {
   if (pinsOn && model.area.franchise.items.length) rep.add('area.pin_franchise', '周辺加盟店のピン', frNoAddr.length || frFail.length || frRough.length ? 'optional' : 'auto', '加盟店一覧の住所 + Googleマップ',
     (frNoAddr.length ? '住所が未登録でピンなし: ' + frNoAddr.join('、') + '。' : '') + (frFail.length ? 'ピンを立てられない: ' + frFail.join('、') + '。' : '') + (frRough.length ? '住所が大まかで位置が概算: ' + frRough.join('、') : ''));
   model.area.pins = pins.map(function (x) { return { kind: x.kind, n: x.n, key: x.key, name: x.name, address: x.address, lat: x.lat, lng: x.lng, source: x.source, precise: x.precise, on_map: x.on_map, why: x.why }; });
-  model._mapSvg = mapSvg ? addPinsToSvg_(mapSvg, pins.filter(function (x) { return x.on_map; })) : null;
+  model._mapSvg = mapSvg ? addPinsToSvg_(mapSvg, pins.filter(function (x) { return x.on_map; }), mapLabels) : null;
   Object.keys(KEYS_).forEach(function (sec) { KEYS_[sec].forEach(function (k) { if (model[sec][k] === undefined) model[sec][k] = null; }); });
   return { model: model, report: rep };
 }
@@ -311,7 +311,7 @@ function combineModels_(models, services) {
     try { g = loadGeoMulti_(services, pref, cities); } catch (e) { multi.mapErrors.push(pref + ': ' + String(e.message || e)); return; }
     var mine = clients.filter(function (c) { return c.pref === pref; }).concat(items.filter(function (f) { return f.prefecture === pref && f.lat != null; }));
     var useZoom = !!g.zproj && mine.length && mine.every(function (x) { return projectPoint_(g.zproj, x.lat, x.lng); });
-    var svg = useZoom ? g.zsvg : g.svg, proj = useZoom ? g.zproj : g.proj, put = [];
+    var svg = useZoom ? g.zsvg : g.svg, proj = useZoom ? g.zproj : g.proj, labs = useZoom ? g.zlabels : g.labels, put = [];
     clients.filter(function (c) { return c.pref === pref; }).forEach(function (c) {
       var xy = projectPoint_(proj, c.lat, c.lng); if (xy) put.push({ kind: 'client', n: 0, name: c.name, label: '', x: xy[0], y: xy[1], on_map: true });
     });
@@ -320,7 +320,7 @@ function combineModels_(models, services) {
       var xy = projectPoint_(proj, f.lat, f.lng);
       if (xy) { put.push({ kind: 'fr', n: i + 1, name: f.name, x: xy[0], y: xy[1], on_map: true }); anyOn[f.key] = 1; }
     });
-    multi.maps.push({ pref: pref, svg: addPinsToSvg_(svg, put), cities: cities });
+    multi.maps.push({ pref: pref, svg: addPinsToSvg_(svg, put, labs), cities: cities });
     put.forEach(function (p) { drawn.push(p); });
   });
   items.forEach(function (f, i) { f.pin_no = anyOn[f.key] ? i + 1 : null; });

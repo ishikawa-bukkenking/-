@@ -316,12 +316,12 @@ function renderMapSvg_(P, target, focus) {   // target: 強調する市区町村
     });
     (T.indexOf(r.name) >= 0 ? tgt : other).push('<path d="' + d + '"/>');
   });
-  var lab = '';
+  var lab = '', tlabels = [];   // 選んだ市区町村の名前は、ピンに隠れないよう、ピンを描いたあとに置く(addPinsToSvg_)
   T.forEach(function (name) {
     var best = 0, cxT = null, cyT = null;
     keep.forEach(function (r) { if (r.name === name && r.area > best) { best = r.area; cxT = r.cx; cyT = r.cy; } });
     var t = cxT !== null ? pt(cxT, cyT).split(',') : ['0', '0'];
-    lab += '<text class="map-label" x="' + t[0] + '" y="' + (parseFloat(t[1]) - 10).toFixed(1) + '" text-anchor="middle">' + esc_(name) + '</text>';
+    tlabels.push({ name: name, x: parseFloat(t[0]), y: parseFloat(t[1]) });
   });
   if (focus) {   // 拡大図では、周りの市町村名も小さく添える
     var big = {};
@@ -330,7 +330,7 @@ function renderMapSvg_(P, target, focus) {   // target: 強調する市区町村
   }
   var svg = '<svg class="area-map" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="' +
     esc_(P.pref) + 'の地図。' + esc_(T.join('・')) + 'を強調表示"><g class="map-other">' + other.join('') + '</g><g class="map-target">' + tgt.join('') + '</g>' + lab + '</svg>';
-  return { svg: svg, proj: { lon0: lon0, lat1: lat1, k: k, scale: scale, pad: pad, width: width, height: height } };
+  return { svg: svg, labels: tlabels, proj: { lon0: lon0, lat1: lat1, k: k, scale: scale, pad: pad, width: width, height: height } };
 }
 
 /** 緯度経度 → 地図上の座標。地図の範囲外ならnull */
@@ -340,23 +340,69 @@ function projectPoint_(proj, lat, lon) {
   return [x, y];
 }
 
-/** 地図SVGにピンを立てる。pins: [{kind:'client'|'fr', n, name, x, y}] */
-function addPinsToSvg_(svg, pins) {
-  if (!pins.length) return svg;
-  var out = pins.map(function (p) {
-    var client = p.kind === 'client', fill = client ? 'var(--c-accent)' : 'var(--c-teal-700)', r = client ? 18 : 17;
-    var x = p.x.toFixed(1), y = p.y.toFixed(1);
+/**
+ * 地図SVGにピンと、選んだ市区町村の名前を描く。
+ * - ピン同士が重ならないよう、近いものは少しずらす(元の位置には小さな点と細い線を残す)
+ * - 市区町村の名前は、ピンに隠れない位置(上・下・左右)を選んで、ピンより手前に描く
+ * pins: [{kind:'client'|'fr', n, name, x, y}] / labels: [{name, x, y}]
+ */
+function addPinsToSvg_(svg, pins, labels) {
+  labels = labels || [];
+  if (!pins.length && !labels.length) return svg;
+  var vb = String(svg).match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/), W = vb ? parseFloat(vb[1]) : 640, H = vb ? parseFloat(vb[2]) : 480;
+  var P = pins.map(function (p) {
+    var client = p.kind === 'client', r = client ? 18 : 17;
+    return { p: p, r: r, ox: p.x, oy: p.y, x: p.x, y: p.y, client: client };
+  });
+  // ピンの頭(丸い部分)の中心は、先端の真上 2.1r の位置。頭同士が重ならなくなるまで、少しずつ離す
+  function head(q) { return [q.x, q.y - q.r * 2.1]; }
+  for (var it = 0; it < 80; it++) {
+    var moved = false;
+    for (var i = 0; i < P.length; i++) for (var j = i + 1; j < P.length; j++) {
+      var a = P[i], b = P[j], ha = head(a), hb = head(b), dx = hb[0] - ha[0], dy = hb[1] - ha[1], d = Math.sqrt(dx * dx + dy * dy), need = a.r + b.r + 4;
+      if (d < need) {
+        if (d < 0.01) { dx = (j % 2 ? 1 : -1); dy = 0.3; d = 1; }
+        var push = (need - d) / 2 + 0.5, ux = dx / d, uy = dy / d;
+        a.x -= ux * push; a.y -= uy * push; b.x += ux * push; b.y += uy * push; moved = true;
+      }
+    }
+    P.forEach(function (q) { q.x = Math.min(Math.max(q.x, q.r + 2), W - q.r - 2); q.y = Math.min(Math.max(q.y, q.r * 2.1 + 2), H - 2); });
+    if (!moved) break;
+  }
+  var under = [], out = [];
+  P.forEach(function (q) {
+    var dist = Math.hypot(q.x - q.ox, q.y - q.oy);
+    if (dist > 6) under.push('<line x1="' + q.ox.toFixed(1) + '" y1="' + q.oy.toFixed(1) + '" x2="' + q.x.toFixed(1) + '" y2="' + q.y.toFixed(1) + '" stroke="#37474f" stroke-width="1.5"/>' +
+      '<circle cx="' + q.ox.toFixed(1) + '" cy="' + q.oy.toFixed(1) + '" r="3.5" fill="#fff" stroke="#37474f" stroke-width="1.5"/>');
+  });
+  P.forEach(function (q) {
+    var p = q.p, r = q.r, fill = q.client ? 'var(--c-accent)' : 'var(--c-teal-700)', x = q.x.toFixed(1), y = q.y.toFixed(1);
     // 先端が(x,y)に来るしずく型のピン
     var d = 'M' + x + ',' + y + 'c' + (-r * 0.2) + ',' + (-r * 0.9) + ' ' + (-r) + ',' + (-r * 1.2) + ' ' + (-r) + ',' + (-r * 2.1) + 'a' + r + ',' + r + ' 0 1,1 ' + (2 * r) + ',0c0,' + (r * 0.9) + ' ' + (-r * 0.8) + ',' + (r * 1.2) + ' ' + (-r) + ',' + (r * 2.1) + 'z';
-    var cy = (p.y - r * 2.1 + r * 0.05).toFixed(1);
-    var g = '<g class="pin ' + (client ? 'pin-client' : 'pin-fr') + '"><title>' + esc_(p.name) + '</title><path d="' + d + '" fill="' + fill + '" stroke="#fff" stroke-width="2"/>' +
-      (client ? '<circle cx="' + x + '" cy="' + cy + '" r="5" fill="#fff"/>' : '<text x="' + x + '" y="' + (parseFloat(cy) + 6) + '" text-anchor="middle" class="pin-no">' + p.n + '</text>');
-    if (client && p.label !== '') g += '<text x="' + (p.x + r + 4).toFixed(1) + '" y="' + (parseFloat(cy) + 5) + '" class="map-label">御社</text>';
-    return g + '</g>';
+    var cy = (q.y - r * 2.1 + r * 0.05).toFixed(1);
+    var g = '<g class="pin ' + (q.client ? 'pin-client' : 'pin-fr') + '"><title>' + esc_(p.name) + '</title><path d="' + d + '" fill="' + fill + '" stroke="#fff" stroke-width="2"/>' +
+      (q.client ? '<circle cx="' + x + '" cy="' + cy + '" r="5" fill="#fff"/>' : '<text x="' + x + '" y="' + (parseFloat(cy) + 6) + '" text-anchor="middle" class="pin-no">' + p.n + '</text>');
+    if (q.client && p.label !== '') g += '<text x="' + (q.x + r + 4).toFixed(1) + '" y="' + (parseFloat(cy) + 5) + '" class="map-label">御社</text>';
+    out.push({ client: q.client, html: g + '</g>' });
   });
   // 後ろ(下)のピンから描いて、手前のピンが隠れないようにする。御社は最前面
-  out.sort(function (a, b) { return (a.indexOf('pin-client') >= 0 ? 1 : 0) - (b.indexOf('pin-client') >= 0 ? 1 : 0); });
-  return svg.replace('</svg>', out.join('') + '</svg>');
+  out.sort(function (a, b) { return (a.client ? 1 : 0) - (b.client ? 1 : 0); });
+  // 市区町村名: ピンの頭・先に置いた名前と重ならない位置を、上→下→右→左の順に探す
+  var boxes = P.map(function (q) { var h = head(q); return [h[0] - q.r - 2, h[1] - q.r - 2, h[0] + q.r + 2, h[1] + q.r + q.r * 1.1 + 2]; });
+  function hit(a, b) { return a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]; }
+  var lab = [];
+  labels.forEach(function (l) {
+    var w = l.name.length * 16 + 8, h = 20, best = null, bestScore = 1e9;
+    [[0, -12], [0, 28], [w / 2 + 6, 6], [-w / 2 - 6, 6], [0, -34], [0, 50]].forEach(function (c) {
+      var cx = Math.min(Math.max(l.x + c[0], w / 2 + 2), W - w / 2 - 2), by = Math.min(Math.max(l.y + c[1], h + 2), H - 2), box = [cx - w / 2, by - h, cx + w / 2, by + 4], sc = 0;
+      boxes.forEach(function (b) { if (hit(box, b)) sc += 100; });
+      if (sc === 0 && best === null) { best = { x: cx, y: by, box: box }; bestScore = 0; }
+      else if (best === null || (bestScore > 0 && sc < bestScore)) { best = { x: cx, y: by, box: box }; bestScore = sc; }
+    });
+    boxes.push(best.box);
+    lab.push('<text class="map-label" x="' + best.x.toFixed(1) + '" y="' + best.y.toFixed(1) + '" text-anchor="middle">' + esc_(l.name) + '</text>');
+  });
+  return svg.replace('</svg>', under.join('') + out.map(function (o) { return o.html; }).join('') + lab.join('') + '</svg>');
 }
 
 /** 都道府県の境界を取得し、(対象市の)地図SVG・隣接市・市町村数・団体コードを返す。結果はキャッシュする */
@@ -370,8 +416,8 @@ function loadGeo_(services, pref, city) {
   var res = { city: name, isWard: !!P.munis[name].ward, code: P.munis[name].code, count: P.count, neighbors: neighborsOf_(P, name) };
   // 加盟店の隣接判定用: 区は親の市に置き換える(加盟店の市は「横浜市」のように市単位で持っているため)
   res.neighborCities = res.neighbors.map(function (n) { return P.munis[n].parent || n; }).filter(function (n, i, a) { return a.indexOf(n) === i; });
-  var m = renderMapSvg_(P, name); res.svg = m.svg; res.proj = m.proj;
-  var z = renderMapSvg_(P, name, [name].concat(res.neighbors)); res.zsvg = z.svg; res.zproj = z.proj;
+  var m = renderMapSvg_(P, name); res.svg = m.svg; res.proj = m.proj; res.labels = m.labels;
+  var z = renderMapSvg_(P, name, [name].concat(res.neighbors)); res.zsvg = z.svg; res.zproj = z.proj; res.zlabels = z.labels;
   services.cachePut(cacheKey, JSON.stringify(res));
   return res;
 }
@@ -386,7 +432,7 @@ function loadGeoMulti_(services, pref, cities) {
   var focus = names.slice();
   names.forEach(function (n) { neighborsOf_(P, n).forEach(function (x) { if (focus.indexOf(x) < 0) focus.push(x); }); });
   var f = renderMapSvg_(P, names), z = renderMapSvg_(P, names, focus);
-  var res = { cities: names, svg: f.svg, proj: f.proj, zsvg: z.svg, zproj: z.proj };
+  var res = { cities: names, svg: f.svg, proj: f.proj, labels: f.labels, zsvg: z.svg, zproj: z.proj, zlabels: z.labels };
   services.cachePut(key, JSON.stringify(res));
   return res;
 }
@@ -1015,9 +1061,9 @@ function buildModel_(cfg, services, data) {
     if (fp) { fp.key = f.key; pins.push(fp); }
   });
   // 全ピンが入る範囲で、なるべく拡大した地図(対象市+隣接市)を使う。入らなければ県全体の地図
-  var located = pins.filter(function (x) { return x.lat !== null; }), mapSvg = geo ? geo.svg : null, mapProj = geo ? geo.proj : null;
+  var located = pins.filter(function (x) { return x.lat !== null; }), mapSvg = geo ? geo.svg : null, mapProj = geo ? geo.proj : null, mapLabels = geo ? geo.labels : [];
   // 区を選んだときは、県全体では区が小さすぎるので、いつも拡大した地図を使う
-  if (geo && geo.zproj && ((geo.isWard && !located.length) || (located.length && located.every(function (x) { return projectPoint_(geo.zproj, x.lat, x.lng); })))) { mapSvg = geo.zsvg; mapProj = geo.zproj; }
+  if (geo && geo.zproj && ((geo.isWard && !located.length) || (located.length && located.every(function (x) { return projectPoint_(geo.zproj, x.lat, x.lng); })))) { mapSvg = geo.zsvg; mapProj = geo.zproj; mapLabels = geo.zlabels; }
   pins.forEach(function (x) {
     if (x.lat === null || !mapProj) return;
     var xy = projectPoint_(mapProj, x.lat, x.lng);
@@ -1033,7 +1079,7 @@ function buildModel_(cfg, services, data) {
   if (pinsOn && model.area.franchise.items.length) rep.add('area.pin_franchise', '周辺加盟店のピン', frNoAddr.length || frFail.length || frRough.length ? 'optional' : 'auto', '加盟店一覧の住所 + Googleマップ',
     (frNoAddr.length ? '住所が未登録でピンなし: ' + frNoAddr.join('、') + '。' : '') + (frFail.length ? 'ピンを立てられない: ' + frFail.join('、') + '。' : '') + (frRough.length ? '住所が大まかで位置が概算: ' + frRough.join('、') : ''));
   model.area.pins = pins.map(function (x) { return { kind: x.kind, n: x.n, key: x.key, name: x.name, address: x.address, lat: x.lat, lng: x.lng, source: x.source, precise: x.precise, on_map: x.on_map, why: x.why }; });
-  model._mapSvg = mapSvg ? addPinsToSvg_(mapSvg, pins.filter(function (x) { return x.on_map; })) : null;
+  model._mapSvg = mapSvg ? addPinsToSvg_(mapSvg, pins.filter(function (x) { return x.on_map; }), mapLabels) : null;
   Object.keys(KEYS_).forEach(function (sec) { KEYS_[sec].forEach(function (k) { if (model[sec][k] === undefined) model[sec][k] = null; }); });
   return { model: model, report: rep };
 }
@@ -1095,7 +1141,7 @@ function combineModels_(models, services) {
     try { g = loadGeoMulti_(services, pref, cities); } catch (e) { multi.mapErrors.push(pref + ': ' + String(e.message || e)); return; }
     var mine = clients.filter(function (c) { return c.pref === pref; }).concat(items.filter(function (f) { return f.prefecture === pref && f.lat != null; }));
     var useZoom = !!g.zproj && mine.length && mine.every(function (x) { return projectPoint_(g.zproj, x.lat, x.lng); });
-    var svg = useZoom ? g.zsvg : g.svg, proj = useZoom ? g.zproj : g.proj, put = [];
+    var svg = useZoom ? g.zsvg : g.svg, proj = useZoom ? g.zproj : g.proj, labs = useZoom ? g.zlabels : g.labels, put = [];
     clients.filter(function (c) { return c.pref === pref; }).forEach(function (c) {
       var xy = projectPoint_(proj, c.lat, c.lng); if (xy) put.push({ kind: 'client', n: 0, name: c.name, label: '', x: xy[0], y: xy[1], on_map: true });
     });
@@ -1104,7 +1150,7 @@ function combineModels_(models, services) {
       var xy = projectPoint_(proj, f.lat, f.lng);
       if (xy) { put.push({ kind: 'fr', n: i + 1, name: f.name, x: xy[0], y: xy[1], on_map: true }); anyOn[f.key] = 1; }
     });
-    multi.maps.push({ pref: pref, svg: addPinsToSvg_(svg, put), cities: cities });
+    multi.maps.push({ pref: pref, svg: addPinsToSvg_(svg, put, labs), cities: cities });
     put.forEach(function (p) { drawn.push(p); });
   });
   items.forEach(function (f, i) { f.pin_no = anyOn[f.key] ? i + 1 : null; });
