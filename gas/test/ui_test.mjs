@@ -97,6 +97,26 @@ log.pickNone = vm.runInContext("JSON.parse(areaById_(listAreas_()[0].id).values[
 await pickF.locator('button:has-text("すべて選ぶ")').click(); await page.waitForTimeout(700);
 log.pickBack = vm.runInContext("areaById_(listAreas_()[0].id).values['fr.off']", ctx) === undefined;
 log.noMaxSetting = true;
+// 物件データの参照元: チェックで選び、足りなければ追加できる
+const srcF = page.locator('.field[data-k="src.pick"]');
+await srcF.locator('input[type=checkbox]').first().waitFor({ timeout: 8000 });
+log.srcN = await srcF.locator('input[type=checkbox]').count();
+log.srcDefault = await srcF.locator('input[type=checkbox]:checked').count();
+await srcF.locator('label:has-text("アットホーム") input').check();
+await page.waitForTimeout(700);
+log.srcSaved = vm.runInContext("JSON.parse(areaById_(listAreas_()[0].id).values['src.sel'] || '[]').join(',')", ctx);
+await srcF.locator('input[type=text]').fill('テスト参照元'); await srcF.locator('button:has-text("追加")').click();
+await page.waitForTimeout(700);
+log.srcAdded = (await srcF.textContent()).indexOf('テスト参照元') >= 0 && vm.runInContext("srcMaster_().indexOf('テスト参照元') >= 0", ctx);
+log.srcNote = /REINS・SUUMO・アットホーム・テスト参照元調べ/.test(await srcF.textContent());
+// 物件種別の表示/非表示: 外すと、その種別の入力欄が薄くなる
+await page.locator('.field[data-k="show.land"] input[type=checkbox]').uncheck();
+log.typeDim = await page.locator('.field[data-grp="land"].off').count() >= 5 && await page.locator('.field[data-grp="used_house"].off').count() === 0;
+await page.waitForTimeout(700);
+log.typeSaved = vm.runInContext("areaById_(listAreas_()[0].id).values['show.land']", ctx);
+await page.locator('.field[data-k="show.land"] input[type=checkbox]').check();
+// ピンの名称
+log.pinLabelField = await page.locator('.field[data-k="inputs.client.pin_label"] input').count();
 // APIキー未設定のときは、表への作り直しの案内だけを出す
 vm.runInContext("PropertiesService.getScriptProperties().deleteProperty('ANTHROPIC_KEY')", ctx);
 await page.reload(); await page.waitForSelector('.field');

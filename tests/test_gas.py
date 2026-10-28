@@ -227,6 +227,10 @@ def test_input_system_api(tmp_path):
     assert r["pinMismatch"] and r["pinGsi"] and r["pinRough"] and r["pinFrExpect"] and r["geoAddrNorm"]   # 住所と違う場所にはピンを立てない/地理院で補う/概算は報告
     assert r["pinsDefaultOn"] and r["pinsOff"] and r["pinsBackOn"] and r["pinsBad"]            # ピンの表示/非表示(既定は表示。非表示なら位置検索もしない)
     assert r["pickAll"] and r["lpAllFr"] and r["offSaved"] and r["offLp"] and r["offModelPins"] and r["offCleared"] and r["offBadArea"] and r["offDenied"] and r["offDup"]   # 県内の全加盟店を表示/チェックで選ぶ
+    # 参照元(REINS・SUUMO・アットホーム+追加)/物件種別の表示切替/ピンの名称
+    assert r["srcDefault"] and r["srcAthome"] and r["srcOnly"] and r["srcNone"] and r["srcAdd"] and r["srcCustomLp"] and r["srcRemove"] and all(r["srcBad"]) and r["srcDenied"]
+    assert r["typesAll"] and r["landHidden"] and r["landNoMissing"] and r["landNumbering"] and r["oneType"] and r["noType"] and r["typeBad"] and r["typeFields"] and r["typesBack"]
+    assert r["pinLabelDefault"] and r["pinLabelHq"] and r["pinLabelEsc"]
     assert r["cities"]                                                                   # 市区町村の入力候補(都道府県を選ぶと出る)
     assert r["kwHeading"]                                                                # 検索ボリュームの見出しだけ「もっとも多く」、表は数値
     assert r["trendBar"] and r["trendLineLabel"]                                          # 価格推移は折れ線・棒グラフ(単位・値を表示)
@@ -290,6 +294,8 @@ def test_input_screen_in_browser(tmp_path):
     assert log["pct"] == "39.0" and log["noHhInputs"] == 0 and "世帯数の構成比" in log["pctLabel"]       # 構成比は1つだけ・小数点第1位まで
     assert log["trendDefaultOn"] and log["trendDisabled"] == 0 and log["trendNeedGone"] and log["trendStored"] == "0" and log["trendOnAgain"]
     assert log["pickN"] >= 1 and log["pickAllOn"] and log["pickOff"] == 1 and log["pickNone"] and log["pickBack"]   # 加盟店のチェック選択(既定は全部表示)
+    assert log["srcN"] >= 3 and log["srcDefault"] == 2 and log["srcSaved"] == "REINS,SUUMO,アットホーム" and log["srcAdded"] and log["srcNote"]   # 参照元のチェック選択・追加
+    assert log["typeDim"] and log["typeSaved"] == "0" and log["pinLabelField"] == 1                                  # 物件種別の表示切替・ピンの名称欄
     assert log["aiAuto"] and log["aiAutoStored"] and log["trendAuto"] and log["aiCells"] == "3,12,,5,8,1" and log["aiSaved"] == 9 and log["aiPersisted"]   # 貼る→AIが表に→直して保存
     assert log["pasted"] and "接続できました" in log["estatTest"] and log["noUnitField"] == 0 and log["noHpListed"]
 

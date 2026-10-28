@@ -233,6 +233,45 @@ const res = vm.runInContext(`
   r.pinSvgValid = (function () { var h = bp.html, i = h.indexOf('<svg class="area-map"'), seg = h.slice(i, h.indexOf('</svg>', i)); return i > 0 && seg.split('<g ').length === seg.split('</g>').length; })();
   api_delete_company(api_list().companies.filter(function (x) { return x.name === 'ピンテスト'; })[0].id);
   var cl = api_cities('長野県'); r.cities = cl.indexOf('上田市') >= 0 && cl.length > 70 && api_cities('長野') === undefined ? false : (cl.indexOf('上田市') >= 0 && cl.length > 70);
+  // --- 物件データの参照元(チェックで選ぶ・追加) ---
+  var sA = api_create_company('ソーステスト', '長野県', '上田市').areaId;
+  api_save(sA, { 'inputs.land.listings': '90', 'inputs.land.price_man': '800', 'inputs.land.tsubo_price_man': '10', 'inputs.used_house.listings': '239', 'inputs.used_house.price_man': '1280', 'inputs.used_mansion.listings': '4', 'inputs.used_mansion.price_man': '700', 'inputs.new_house.listings': '81', 'inputs.new_house.price_man': '2280' });
+  var g0 = api_sources_get(sA);
+  r.srcDefault = g0.items.map(function (x) { return x.name; }).join(',') === 'REINS,SUUMO,アットホーム' && g0.selected.join(',') === 'REINS,SUUMO' && buildArea_(sA).html.indexOf('REINS・SUUMO調べ') >= 0;
+  api_sources_set(sA, ['REINS', 'SUUMO', 'アットホーム']);
+  r.srcAthome = buildArea_(sA).html.indexOf('REINS・SUUMO・アットホーム調べ') >= 0 && api_sources_get(sA).selected.length === 3;
+  api_sources_set(sA, ['アットホーム']); r.srcOnly = buildArea_(sA).html.indexOf('アットホーム調べ') >= 0 && buildArea_(sA).html.indexOf('REINS') < 0;
+  r.srcNone = !!tryCall(function () { return api_sources_set(sA, []); }).err && !!tryCall(function () { return api_sources_set(sA, ['存在しない']); }).err;
+  r.srcAdd = api_sources_add('LIFULL HOMES').added === true && api_sources_get(sA).items.some(function (x) { return x.name === 'LIFULL HOMES' && !x.builtin; }) && api_sources_add('LIFULL HOMES').added === false;
+  api_sources_set(sA, ['REINS', 'LIFULL HOMES']); r.srcCustomLp = buildArea_(sA).html.indexOf('REINS・LIFULL HOMES調べ') >= 0;
+  r.srcRemove = !!tryCall(function () { return api_sources_remove('REINS'); }).err && api_sources_remove('LIFULL HOMES').ok === true && api_sources_get(sA).selected.join(',') === 'REINS' && buildArea_(sA).html.indexOf('REINS調べ') >= 0;
+  r.srcBad = [!!tryCall(function () { return api_sources_add(''); }).err, !!tryCall(function () { return api_sources_add('<script>'); }).err, !!tryCall(function () { return api_sources_add('あ'.repeat(21)); }).err];
+  api_sources_set(sA, ['REINS', 'SUUMO']);
+  r.srcDenied = (function () { __setEmail('x@gmail.com'); var e = ['api_sources_get', 'api_sources_set', 'api_sources_add', 'api_sources_remove'].map(function (n) { var m = tryCall(function () { return this[n](sA, ['REINS']); }.bind(this)).err; return !!m && (m.indexOf('メールアドレス') >= 0 || m.indexOf('使えません') >= 0); }, this); __setEmail('ishikawa@bukkenking.com'); return e.every(Boolean); }).call(this);
+  // --- 土地・中古戸建て・中古マンション・新築戸建ての表示/非表示 ---
+  var hAll = buildArea_(sA);
+  r.typesAll = ['land', 'used_house', 'used_mansion', 'new_house', 'summary'].every(function (k) { return hAll.html.indexOf('id="' + k + '"') >= 0; }) && hAll.model.totals.listings_total === 414;
+  api_save(sA, { 'show.land': '0' });
+  var hNoLand = buildArea_(sA);
+  r.landHidden = hNoLand.html.indexOf('id="land"') < 0 && hNoLand.html.indexOf('href="#land"') < 0 && hNoLand.model.totals.listings_total === 324 && hNoLand.model.totals.point_listings_rounded === 330 && hNoLand.html.indexOf('約330件') >= 0 && hNoLand.html.indexOf('<h3>土地</h3>') < 0 && hNoLand.html.indexOf('id="used_house"') >= 0;
+  r.landNoMissing = api_status(sA).missing.every(function (x) { return x.key.indexOf('land') !== 0 && x.key.indexOf('compare') < 0; });
+  r.landNumbering = hNoLand.html.split('sec-no">').slice(1).map(function (x) { return x.slice(0, 2); }).join(',') === '01,02,03,04,05,06,07,08,09,10'.split(',').slice(0, hNoLand.html.split('sec-no">').length - 1).join(',');
+  api_save(sA, { 'show.used_house': '0', 'show.used_mansion': '0' });
+  var hOne = buildArea_(sA);
+  r.oneType = hOne.model.totals.listings_total === 81 && hOne.html.indexOf('id="used_mansion"') < 0 && hOne.html.indexOf('id="new_house"') >= 0 && hOne.html.indexOf('物件総数<span class="em">81件') >= 0 && hOne.checks.every(function (c) { return c.ok; });
+  api_save(sA, { 'show.new_house': '0' });
+  var hNone = buildArea_(sA);
+  r.noType = hNone.html.indexOf('id="summary"') < 0 && hNone.html.indexOf('id="new_house"') < 0 && hNone.model.totals.listings_total === null && hNone.html.indexOf('id="search"') >= 0;
+  r.typeBad = !!api_save(sA, { 'show.land': 'x' }).errors['show.land'];
+  r.typeFields = (function () { var f = api_get(sA).fields.filter(function (x) { return /^show\.(land|used_house|used_mansion|new_house)$/.test(x.k); }); return f.length === 4 && f.every(function (x) { return x.t === 'bool'; }) && api_get(sA).fields.filter(function (x) { return x.grp === 'land'; }).length >= 8; })();
+  ['land', 'used_house', 'used_mansion', 'new_house'].forEach(function (k) { api_save(sA, { ['show.' + k]: '1' }); });
+  r.typesBack = buildArea_(sA).html.indexOf('id="used_mansion"') >= 0;
+  // --- ピンの名称(本社・○○店など) ---
+  api_save(sA, { 'inputs.client.address': '長野県上田市中央1-1-1' });
+  var pDef = buildArea_(sA).html; r.pinLabelDefault = pDef.indexOf('class="map-label"') > 0 && /class="map-label">御社</.test(pDef);
+  api_save(sA, { 'inputs.client.pin_label': '本社' }); var pHq = buildArea_(sA); r.pinLabelHq = /class="map-label">本社</.test(pHq.html) && !/class="map-label">御社</.test(pHq.html) && pHq.model.area.pins[0].label === '本社';
+  api_save(sA, { 'inputs.client.pin_label': '<b>上田店</b>' }); r.pinLabelEsc = buildArea_(sA).html.indexOf('&lt;b&gt;上田店&lt;/b&gt;') >= 0 && buildArea_(sA).html.indexOf('<b>上田店</b>') < 0;
+  api_delete_company(api_list().companies.filter(function (x) { return x.name === 'ソーステスト'; })[0].id);
   // --- 商談先一覧(自動で記載・更新) ---
   function idxRows() { var sh = ss.getSheetByName('商談先一覧'); var last = sh.getLastRow(); return { head: sh.getRange(1, 1, 1, 9).getValues()[0], rows: last > 1 ? sh.getRange(2, 1, last - 1, 9).getValues() : [] }; }
   function idxOf(id) { return idxRows().rows.filter(function (x) { return x[8] === id; })[0]; }

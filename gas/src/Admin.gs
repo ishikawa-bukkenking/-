@@ -238,3 +238,41 @@ function api_set_franchise_off(areaId, offKeys) {
   writeAreaValues_(areaId, function (values) { if (off.length) values['fr.off'] = JSON.stringify(off); else delete values['fr.off']; });
   return { ok: true, off: off.length };
 }
+
+// ---------- 物件データの参照元(チェックで選ぶ・追加する) ----------
+function api_sources_get(areaId) {
+  requireUser_();
+  var ar = areaById_(areaId);
+  if (!ar) throw new Error('エリアが見つかりません。');
+  return { items: srcMaster_().map(function (n) { return { name: n, builtin: SRC_BUILTIN_.indexOf(n) >= 0 }; }), selected: srcSelected_(ar.values) };
+}
+function api_sources_set(areaId, selected) {
+  requireUser_();
+  var master = srcMaster_(), sel = (Array.isArray(selected) ? selected : []).map(String).filter(function (n) { return master.indexOf(n) >= 0; });
+  if (!sel.length) throw new Error('参照元は1つ以上選んでください。');
+  writeAreaValues_(areaId, function (values) { values['src.sel'] = JSON.stringify(sel); var dk = dateKeyFor_('inputs.land.x'); if (dk) values[dk] = todayStr_(); });
+  return { ok: true, selected: sel };
+}
+/** 参照元の名前を追加(全エリア共通の選択肢に加わる) */
+function api_sources_add(name) {
+  requireUser_();
+  name = String(name || '').replace(/[\s　]+/g, ' ').trim();
+  if (!name) throw new Error('参照元の名前を入力してください。');
+  if (name.length > 20) throw new Error('参照元の名前は20文字までにしてください。');
+  if (/[<>"&]/.test(name)) throw new Error('使えない文字が含まれています。');
+  var extra = srcMaster_().filter(function (n) { return SRC_BUILTIN_.indexOf(n) < 0; });
+  if (srcMaster_().indexOf(name) >= 0) return { ok: true, added: false };
+  if (extra.length >= 12) throw new Error('追加できる参照元は12個までです。');
+  extra.push(name);
+  PropertiesService.getScriptProperties().setProperty('SRC_EXTRA', JSON.stringify(extra));
+  return { ok: true, added: true };
+}
+/** 追加した参照元を一覧から消す(標準の REINS・SUUMO・アットホーム は消せない) */
+function api_sources_remove(name) {
+  requireUser_();
+  name = String(name || '');
+  if (SRC_BUILTIN_.indexOf(name) >= 0) throw new Error('標準の参照元は削除できません。');
+  var extra = srcMaster_().filter(function (n) { return SRC_BUILTIN_.indexOf(n) < 0 && n !== name; });
+  PropertiesService.getScriptProperties().setProperty('SRC_EXTRA', JSON.stringify(extra));
+  return { ok: true };
+}

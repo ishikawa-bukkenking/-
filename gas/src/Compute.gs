@@ -2,10 +2,12 @@
 
 var TYPES = ['used_mansion', 'land', 'new_house', 'used_house'];
 
-function listingsTotal_(counts) {
+function listingsTotal_(counts, types) {   // types: 表示する物件種別(省略時は4種別すべて)
+  types = types || TYPES;
+  if (!types.length) return null;
   var sum = 0;
-  for (var i = 0; i < TYPES.length; i++) {
-    var v = counts[TYPES[i]];
+  for (var i = 0; i < types.length; i++) {
+    var v = counts[types[i]];
     if (v === null || v === undefined) return null;
     sum += v;
   }
@@ -14,10 +16,11 @@ function listingsTotal_(counts) {
 
 function brokerageFee_(priceMan) { return priceMan * 0.03 + 6.0; }
 
-function brokerageUnit_(prices, counts) {
+function brokerageUnit_(prices, counts, types) {
+  types = types || TYPES;
   var n = 0, tot = 0;
-  for (var i = 0; i < TYPES.length; i++) {
-    var t = TYPES[i];
+  for (var i = 0; i < types.length; i++) {
+    var t = types[i];
     if (prices[t] == null || counts[t] == null) return null;
     n += counts[t];
     tot += brokerageFee_(prices[t]) * counts[t];

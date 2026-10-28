@@ -17,6 +17,7 @@ var FIELDS_ = [
   { k: 'city', l: '市区町村', req: 1, d: '例: 上田市(2021年1月時点の名称)' },
   { k: 'created', l: '作成日', t: 'date', d: '空欄なら、この商談先を追加した日' },
   { k: 'show.pins', l: 'LPの地図にピンを表示する', t: 'bool', d: 'チェックを外すと、地図に御社・周辺加盟店のピンを立てません' },
+  { k: 'inputs.client.pin_label', grp: 'pins', l: 'ピンの名称', d: '地図の御社のピンの横に表示します。例: 本社 / ○○店(空欄なら「御社」)' },
   { k: 'inputs.client.address', grp: 'pins', l: '商談先の住所', d: '地図にピンを立てます。例: 長野県上田市中央1-1-1(空欄ならピンなし)' },
   { h: '対象エリア(出典: 総務省統計局 令和2年国勢調査)' },
   { k: 'inputs.area.households', l: '世帯数', t: 'num', d: '空欄なら、国勢調査(e-Stat)から自動で取得します(設定にe-StatのアプリケーションIDが必要)。入力した場合はその値を使います' },
@@ -39,7 +40,13 @@ var FIELDS_ = [
   { k: 'yearly.1', grp: 'trend', l: '内訳: 2年目(%)', t: 'num', req: 1 },
   { k: 'yearly.2', grp: 'trend', l: '内訳: 3年目(%)', t: 'num', req: 1 },
   { k: 'inputs.price_trend.image', grp: 'trend', l: '価格推移グラフ(画像)', t: 'image', req: 1, d: 'グラフのスクリーンショットなどの画像' },
-  { h: '土地(出典: REINS・SUUMO調べ)' },
+  { h: '表示する物件種別・参照元' },
+  { k: 'show.land', l: '土地を表示する', t: 'bool', d: '土地・中古戸建て・中古マンション・新築戸建てのうち、その地域に無い種別はチェックを外すと、LPに表示しません(物件総数・仲介単価・POINTは、表示する種別だけで計算します)' },
+  { k: 'show.used_house', l: '中古戸建てを表示する', t: 'bool' },
+  { k: 'show.used_mansion', l: '中古マンションを表示する', t: 'bool' },
+  { k: 'show.new_house', l: '新築戸建てを表示する', t: 'bool' },
+  { k: 'src.pick', l: '物件データの参照元', t: 'srcpick', d: 'LPの出典(「REINS・SUUMO調べ」など)に表示します。チェックで選び、足りないものは追加できます' },
+  { h: '土地' },
   { k: 'inputs.land.tsubo_price_man', l: '坪単価(万円/坪)', t: 'num', req: 1 },
   { k: 'inputs.land.tsubo_price_low_rise_residential_man', l: '低層住居専用地域の相場(万円/坪)', t: 'num', req: 1 },
   { k: 'inputs.land.tsubo_price_other_residential_man', l: 'それ以外の住居専用地域(万円/坪)', t: 'num', req: 1 },
@@ -52,20 +59,20 @@ var FIELDS_ = [
   { k: 'compare.2', l: '比較市3', t: 'list' },
   { k: 'compare.3', l: '比較市4', t: 'list' },
   { k: 'compare.4', l: '比較市5', t: 'list' },
-  { h: '中古戸建て(出典: REINS・SUUMO調べ)' },
+  { h: '中古戸建て' },
   { k: 'inputs.used_house.price_man', l: '売却価格相場(万円)', t: 'num', req: 1 },
   { k: 'inputs.used_house.listings', l: '物件数(件)', t: 'num', req: 1 },
   { k: 'inputs.used_house.building_area_median_m2', l: '建物面積の中央値(㎡)', t: 'num', req: 1 },
   { k: 'inputs.used_house.land_area_median_m2', l: '土地面積の中央値(㎡)', t: 'num', req: 1 },
   { k: 'inputs.used_house.age_median_years', l: '築年数の中央値(年)', t: 'num', req: 1 },
   { k: 'inputs.used_house.heatmap_image', l: '面積×価格の分布表(画像)', t: 'image', req: 1 },
-  { h: '中古マンション(出典: REINS・SUUMO調べ)' },
+  { h: '中古マンション' },
   { k: 'inputs.used_mansion.price_man', l: '売却価格相場(万円)', t: 'num', req: 1 },
   { k: 'inputs.used_mansion.listings', l: '物件数(件)', t: 'num', req: 1 },
   { k: 'inputs.used_mansion.exclusive_area_median_m2', l: '専有面積の中央値(㎡)', t: 'num', req: 1 },
   { k: 'inputs.used_mansion.age_median_years', l: '築年数の中央値(年)', t: 'num', req: 1 },
   { k: 'inputs.used_mansion.heatmap_image', l: '面積×価格の分布表(画像)', t: 'image', req: 1 },
-  { h: '新築戸建て(出典: REINS・SUUMO調べ)' },
+  { h: '新築戸建て' },
   { k: 'inputs.new_house.price_man', l: '売却価格相場(万円)', t: 'num', req: 1 },
   { k: 'inputs.new_house.listings', l: '物件数(件)', t: 'num', req: 1 },
   { k: 'inputs.new_house.building_area_median_m2', l: '建物面積の中央値(㎡)', t: 'num', req: 1 },
@@ -89,6 +96,11 @@ var FIELDS_ = [
   { k: 'auto.date.listings', l: '(自動)物件データの入力日', hidden: 1 },
   { k: 'auto.date.keywords', l: '(自動)検索ボリュームの入力日', hidden: 1 }
 ];
+// 物件種別ごとの入力項目は、その種別を表示しないとき入力画面で薄くする(grp)
+FIELDS_.forEach(function (f) {
+  var m = f.k && f.k.match(/^inputs\.(land|used_house|used_mansion|new_house)\.|^(compare)\./);
+  if (m && !f.grp) f.grp = m[2] ? 'land' : m[1];
+});
 
 /** 値を書いたとき、取得日(入力日)を更新する区分 */
 function dateKeyFor_(key) {
@@ -138,8 +150,7 @@ function valuesToConfig_(vals, today) {
     else if ((m = k.match(/^compare\.(\d)$/))) { if (v[0]) compare.push({ city: v[0], tsubo_price_man: parseNum_(v[1]), listings: parseNum_(v[2]) }); }
     else if ((m = k.match(/^comp\.(\d)$/))) { if (v[0]) comp.push({ name: v[0], area: v[1] || undefined, url: v[2] || undefined, listing_count: parseNum_(v[3]) }); }
     else if ((m = k.match(/^kw\.(.+)$/))) kw.push({ term: m[1], monthly_volume: parseNum_(v[0]), cpc_low_yen: parseNum_(v[1]), cpc_high_yen: parseNum_(v[2]) });
-    else if (k === 'show.price_trend') { cfg.sections = cfg.sections || {}; cfg.sections.price_trend = v; }
-    else if (k === 'show.pins') { cfg.sections = cfg.sections || {}; cfg.sections.pins = v; }
+    else if ((m = k.match(/^show\.(.+)$/))) { cfg.sections = cfg.sections || {}; cfg.sections[m[1]] = v; }   // 価格推移・ピン・物件種別の表示/非表示
     else if (k.indexOf('auto.') === 0) { /* 下で処理 */ }
     else setPath_(cfg, k, v);
   });

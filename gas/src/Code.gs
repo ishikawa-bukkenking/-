@@ -207,6 +207,7 @@ function buildArea_(areaId, skipHtml) {
   var cfg = valuesToConfig_(vals, todayIso_());
   cfg.options = settings.opts;
   cfg.franchise_off = parseOff_(vals['fr.off']);
+  cfg.inputs.listings_source = sourcesText_(srcSelected_(vals));   // 土地・中古・新築の出典(入力画面のチェックで選んだ参照元)
   TABLE_KEYS_.forEach(function (k) {
     var t = savedTable_(vals, k);
     if (!t) return;
@@ -325,3 +326,22 @@ function franchiseCandidates_(a) {
     return { key: f.key, name: f.name, city: f.city, address: f.address, url: f.url, tier: f.tier, on: off.indexOf(f.key) < 0 };
   });
 }
+
+// ---------- 物件データの参照元(LPの出典。REINS・SUUMO・アットホームなど) ----------
+var SRC_BUILTIN_ = ['REINS', 'SUUMO', 'アットホーム'];
+var SRC_DEFAULT_ = ['REINS', 'SUUMO'];
+
+/** 選べる参照元の一覧(標準 + 追加したもの) */
+function srcMaster_() {
+  var extra = [];
+  try { extra = JSON.parse(PropertiesService.getScriptProperties().getProperty('SRC_EXTRA') || '[]'); } catch (e) { extra = []; }
+  return SRC_BUILTIN_.concat((Array.isArray(extra) ? extra : []).map(String).filter(function (n) { return n && SRC_BUILTIN_.indexOf(n) < 0; }));
+}
+/** そのエリアで選んだ参照元(未選択なら既定の REINS・SUUMO)。一覧に無い名前は無視 */
+function srcSelected_(values) {
+  var master = srcMaster_(), sel = null;
+  try { sel = JSON.parse(values['src.sel'] || 'null'); } catch (e) { sel = null; }
+  if (!Array.isArray(sel)) sel = SRC_DEFAULT_;
+  return master.filter(function (n) { return sel.indexOf(n) >= 0; });
+}
+function sourcesText_(names) { return names.length ? names.join('・') + '調べ' : ''; }

@@ -135,10 +135,14 @@ function buildModel_(cfg, services, data) {
   } else rep.add('price_trend', '価格推移', 'optional', '', 'LPに表示しない設定');
 
   // --- 物件(シートの物件データ → 手入力で上書き) ---
+  var secs = cfg.sections || {}, vis = { land: secs.land !== false, used_house: secs.used_house !== false, used_mansion: secs.used_mansion !== false, new_house: secs.new_house !== false };
+  model.visible = vis;   // その地域に無い物件種別は表示しない
+  var visTypes = TYPES.filter(function (t) { return vis[t]; });
   var csvStats = (data.listingRows && data.listingRows.length) ? summarizeListings_(data.listingRows) : {};
   if (data.listingRows && data.listingRows.length) rep.add('listings_data', '物件データ', 'csv', '物件データ(' + data.listingRows.length + '行)');
   [['land', '土地'], ['used_house', '中古戸建て'], ['used_mansion', '中古マンション'], ['new_house', '新築戸建て']].forEach(function (p) {
     var key = p[0], label = p[1], cs = csvStats[key] || {}, secIn = inputs[key] || {};
+    if (!vis[key]) { model[key] = { hidden: true, price_man: null, listings: null, source: '', date: '' }; rep.add(key, label, 'optional', '', 'LPに表示しない設定'); return; }
     var sec = deepMerge_(cs, secIn), fromCsv = !!csvStats[key];
     var source = secIn.source || inputs.listings_source || (fromCsv ? (inputs.listings_source || '自社物件データ') : null);
     var date = secIn.date || inputs.listings_date || (fromCsv ? created : null);
@@ -149,6 +153,7 @@ function buildModel_(cfg, services, data) {
     if (key !== 'land') status_(rep, key + '.heatmap', label + ' 面積×価格の分布', sec.heatmaps || sec.table || sec.heatmap_image, '分布表の画像');
   });
   var land = model.land;
+  if (vis.land) {
   [['tsubo_price_man', '坪単価'], ['tsubo_price_low_rise_residential_man', '低層住居専用地域の坪単価'], ['tsubo_price_other_residential_man', 'その他の住居専用地域の坪単価']].forEach(function (p) {
     status_(rep, 'land.' + p[0], p[1], land[p[0]], '土地の入力');
   });
@@ -160,6 +165,7 @@ function buildModel_(cfg, services, data) {
   var low = land.tsubo_price_low_rise_residential_man, oth = land.tsubo_price_other_residential_man, allp = land.tsubo_price_man;
   land.tsubo_note = !!(allp != null && low != null && oth != null && allp < Math.min(low, oth));
   land.compare = compare_(cfg, land, city, neighbors, rep, opts);
+  } else land.compare = { items: [], suggested: [] };
 
   // --- キーワード ---
   var kwIn = inputs.keywords || {};
@@ -179,20 +185,20 @@ function buildModel_(cfg, services, data) {
 
   // --- まとめ ---
   var counts = {}, prices = {};
-  TYPES.forEach(function (t) { counts[t] = model[t].listings == null ? null : model[t].listings; prices[t] = model[t].price_man == null ? null : model[t].price_man; });
-  var total = listingsTotal_(counts), bu = brokerageUnit_(prices, counts);
-  var sdates = TYPES.map(function (t) { return model[t].date; });
+  visTypes.forEach(function (t) { counts[t] = model[t].listings == null ? null : model[t].listings; prices[t] = model[t].price_man == null ? null : model[t].price_man; });
+  var total = listingsTotal_(counts, visTypes), bu = brokerageUnit_(prices, counts, visTypes);
+  var sdates = visTypes.map(function (t) { return model[t].date; });
   var uniq = sdates.filter(function (d, i) { return sdates.indexOf(d) === i; });
-  var srcs = TYPES.map(function (t) { return model[t].source; }).filter(function (d, i, a) { return a.indexOf(d) === i; });
+  var srcs = visTypes.map(function (t) { return model[t].source; }).filter(function (d, i, a) { return a.indexOf(d) === i; });
   model.totals = {
     listings_total: total, brokerage_unit_man: bu == null ? null : roundHalfUp_(bu, 2),
     brokerage_unit_display_man: bu == null ? null : roundHalfUp_(bu, 0),
     point_listings_rounded: total == null ? null : pointRounded_(total),
     point_text: total == null ? null : pointText_(total),
-    source: srcs.join('・'), date: uniq.length === 1 ? sdates[0] : sdates.slice().sort(function (a, b) { return new Date(a.replace(/\//g, '-')) - new Date(b.replace(/\//g, '-')); }).pop()
+    source: srcs.join('・'), date: !sdates.length ? '' : uniq.length === 1 ? sdates[0] : sdates.slice().sort(function (a, b) { return new Date(a.replace(/\//g, '-')) - new Date(b.replace(/\//g, '-')); }).pop()
   };
-  rep.add('totals.listings_total', '物件総数', total != null ? 'calc' : 'missing', '4種別の物件数の合計', total != null ? '' : '4種別すべての物件数が必要');
-  rep.add('totals.brokerage_unit', '仲介単価', bu != null ? 'calc' : 'missing', '各種別(相場×3%+6万円)の物件数による加重平均(税抜)', bu != null ? '' : '4種別すべての相場と物件数が必要');
+  rep.add('totals.listings_total', '物件総数', total != null ? 'calc' : 'missing', '表示する種別の物件数の合計', total != null ? '' : '表示する種別すべての物件数が必要');
+  rep.add('totals.brokerage_unit', '仲介単価', bu != null ? 'calc' : 'missing', '各種別(相場×3%+6万円)の物件数による加重平均(税抜)', bu != null ? '' : '表示する種別すべての相場と物件数が必要');
 
   // --- 近隣不動産会社 ---
   var comps = cfg.competitors || [];
@@ -220,7 +226,8 @@ function buildModel_(cfg, services, data) {
     return { kind: kind, n: n, name: name, address: addr, lat: ok ? g.lat : null, lng: ok ? g.lng : null, source: ok ? g.source || '' : '', precise: ok ? g.precise !== false : false,
       on_map: false, why: ok ? '' : (g && g.why) || '住所から位置を特定できませんでした' };
   }
-  if (clientAddr) { var cp = locate_(clientAddr, cfg.company || '御社', 'client', 0, { pref: pref, city: city }); if (cp) pins.push(cp); }
+  var pinLabel = String(((inputs.client || {}).pin_label) || '').trim() || '御社';   // 地図の自社ピンの名称(本社・○○店など)
+  if (clientAddr) { var cp = locate_(clientAddr, cfg.company || '御社', 'client', 0, { pref: pref, city: city }); if (cp) { cp.label = pinLabel; pins.push(cp); } }
   var frNoAddr = [];
   model.area.franchise.items.forEach(function (f, i) {
     f.pin_no = null;
@@ -248,7 +255,7 @@ function buildModel_(cfg, services, data) {
   var frRough = pins.filter(function (x) { return x.kind === 'fr' && x.on_map && !x.precise; }).map(function (x) { return x.name; });
   if (pinsOn && model.area.franchise.items.length) rep.add('area.pin_franchise', '周辺加盟店のピン', frNoAddr.length || frFail.length || frRough.length ? 'optional' : 'auto', '加盟店一覧の住所 + Googleマップ',
     (frNoAddr.length ? '住所が未登録でピンなし: ' + frNoAddr.join('、') + '。' : '') + (frFail.length ? 'ピンを立てられない: ' + frFail.join('、') + '。' : '') + (frRough.length ? '住所が大まかで位置が概算: ' + frRough.join('、') : ''));
-  model.area.pins = pins.map(function (x) { return { kind: x.kind, n: x.n, key: x.key, name: x.name, address: x.address, lat: x.lat, lng: x.lng, source: x.source, precise: x.precise, on_map: x.on_map, why: x.why }; });
+  model.area.pins = pins.map(function (x) { return { kind: x.kind, n: x.n, key: x.key, label: x.label, name: x.name, address: x.address, lat: x.lat, lng: x.lng, source: x.source, precise: x.precise, on_map: x.on_map, why: x.why }; });
   model._mapSvg = mapSvg ? addPinsToSvg_(mapSvg, pins.filter(function (x) { return x.on_map; }), mapLabels) : null;
   Object.keys(KEYS_).forEach(function (sec) { KEYS_[sec].forEach(function (k) { if (model[sec][k] === undefined) model[sec][k] = null; }); });
   return { model: model, report: rep };
@@ -301,7 +308,7 @@ function combineModels_(models, services) {
     });
   });
   var clients = [];
-  models.forEach(function (md) { (md.area.pins || []).forEach(function (p) { if (p.kind === 'client' && p.lat != null) clients.push({ kind: 'client', name: p.name, lat: p.lat, lng: p.lng, pref: md.meta.prefecture }); }); });
+  models.forEach(function (md) { (md.area.pins || []).forEach(function (p) { if (p.kind === 'client' && p.lat != null) clients.push({ kind: 'client', name: p.name, label: p.label, lat: p.lat, lng: p.lng, pref: md.meta.prefecture }); }); });
   // 都道府県ごとの地図
   var prefs = models.map(function (md) { return md.meta.prefecture; }).filter(function (p, i, a) { return a.indexOf(p) === i; });
   var anyOn = {}, drawn = [];
@@ -313,7 +320,7 @@ function combineModels_(models, services) {
     var useZoom = !!g.zproj && mine.length && mine.every(function (x) { return projectPoint_(g.zproj, x.lat, x.lng); });
     var svg = useZoom ? g.zsvg : g.svg, proj = useZoom ? g.zproj : g.proj, labs = useZoom ? g.zlabels : g.labels, put = [];
     clients.filter(function (c) { return c.pref === pref; }).forEach(function (c) {
-      var xy = projectPoint_(proj, c.lat, c.lng); if (xy) put.push({ kind: 'client', n: 0, name: c.name, label: '', x: xy[0], y: xy[1], on_map: true });
+      var xy = projectPoint_(proj, c.lat, c.lng); if (xy) put.push({ kind: 'client', n: 0, name: c.name, label: c.label, x: xy[0], y: xy[1], on_map: true });
     });
     items.forEach(function (f, i) {
       if (f.lat == null || f.prefecture !== pref) return;

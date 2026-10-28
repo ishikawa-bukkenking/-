@@ -319,7 +319,7 @@ document.addEventListener('paste', function (e) {
 function fmt1(v) { var n = parseFloat(String(v).replace(/[,，％%\s]/g, '')); return isNaN(n) ? v : n.toFixed(1); }
 function trendOn() { return vals['show.price_trend'] !== '0'; }
 function applyGroups() {
-  [['trend', trendOn()], ['pins', vals['show.pins'] !== '0']].forEach(function (g) {
+  [['trend', trendOn()], ['pins', vals['show.pins'] !== '0'], ['land', vals['show.land'] !== '0'], ['used_house', vals['show.used_house'] !== '0'], ['used_mansion', vals['show.used_mansion'] !== '0'], ['new_house', vals['show.new_house'] !== '0']].forEach(function (g) {
     var on = g[1];
     document.querySelectorAll('.field[data-grp="' + g[0] + '"]').forEach(function (f) {
       f.classList.toggle('off', !on); f.querySelectorAll('input,button,label.btn').forEach(function (x) { if (x.tagName === 'LABEL') x.style.pointerEvents = on ? '' : 'none'; else x.disabled = !on; });
@@ -365,8 +365,57 @@ function frPick(f) {
     .withFailureHandler(function (e) { box.replaceChildren(el('p', { class: 'msg', text: '加盟店を読み込めませんでした: ' + (e.message || e) })); }).api_franchise_pick(cur);
   return wrap;
 }
+/* ---- 物件データの参照元(LPの出典)をチェックで選ぶ・追加する ---- */
+function srcPick(f) {
+  var wrap = el('div', { class: 'field', 'data-k': f.k, 'data-req': '0', 'data-grp': '' });
+  wrap.appendChild(el('label', { text: f.l }));
+  if (f.d) wrap.appendChild(el('div', { class: 'hint', text: f.d }));
+  var box = el('div', { class: 'srcpick' }, [el('p', { class: 'note', text: '読み込み中…' })]), data = null, timer3 = null, noteEl = null, msg = el('span', { class: 'note' });
+  wrap.appendChild(box);
+  function save() {
+    clearTimeout(timer3);
+    timer3 = setTimeout(function () {
+      var sel = data.items.filter(function (x) { return x.on; }).map(function (x) { return x.name; });
+      if (!sel.length) { msg.textContent = '参照元は1つ以上選んでください。'; return; }
+      msg.textContent = ''; setSaved('保存中…');
+      google.script.run.withSuccessHandler(function () { setSaved('保存しました'); loadStatus(); })
+        .withFailureHandler(function (e) { setSaved('保存できませんでした: ' + (e.message || e), true); }).api_sources_set(cur, sel);
+    }, 300);
+  }
+  function draw() {
+    box.replaceChildren();
+    var list = el('div', { class: 'row', style: 'gap:8px 18px;flex-wrap:wrap;align-items:center' });
+    data.items.forEach(function (x, i) {
+      var ck = el('input', { type: 'checkbox', id: 'sp' + i }); ck.checked = x.on;
+      ck.onchange = function () { x.on = ck.checked; upd(); save(); };
+      var item = el('span', { style: 'display:inline-flex;gap:4px;align-items:center' }, [el('label', { class: 'chk', for: 'sp' + i }, [ck, document.createTextNode(x.name)])]);
+      if (!x.builtin) {
+        var rm = el('button', { class: 'ghost', type: 'button', text: '×', title: '一覧から削除', 'aria-label': x.name + 'を一覧から削除', style: 'padding:2px 8px;min-height:28px' });
+        rm.onclick = function () { google.script.run.withSuccessHandler(function () { data.items.splice(i, 1); draw(); save(); }).withFailureHandler(function (e) { msg.textContent = e.message || e; }).api_sources_remove(x.name); };
+        item.appendChild(rm);
+      }
+      list.appendChild(item);
+    });
+    box.appendChild(list);
+    var inp = el('input', { type: 'text', placeholder: '参照元を追加(例: LIFULL HOME\'S)', 'aria-label': '参照元を追加', style: 'max-width:260px' }), add = el('button', { class: 'ghost', type: 'button', text: '追加' });
+    add.onclick = function () {
+      var n = inp.value.trim(); if (!n) return;
+      google.script.run.withSuccessHandler(function () { if (!data.items.some(function (x) { return x.name === n; })) data.items.push({ name: n, builtin: false, on: true }); else data.items.forEach(function (x) { if (x.name === n) x.on = true; }); draw(); save(); })
+        .withFailureHandler(function (e) { msg.textContent = e.message || e; }).api_sources_add(n);
+    };
+    inp.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); add.onclick(); } };
+    box.appendChild(el('div', { class: 'row', style: 'margin-top:8px;gap:8px;align-items:center' }, [inp, add, msg]));
+    noteEl = el('p', { class: 'note', style: 'margin-top:6px' }); box.appendChild(noteEl); upd();
+  }
+  function upd() { noteEl.textContent = 'LPの出典: ' + (data.items.filter(function (x) { return x.on; }).map(function (x) { return x.name; }).join('・') || '(未選択)') + '調べ'; }
+  google.script.run.withSuccessHandler(function (r) {
+    data = { items: r.items.map(function (x) { return { name: x.name, builtin: x.builtin, on: r.selected.indexOf(x.name) >= 0 }; }) }; draw();
+  }).withFailureHandler(function (e) { box.replaceChildren(el('p', { class: 'msg', text: '参照元を読み込めませんでした: ' + (e.message || e) })); }).api_sources_get(cur);
+  return wrap;
+}
 function fieldView(f) {
   if (f.t === 'frpick') return frPick(f);
+  if (f.t === 'srcpick') return srcPick(f);
   var wrap = el('div', { class: 'field', 'data-k': f.k, 'data-req': f.req ? '1' : '0', 'data-grp': f.grp || '' });
   var v = vals[f.k] || '';
   if (f.t === 'bool') {
