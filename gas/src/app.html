@@ -66,6 +66,7 @@ label.chk{display:flex;gap:8px;align-items:center;min-height:44px}label.chk inpu
 <button class="ghost" id="navlist" hidden>一覧</button><button class="ghost" id="navfr" hidden>加盟店</button><button class="ghost" id="navset" hidden>設定</button></header>
 <main id="main"><div class="card"><p class="note">読み込み中…</p></div></main>
 <script>
+var CLIENT_BUILD = '__BUILD__';
 var imgs = {}, autoHouseholds = null, lastImg = null, cur = null, dirty = {}, timer = null, saving = false, meta = [], vals = {}, PREFS = [];
 var $ = function (id) { return document.getElementById(id); };
 function el(tag, attrs, kids) {
@@ -416,6 +417,9 @@ function srcPick(f) {
 function fieldView(f) {
   if (f.t === 'frpick') return frPick(f);
   if (f.t === 'srcpick') return srcPick(f);
+  if (f.t && ['text', 'num', 'pct1', 'date', 'list', 'image', 'bool', 'frpick', 'srcpick'].indexOf(f.t) < 0) {   // この画面が知らない種類の項目(画面が古い)は、入力欄にせず再読み込みを案内する
+    return el('div', { class: 'field', 'data-k': f.k, 'data-req': '0' }, [el('label', { text: f.l }), el('p', { class: 'msg', text: 'この項目は、画面が古いため表示できません。ページを再読み込みしてください。' })]);
+  }
   var wrap = el('div', { class: 'field', 'data-k': f.k, 'data-req': f.req ? '1' : '0', 'data-grp': f.grp || '' });
   var v = vals[f.k] || '';
   if (f.t === 'bool') {
@@ -593,7 +597,14 @@ $('navset').onclick = function () { flushNow(function () { location.hash = 'set'
 window.addEventListener('beforeunload', function (e) { if (Object.keys(dirty).length) { flush(); e.preventDefault(); e.returnValue = ''; } });
 window.addEventListener('hashchange', function () { if ($('who').textContent) route(); });
 PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
-google.script.run.withSuccessHandler(function (r) { $('who').textContent = r.email; route(); })
+google.script.run.withSuccessHandler(function (r) {
+  $('who').textContent = r.email + (r.build ? '(版 ' + r.build + ')' : '');
+  if (r.build !== CLIENT_BUILD) {   // 古い画面が開きっぱなし(入力欄が一部だけ表示される等の原因)
+    var bar = el('div', { style: 'background:#fff3cd;border-bottom:2px solid #b26a00;padding:10px 16px;font-weight:700;color:#5a3600' }, [document.createTextNode('入力システムが更新されました。表示が古いため、画面を再読み込みしてください。 '), el('button', { type: 'button', text: '再読み込み', onclick: function () { location.reload(); } })]);
+    document.body.insertBefore(bar, document.body.firstChild);
+  }
+  route();
+})
   .withFailureHandler(function (e) {
     $('main').replaceChildren(el('div', { class: 'card', style: 'max-width:560px;margin:40px auto' }, [el('h2', { text: '入力システムを開けません', style: 'margin-top:0' }), el('p', { class: 'msg', text: String(e && e.message || e).replace(/^Error:\s*/, '') })]));
   }).api_whoami();

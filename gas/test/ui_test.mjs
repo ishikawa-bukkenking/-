@@ -100,6 +100,7 @@ log.noMaxSetting = true;
 // 物件データの参照元: チェックで選び、足りなければ追加できる
 const srcF = page.locator('.field[data-k="src.pick"]');
 await srcF.locator('input[type=checkbox]').first().waitFor({ timeout: 8000 });
+await srcF.screenshot({ path: outDir + '/ui-src.png' });
 log.srcN = await srcF.locator('input[type=checkbox]').count();
 log.srcDefault = await srcF.locator('input[type=checkbox]:checked').count();
 await srcF.locator('label:has-text("アットホーム") input').check();

@@ -231,6 +231,7 @@ def test_input_system_api(tmp_path):
     assert r["srcDefault"] and r["srcAthome"] and r["srcOnly"] and r["srcNone"] and r["srcAdd"] and r["srcCustomLp"] and r["srcRemove"] and all(r["srcBad"]) and r["srcDenied"]
     assert r["typesAll"] and r["landHidden"] and r["landNoMissing"] and r["landNumbering"] and r["oneType"] and r["noType"] and r["typeBad"] and r["typeFields"] and r["typesBack"]
     assert r["pinLabelDefault"] and r["pinLabelHq"] and r["pinLabelEsc"]
+    assert r["build"]                                                                    # 画面とサーバーの版の識別子
     assert r["cities"]                                                                   # 市区町村の入力候補(都道府県を選ぶと出る)
     assert r["kwHeading"]                                                                # 検索ボリュームの見出しだけ「もっとも多く」、表は数値
     assert r["trendBar"] and r["trendLineLabel"]                                          # 価格推移は折れ線・棒グラフ(単位・値を表示)
@@ -281,7 +282,7 @@ def test_input_screen_in_browser(tmp_path):
                        capture_output=True, text=True, env=env)
     assert r.returncode == 0, r.stderr[-800:]
     log = json.loads(r.stdout)
-    assert "使えません" in log["deniedMsg"] and log["who"] == "ishikawa@bukkenking.com" and log["noLogin"] == 0   # パスワード欄は無い
+    assert "使えません" in log["deniedMsg"] and log["who"].startswith("ishikawa@bukkenking.com(版 ") and log["noLogin"] == 0   # パスワード欄は無い
     assert log["title"].endswith("岡崎市") and log["errors"] == []
     assert log["stored"]["hh"] == "150000" and log["stored"]["cmp"] == "豊田市,12" and log["stored"]["pref"] == ""  # 不正値は保存されない
     assert log["stored"]["date"] and log["badShown"] == 1 and log["hscroll"] == "375/375"

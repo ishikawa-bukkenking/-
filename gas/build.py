@@ -39,6 +39,10 @@ def main() -> None:
     js = (ROOT / "areasheet" / "static" / "app.js").read_text("utf8")
     app_html = (HERE / "src" / "app.html").read_text("utf8")
     seed = (ROOT / "data" / "franchises.csv").read_text("utf-8-sig")
+    import hashlib
+    build = hashlib.sha1("\n".join(parts + [css, js, app_html, seed]).encode("utf8")).hexdigest()[:8]   # 版の識別子(古い画面が開きっぱなしのとき検知する)
+    parts = [p.replace("__BUILD__", build) for p in parts]
+    app_html = app_html.replace("__BUILD__", build)
     consts = (f"/** 生成物(gas/build.py)。CSS/JS/入力画面のHTML/同梱の加盟店一覧 を文字列定数として保持する */\n"
               f"var SEED_FRANCHISES_CSV_ = {json.dumps(seed, ensure_ascii=False)};\n"
               f"var APP_HTML_ = {json.dumps(app_html, ensure_ascii=False)};\n"

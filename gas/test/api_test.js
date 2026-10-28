@@ -26,6 +26,7 @@ const res = vm.runInContext(`
   r.deniedLookalike = denied('a@bukkenking.com.evil.example').every(Boolean) && denied('a@notbukkenking.com').every(Boolean);
   __setEmail('Ishikawa@BUKKENKING.com');
   r.whoami = api_whoami().email;
+  r.build = /^[0-9a-f]{8}$/.test(api_whoami().build) && APP_HTML_.indexOf("CLIENT_BUILD = '" + api_whoami().build + "'") >= 0 && APP_HTML_.indexOf('__BUILD__') < 0;   // 画面とサーバーの版が一致(古い画面の検知用)
   // --- 会社とエリア(商談ごとにタブは増えない) ---
   var c = api_create_company('株式会社○○', '長野', '上田市'); var a1 = c.areaId;
   var a2 = api_add_area(c.companyId, '長野県', '東御市').areaId;

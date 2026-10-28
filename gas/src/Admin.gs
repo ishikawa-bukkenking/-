@@ -27,7 +27,8 @@ function lpUrl_(settings, id) { var b = lpBase_(settings); return b ? b + '?id='
 function primaryAreaId_(a, all) { var l = all || listAreas_(); for (var i = 0; i < l.length; i++) if (l[i].companyId === a.companyId) return l[i].id; return a.id; }
 function todayStr_() { return todayIso_(); }
 
-function api_whoami() { return { email: requireUser_(), url: readSettings_().url }; }
+var BUILD_ID_ = '__BUILD__';   // 版の識別子(gas/build.py が埋め込む)
+function api_whoami() { return { email: requireUser_(), url: readSettings_().url, build: BUILD_ID_ }; }
 
 function statusText_(a) { return a.missing === null ? '入力中' : a.missing === 0 ? '入力完了' : '未入力 ' + a.missing + '件'; }
 
