@@ -192,7 +192,7 @@ const res = vm.runInContext(`
   r.pinNone = noPin.indexOf('pin-client') < 0 && __geoCalls() > g0 - 1 && buildArea_(pinA).report.missing().some(function (i) { return i.key === 'area.pin_client'; }) === false;
   api_save(pinA, { 'inputs.client.address': '長野県上田市中央1-1-1' });
   var bp = buildArea_(pinA), pm = bp.model.area.pins;
-  r.pinClient = pm.filter(function (x) { return x.kind === 'client'; }).length === 1 && pm[0].on_map === true && bp.html.indexOf('class="pin pin-client"') >= 0 && bp.html.indexOf('map-legend') >= 0 && bp.html.indexOf('>御社</text>') >= 0 && bp.html.indexOf('商談先') < 0;
+  r.pinClient = pm.filter(function (x) { return x.kind === 'client'; }).length === 1 && pm[0].on_map === true && bp.html.indexOf('class="pin pin-client"') >= 0 && bp.html.indexOf('map-legend') >= 0 && bp.html.indexOf('lg-client" aria-hidden="true"></i>御社</span>') >= 0 && bp.html.indexOf('商談先') < 0;
   var frPins = pm.filter(function (x) { return x.kind === 'fr' && x.on_map; });
   r.pinFr = frPins.length >= 1 && bp.html.split('class="pin pin-fr"').length - 1 === frPins.length && bp.html.indexOf('class="pinno"') >= 0 && frPins.every(function (x) { return x.n >= 1 && x.n <= 40; });
   var gc = __geoCalls(); buildArea_(pinA); doGet({ parameter: { id: pinA } }); r.pinCached = __geoCalls() === gc;   // 住所の位置はキャッシュ(連打しない)
@@ -271,8 +271,8 @@ const res = vm.runInContext(`
   r.typesBack = buildArea_(sA).html.indexOf('id="used_mansion"') >= 0;
   // --- ピンの名称(本社・○○店など) ---
   api_save(sA, { 'inputs.client.address': '長野県上田市中央1-1-1' });
-  var pDef = buildArea_(sA).html; r.pinLabelDefault = pDef.indexOf('class="map-label"') > 0 && /class="map-label">御社</.test(pDef);
-  api_save(sA, { 'inputs.client.pin_label': '本社' }); var pHq = buildArea_(sA); r.pinLabelHq = pHq.html.indexOf('lg-client" aria-hidden="true"></i>本社</span>') >= 0 && /class="map-label">本社</.test(pHq.html) && !/class="map-label">御社</.test(pHq.html) && pHq.model.area.pins[0].label === '本社';
+  var pDef = buildArea_(sA).html; r.pinLabelDefault = pDef.indexOf('lg-client" aria-hidden="true"></i>御社</span>') >= 0 && !/class="map-label">御社</.test(pDef);
+  api_save(sA, { 'inputs.client.pin_label': '本社' }); var pHq = buildArea_(sA); r.pinLabelHq = pHq.html.indexOf('lg-client" aria-hidden="true"></i>本社</span>') >= 0 && !/class="map-label">本社</.test(pHq.html) && !/class="map-label">御社</.test(pHq.html) && pHq.model.area.pins[0].label === '本社';
   api_save(sA, { 'inputs.client.pin_label': '<b>上田店</b>' }); r.pinLabelEsc = buildArea_(sA).html.indexOf('&lt;b&gt;上田店&lt;/b&gt;') >= 0 && buildArea_(sA).html.indexOf('<b>上田店</b>') < 0;
   api_delete_company(api_list().companies.filter(function (x) { return x.name === 'ソーステスト'; })[0].id);
   // --- 商談先一覧(自動で記載・更新) ---

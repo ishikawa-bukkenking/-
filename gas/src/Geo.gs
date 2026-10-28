@@ -195,15 +195,13 @@ function addPinsToSvg_(svg, pins, labels) {
     var cy = (q.y - r * 2.1 + r * 0.05).toFixed(1);
     var g = '<g class="pin ' + (q.client ? 'pin-client' : 'pin-fr') + '"><title>' + esc_(p.name) + '</title><path d="' + d + '" fill="' + fill + '" stroke="#fff" stroke-width="2"/>' +
       (q.client ? '<circle cx="' + x + '" cy="' + cy + '" r="5" fill="#fff"/>' : '<text x="' + x + '" y="' + (parseFloat(cy) + 6) + '" text-anchor="middle" class="pin-no">' + p.n + '</text>');
-    var pl = p.label === undefined ? '御社' : String(p.label);
-    if (q.client && pl !== '') g += '<text x="' + (q.x + r + 4).toFixed(1) + '" y="' + (parseFloat(cy) + 5) + '" class="map-label">' + esc_(pl) + '</text>';
+    // 自社ピンの名称(本社など)は、地図上には書かず、凡例に出す
     out.push({ client: q.client, html: g + '</g>' });
   });
   // 後ろ(下)のピンから描いて、手前のピンが隠れないようにする。御社は最前面
   out.sort(function (a, b) { return (a.client ? 1 : 0) - (b.client ? 1 : 0); });
   // 市区町村名: ピンの頭・先に置いた名前と重ならない位置を、上→下→右→左の順に探す
   var boxes = P.map(function (q) { var h = head(q); return [h[0] - q.r - 2, h[1] - q.r - 2, h[0] + q.r + 2, h[1] + q.r + q.r * 1.1 + 2]; });
-  P.forEach(function (q) { var pl = q.p.label === undefined ? '御社' : String(q.p.label); if (q.client && pl !== '') { var h = head(q); boxes.push([h[0] + q.r + 2, h[1] - 12, h[0] + q.r + 8 + pl.length * 16, h[1] + 8]); } });   // 自社ピンの名称の場所も避ける
   function hit(a, b) { return a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1]; }
   var lab = [];
   labels.forEach(function (l) {
