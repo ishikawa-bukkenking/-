@@ -97,9 +97,9 @@ function ringAreaCentroid_(ring) {
   return [Math.abs(a) / 2, cx / (3 * a), cy / (3 * a)];
 }
 
-function renderMapSvg_(P, target, focus) {   // focus: 市区町村名の配列を渡すと、それらだけを拡大して描く(ピン用)
-  var width = 640, rings = [];
-  viewNames_(P, target).forEach(function (name) {
+function renderMapSvg_(P, target, focus) {   // target: 強調する市区町村名(複数なら配列)。focus: 名前の配列を渡すと、それらだけを拡大して描く(ピン用)
+  var T = [].concat(target), width = 640, rings = [];
+  viewNames_(P, T[0]).forEach(function (name) {
     P.munis[name].polys.forEach(function (poly) {
       var ac = ringAreaCentroid_(poly[0]);
       rings.push({ name: name, poly: poly, area: ac[0], cx: ac[1], cy: ac[2] });
@@ -108,7 +108,7 @@ function renderMapSvg_(P, target, focus) {   // focus: 市区町村名の配列�
   var tot = rings.reduce(function (s, r) { return s + r.area; }, 0) || 1;
   var mx = rings.reduce(function (s, r) { return s + r.cx * r.area; }, 0) / tot;
   var my = rings.reduce(function (s, r) { return s + r.cy * r.area; }, 0) / tot;
-  var keep = focus ? rings.filter(function (r) { return focus.indexOf(r.name) >= 0; }) : rings.filter(function (r) { return Math.hypot(r.cx - mx, r.cy - my) < 5.0 || r.name === target; });
+  var keep = focus ? rings.filter(function (r) { return focus.indexOf(r.name) >= 0; }) : rings.filter(function (r) { return Math.hypot(r.cx - mx, r.cy - my) < 5.0 || T.indexOf(r.name) >= 0; });
   var lon0 = Infinity, lon1 = -Infinity, lat0 = Infinity, lat1 = -Infinity;
   keep.forEach(function (r) { r.poly[0].forEach(function (p) {
     if (p[0] < lon0) lon0 = p[0]; if (p[0] > lon1) lon1 = p[0];
@@ -127,19 +127,22 @@ function renderMapSvg_(P, target, focus) {   // focus: 市区町村名の配列�
       ring.forEach(function (p) { var s = pt(p[0], p[1]); if (s !== last) { pts.push(s); last = s; } });
       if (pts.length >= 3) d += 'M' + pts.join('L') + 'Z';
     });
-    (r.name === target ? tgt : other).push('<path d="' + d + '"/>');
+    (T.indexOf(r.name) >= 0 ? tgt : other).push('<path d="' + d + '"/>');
   });
-  var best = 0, cxT = null, cyT = null;
-  keep.forEach(function (r) { if (r.name === target && r.area > best) { best = r.area; cxT = r.cx; cyT = r.cy; } });
-  var t = cxT !== null ? pt(cxT, cyT).split(',') : ['0', '0'];
-  var lab = '<text class="map-label" x="' + t[0] + '" y="' + (parseFloat(t[1]) - 10).toFixed(1) + '" text-anchor="middle">' + esc_(target) + '</text>';
+  var lab = '';
+  T.forEach(function (name) {
+    var best = 0, cxT = null, cyT = null;
+    keep.forEach(function (r) { if (r.name === name && r.area > best) { best = r.area; cxT = r.cx; cyT = r.cy; } });
+    var t = cxT !== null ? pt(cxT, cyT).split(',') : ['0', '0'];
+    lab += '<text class="map-label" x="' + t[0] + '" y="' + (parseFloat(t[1]) - 10).toFixed(1) + '" text-anchor="middle">' + esc_(name) + '</text>';
+  });
   if (focus) {   // 拡大図では、周りの市町村名も小さく添える
     var big = {};
-    keep.forEach(function (r) { if (r.name !== target && (!big[r.name] || r.area > big[r.name].area)) big[r.name] = r; });
+    keep.forEach(function (r) { if (T.indexOf(r.name) < 0 && (!big[r.name] || r.area > big[r.name].area)) big[r.name] = r; });
     Object.keys(big).forEach(function (n) { var q = pt(big[n].cx, big[n].cy).split(','); lab += '<text class="map-sub" x="' + q[0] + '" y="' + q[1] + '" text-anchor="middle">' + esc_(n) + '</text>'; });
   }
   var svg = '<svg class="area-map" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="' +
-    esc_(P.pref) + 'の地図。' + esc_(target) + 'を強調表示"><g class="map-other">' + other.join('') + '</g><g class="map-target">' + tgt.join('') + '</g>' + lab + '</svg>';
+    esc_(P.pref) + 'の地図。' + esc_(T.join('・')) + 'を強調表示"><g class="map-other">' + other.join('') + '</g><g class="map-target">' + tgt.join('') + '</g>' + lab + '</svg>';
   return { svg: svg, proj: { lon0: lon0, lat1: lat1, k: k, scale: scale, pad: pad, width: width, height: height } };
 }
 
@@ -161,7 +164,7 @@ function addPinsToSvg_(svg, pins) {
     var cy = (p.y - r * 2.1 + r * 0.05).toFixed(1);
     var g = '<g class="pin ' + (client ? 'pin-client' : 'pin-fr') + '"><title>' + esc_(p.name) + '</title><path d="' + d + '" fill="' + fill + '" stroke="#fff" stroke-width="2"/>' +
       (client ? '<circle cx="' + x + '" cy="' + cy + '" r="5" fill="#fff"/>' : '<text x="' + x + '" y="' + (parseFloat(cy) + 6) + '" text-anchor="middle" class="pin-no">' + p.n + '</text>');
-    if (client) g += '<text x="' + (p.x + r + 4).toFixed(1) + '" y="' + (parseFloat(cy) + 5) + '" class="map-label">御社</text>';
+    if (client && p.label !== '') g += '<text x="' + (p.x + r + 4).toFixed(1) + '" y="' + (parseFloat(cy) + 5) + '" class="map-label">御社</text>';
     return g + '</g>';
   });
   // 後ろ(下)のピンから描いて、手前のピンが隠れないようにする。御社は最前面
@@ -183,5 +186,20 @@ function loadGeo_(services, pref, city) {
   var m = renderMapSvg_(P, name); res.svg = m.svg; res.proj = m.proj;
   var z = renderMapSvg_(P, name, [name].concat(res.neighbors)); res.zsvg = z.svg; res.zproj = z.proj;
   services.cachePut(cacheKey, JSON.stringify(res));
+  return res;
+}
+
+/** 同じ都道府県の複数エリアを、1枚の地図に強調表示する(会社の2エリア目以降を追加したとき)。結果はキャッシュ */
+function loadGeoMulti_(services, pref, cities) {
+  var key = 'geom:' + pref + ':' + cities.slice().sort().join(',');
+  var hit = services.cacheGet(key);
+  if (hit) return JSON.parse(hit);
+  var P = buildPrefecture_(pref, services.fetchJson(GEO_URL_.replace('{code}', ('0' + prefCode_(pref)).slice(-2))));
+  var names = cities.map(function (c) { return resolveCity_(P, c); }).filter(function (n, i, a) { return a.indexOf(n) === i; });
+  var focus = names.slice();
+  names.forEach(function (n) { neighborsOf_(P, n).forEach(function (x) { if (focus.indexOf(x) < 0) focus.push(x); }); });
+  var f = renderMapSvg_(P, names), z = renderMapSvg_(P, names, focus);
+  var res = { cities: names, svg: f.svg, proj: f.proj, zsvg: z.svg, zproj: z.proj };
+  services.cachePut(key, JSON.stringify(res));
   return res;
 }

@@ -165,15 +165,15 @@ function indexSheet_() {
   return sh;
 }
 function statusLabel_(a) { return a.missing === null ? '入力中' : a.missing === 0 ? '入力完了' : '未入力 ' + a.missing + '件'; }
-function indexRowFor_(a, st) {
+function indexRowFor_(a, st, all) {
   var base = st.url || st.urlAuto;
-  return [a.company, a.pref, a.city, base ? base + '?id=' + a.id : '', statusLabel_(a), a.created, a.updated.replace('T', ' '), a.createdBy || '', a.id];
+  return [a.company, a.pref, a.city, base ? base + '?id=' + primaryAreaId_(a, all) : '', statusLabel_(a), a.created, a.updated.replace('T', ' '), a.createdBy || '', a.id];
 }
 function rebuildIndex_() {
-  var sh = indexSheet_(), st = readSettings_(), areas = listAreas_().sort(function (x, y) { return x.company === y.company ? (x.created < y.created ? -1 : 1) : (x.company < y.company ? -1 : 1); });
+  var all = listAreas_(), sh = indexSheet_(), st = readSettings_(), areas = all.slice().sort(function (x, y) { return x.company === y.company ? (x.created < y.created ? -1 : 1) : (x.company < y.company ? -1 : 1); });
   var last = sh.getLastRow();
   if (last > 1) sh.getRange(2, 1, last - 1, INDEX_HEAD_.length).clearContent();
-  if (areas.length) sh.getRange(2, 1, areas.length, INDEX_HEAD_.length).setValues(areas.map(function (a) { return indexRowFor_(a, st); }));
+  if (areas.length) sh.getRange(2, 1, areas.length, INDEX_HEAD_.length).setValues(areas.map(function (a) { return indexRowFor_(a, st, all); }));
 }
 function indexRowOf_(sh, areaId) {
   var last = sh.getLastRow();

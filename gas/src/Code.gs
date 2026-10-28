@@ -199,7 +199,7 @@ function resolveImages_(cfg) {
 }
 
 /** エリア(保存データ) → { model, report, html, checks } */
-function buildArea_(areaId) {
+function buildArea_(areaId, skipHtml) {
   var a = areaById_(areaId);
   if (!a) throw new Error('エリアが見つかりません。');
   var c = companyById_(a.companyId), settings = readSettings_(), ss = ss_();
@@ -217,8 +217,24 @@ function buildArea_(areaId) {
   var frSh = ss.getSheetByName(SHEET_FR_);
   var data = { franchiseRows: frSh && frSh.getLastRow() > 1 ? franchiseRowsFrom_(frSh.getRange(2, 1, frSh.getLastRow() - 1, 6).getDisplayValues()) : [], listingRows: [] };
   var built = buildModel_(cfg, realServices_(settings, a.id), data);
+  if (skipHtml) return { model: built.model, report: built.report, html: '', checks: [], settings: settings };
   var html = renderPage_(built.model, built.report, ASSETS, STYLE_CSS_);
   return { model: built.model, report: built.report, html: html, checks: runChecks_(built.model, html) };
+}
+
+/** LP用: 会社に複数のエリアがあれば、1つのページにまとめて返す(1エリア目の下に2エリア目以降を続ける) */
+function buildCompanyPage_(areaId) {
+  var a = areaById_(areaId);
+  if (!a) throw new Error('エリアが見つかりません。');
+  var areas = listAreas_().filter(function (x) { return x.companyId === a.companyId; });
+  if (areas.length < 2) return buildArea_(areaId);
+  var parts = areas.map(function (x) { return buildArea_(x.id, true); }), settings = parts[0].settings;
+  var models = parts.map(function (p) { return p.model; });
+  var report = new Report_();
+  parts.forEach(function (p, i) { p.report.items.forEach(function (it) { var o = Object.assign({}, it); o.label = models[i].meta.city + ' ' + it.label; o.key = i + ':' + it.key; report.items.push(o); }); });
+  var multi = combineModels_(models, { cacheGet: cacheGet_, cachePut: cachePut_, fetchJson: fetchJson_ });
+  var html = renderPage_(models, report, ASSETS, STYLE_CSS_, multi);
+  return { model: models[0], models: models, report: report, html: html, multi: multi, checks: [] };
 }
 
 // ---------- ウェブアプリ ----------
@@ -229,7 +245,7 @@ function doGet(e) {
   var a = areaById_(id);
   if (!a) return errorPage_('ページが見つかりません。URLをご確認ください。');
   try {
-    var r = buildArea_(a.id);
+    var r = buildCompanyPage_(a.id);
     return HtmlService.createHtmlOutput(r.html).setTitle('エリア調査シート').addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (err) {

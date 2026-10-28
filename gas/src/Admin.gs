@@ -23,6 +23,8 @@ function requireUser_() {
 /** LPのURL。「設定」でLPの公開URLを入れていれば、それを使う。未設定のときは、いま開いているウェブアプリ自身のURLで仮に作る(社内でしか開けない場合がある) */
 function lpBase_(settings) { return settings.url || settings.urlAuto || ''; }
 function lpUrl_(settings, id) { var b = lpBase_(settings); return b ? b + '?id=' + id : ''; }
+/** 会社のLPは1つ(1エリア目のURL)。2エリア目以降のURLも、同じLPに表示される */
+function primaryAreaId_(a, all) { var l = all || listAreas_(); for (var i = 0; i < l.length; i++) if (l[i].companyId === a.companyId) return l[i].id; return a.id; }
 function todayStr_() { return todayIso_(); }
 
 function api_whoami() { return { email: requireUser_(), url: readSettings_().url }; }
@@ -35,7 +37,7 @@ function api_list() {
   var st = readSettings_(), areas = listAreas_();
   var companies = listCompanies_().map(function (c) {
     return { id: c.id, name: c.name, areas: areas.filter(function (a) { return a.companyId === c.id; }).map(function (a) {
-      return { id: a.id, pref: a.pref, city: a.city, status: statusText_(a), done: a.missing === 0, url: lpUrl_(st, a.id) };
+      return { id: a.id, pref: a.pref, city: a.city, status: statusText_(a), done: a.missing === 0, url: lpUrl_(st, primaryAreaId_(a, areas)) };
     }) };
   });
   companies.reverse();
@@ -66,7 +68,7 @@ function api_get(areaId) {
   return { id: a.id, company: c ? { id: c.id, name: c.name } : { id: '', name: '' }, fields: fieldsMeta_(), values: a.values, images: images,
     tables: TABLE_KEYS_.reduce(function (o, k) { o[k] = savedTable_(a.values, k); return o; }, {}), aiReady: !!aiKey_(),
     autoHouseholds: a.values['auto.households'] ? Number(a.values['auto.households']) : null, hasEstat: !!st.estat,
-    url: lpUrl_(st, a.id), provisional: !st.url, prefectures: PREFECTURES, siblings: siblings };
+    url: lpUrl_(st, primaryAreaId_(a)), primary: primaryAreaId_(a) === a.id, provisional: !st.url, prefectures: PREFECTURES, siblings: siblings };
 }
 
 /** changes: { キー: 値 }。検証に通った項目だけ書き込み、エラーは項目ごとに返す。区分ごとの取得日(入力日)を自動で更新 */

@@ -231,9 +231,9 @@ a{color:var(--c-ink)}
   #area .fr-all{grid-template-columns:repeat(2,1fr);gap:8px}
   #area .fr li{padding:8px 12px}
   #area .area-map{max-height:150mm}
-  #top>.wrap{zoom:1.3}#area>.wrap{zoom:.9}#area.many>.wrap{zoom:.76}#income>.wrap{zoom:.92}#trend>.wrap{zoom:.76}#land>.wrap{zoom:.88}
-  #used_house>.wrap,#used_mansion>.wrap,#new_house>.wrap{zoom:.9}
-  #search>.wrap{zoom:1.3}#summary>.wrap{zoom:1.05}.point>.wrap{zoom:1.3}#competitors>.wrap{zoom:1.4}#listings>.wrap{zoom:1.3}.q>.wrap{zoom:1.15}
+  #top>.wrap{zoom:1.3}#area>.wrap{zoom:.9}#area.many>.wrap{zoom:.76}[id^="income"]>.wrap{zoom:.92}[id^="trend"]>.wrap{zoom:.76}[id^="land"]>.wrap{zoom:.88}
+  [id^="used_house"]>.wrap,[id^="used_mansion"]>.wrap,[id^="new_house"]>.wrap{zoom:.9}
+  [id^="search"]>.wrap{zoom:1.3}[id^="summary"]>.wrap{zoom:1.05}.point>.wrap{zoom:1.3}#competitors>.wrap{zoom:1.4}#listings>.wrap{zoom:1.3}.q>.wrap{zoom:1.15}
   a{text-decoration:none;color:inherit}
   /* 印刷はつねにPC幅のレイアウト */
   .wrap{max-width:none;padding:0 4mm}

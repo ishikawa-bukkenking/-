@@ -36,10 +36,10 @@ function mapLegend_(pins) {
   return '<p class="map-legend">' + parts.join('') + '</p>';
 }
 
-function houseSection_(id, no, sec, label) {   // no: 表示用の連番(文字列)
+function houseSection_(id, no, sec, label, sfx) {   // no: 表示用の連番(文字列)
   var ok = sec.price_man != null && sec.listings != null;
   var h2 = ok ? esc_(label) + 'の相場は<span class="em">' + num_(sec.price_man) + '万円</span>、物件数は<span class="em">' + num_(sec.listings) + '件</span>' : esc_(label) + 'の価格相場・物件数';
-  var s = '<section class="sec' + (Number(no) % 2 === 0 ? ' alt' : '') + '" id="' + id + '"><div class="wrap rv"><p class="sec-no">' + no + '　' + esc_(label) + '</p><h2>' + h2 + '</h2>';
+  var s = '<section class="sec' + (Number(no) % 2 === 0 ? ' alt' : '') + '" id="' + id + '"><div class="wrap rv"><p class="sec-no">' + no + '　' + esc_(label) + (sfx || '') + '</p><h2>' + h2 + '</h2>';
   s += '<div class="grid g2" style="max-width:640px">' + kpi_(sec.price_man, '万円', '売却価格相場') + kpi_(sec.listings, '件', '物件数') + '</div>';
   if (!ok) s += '<div style="margin-top:16px">' + slot_(label + 'の相場・物件数', [label + 'の相場・物件数']) + '</div>';
   s += '<div style="margin-top:28px">';
@@ -67,10 +67,71 @@ function typeCard_(title, sec, rows) {
   return s + '</dl></div>';
 }
 
-function renderPage_(model, report, assets, styleCss) {
+/** 会社の複数エリアをまとめたLPの「対象エリア」: 地図に全エリアを強調し、世帯数はエリアごと、加盟店は1つの一覧にまとめる */
+function areaMultiHtml_(models, multi, no) {
+  multi = multi || { maps: [], pins: [], franchise: { items: [] } };
+  var names = models.map(function (x) { return x.meta.city; }), items = multi.franchise.items, frN = items.length;
+  var hhs = models.map(function (x) { return x.area.households; }), allHh = hhs.every(function (v) { return v != null; });
+  var total = allHh ? hhs.reduce(function (s, v) { return s + v; }, 0) : null;
+  var prefs = models.map(function (x) { return x.meta.prefecture; }).filter(function (p, i, a) { return a.indexOf(p) === i; });
+  var maps = multi.maps.length ? multi.maps.map(function (mp) { return mp.svg; }).join('') : slot_('地図', ['行政区域データの取得に失敗']);
+  return '<section class="sec' + (frN > 6 ? ' many' : '') + '" id="area"><div class="wrap rv"><p class="sec-no">' + no + '　対象エリア</p><h2>' +
+    esc_(names.join('・')) + 'を商圏に、' + (total != null ? '合計<span class="em">' + num_(total) + '世帯</span>の' : '') + 'エリアを調査しました</h2>' +
+    '<div class="split"><div>' + maps + mapLegend_(multi.pins) + '</div><div class="grid">' +
+    models.map(function (x) { return kpi_(x.area.households, '世帯', x.meta.city + 'の世帯数', 'flat'); }).join('') +
+    (allHh ? '' : slot_('世帯数', ['各エリアの世帯数'])) + '</div></div>' +
+    '<div class="card fr-card"><p class="sub">' + esc_(prefs.join('・')) + 'の物件王加盟店' + (frN ? '（' + frN + '社）' : '') + '</p>' +
+    (frN ? '<ul class="fr fr-all">' + items.map(function (f) {
+      return '<li><b>' + (f.pin_no ? '<span class="pinno">' + f.pin_no + '</span>' : '') + esc_(f.name) + '様</b><span>※' + esc_(f.area) + '</span>' + (f.url ? '<br><span class="note">不動産HP：</span><a href="' + esc_(f.url) + '" rel="noopener noreferrer" target="_blank">' + esc_(f.url) + '</a>' : '') + '</li>';
+    }).join('') + '</ul>' : '<p class="empty">表示する加盟店がありません</p>') + '</div></div></section>';
+}
+
+function renderPage_(models, report, assets, styleCss, multi) {
+  models = [].concat(models);
+  var many = models.length > 1, model = models[0];   // 2エリア目以降は、1エリア目の下に続けて並べる
+  var m = model.meta, a = model.area, t = model.totals, comp = model.competitors, tr = model.price_trend;
+  var missing = report.missing().length;
+  var trendOn = !tr.hidden;
+  function sfx(mi) { return mi ? '-' + (mi + 1) : ''; }   // 2エリア目以降のセクションIDの接尾辞
+  var cityNames = esc_(models.map(function (x) { return x.meta.city; }).join('・'));
+  var prefs = models.map(function (x) { return x.meta.prefecture; }).filter(function (p, i, arr) { return arr.indexOf(p) === i; });
+  var pills = prefs.map(function (p) {
+    return '<span class="pill">' + esc_(p) + '　' + esc_(models.filter(function (x) { return x.meta.prefecture === p; }).map(function (x) { return x.meta.city; }).join('・')) + '</span>';
+  }).join(' ');
+  var toc = many ? [['top', '表紙'], ['area', '対象エリア']].concat(models.map(function (x, mi) { return ['income' + sfx(mi), x.meta.city + 'の調査']; })).concat([['point', 'POINT'], ['competitors', '近隣HP']])
+    : [['top', '表紙']].concat(TOC_.filter(function (x) { return trendOn || x[0] !== 'trend'; }));
+  var n = 0, N = function () { n++; return ('0' + n).slice(-2); };
+  var alt = function () { return (n + 1) % 2 === 0 ? ' alt' : ''; };   // 次の連番が偶数なら薄いグレーの背景(非表示のセクションがあっても交互になる)
+  var h = [];
+  h.push('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<meta name="robots" content="noindex,nofollow,noarchive,noimageindex"><title>エリア調査シート｜' + esc_(m.company) + ' 御中｜' + cityNames + '</title>' +
+    '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap">' +
+    '<style>' + styleCss + '</style><script>document.documentElement.classList.add("js")</script></head><body>');
+  if (missing) h.push('<div class="draft"><div class="wrap"><b>下書き</b><span>未入力の項目が' + missing + '件あります(黄色の枠)。入力システムで入力すると、このページを再読み込みするだけで反映されます。</span></div></div>');
+  h.push('<nav class="nav" aria-label="ページ内移動"><div class="wrap"><img src="' + assets.logoTeal + '" alt="物件王">' +
+    toc.map(function (x) { return '<a class="i" href="#' + x[0] + '">' + x[1] + '</a>'; }).join('') + '</div></nav>');
+  // hero
+  h.push('<header class="hero" id="top"><div class="wrap"><div><p class="eyebrow">エリア調査シート</p><h1>' + esc_(m.company) + '<small>御中</small></h1>' +
+    '<p>' + pills + '<span class="date">' + m.created_display + ' 作成</span></p></div>' +
+    '<img class="king" src="' + assets.king + '" alt="物件王の王様キャラクター">' +
+    '<nav class="anchors" aria-label="セクション">' + toc.filter(function (x) { return x[0] !== 'top'; }).map(function (x) { return '<a href="#' + x[0] + '">' + x[1] + '</a>'; }).join('') + '</nav>' +
+    (model.cta_url ? '<div><a class="btn" href="' + esc_(model.cta_url) + '">お問い合わせ・資料請求</a></div>' : '') + '</div></header><main>');
+  if (many) h.push(areaMultiHtml_(models, multi, N())); else {
+  var frN = a.franchise.items.length;
+  h.push('<section class="sec' + alt() + (frN > 6 ? ' many' : '') + '" id="area"><div class="wrap rv"><p class="sec-no">' + N() + '　対象エリア</p><h2>' +
+    (a.households != null ? esc_(m.city) + 'を商圏に、<span class="em">' + num_(a.households) + '世帯</span>のエリアを調査しました' : esc_(m.city) + 'を商圏としたエリアを調査しました') +
+    '</h2><div class="split"><div>' + (model._mapSvg || slot_('地図', ['行政区域データの取得に失敗'])) + mapLegend_(a.pins) + '</div><div class="grid">' + kpi_(a.households, '世帯', '世帯数', 'flat') +
+    (a.households == null ? slot_('世帯数', ['世帯数']) : '') + '</div></div>' +
+    '<div class="card fr-card"><p class="sub">' + esc_(m.prefecture) + 'の物件王加盟店' + (frN ? '（' + frN + '社）' : '') + '</p>' +
+    (frN ? '<ul class="fr fr-all">' + a.franchise.items.map(function (f) {
+      return '<li><b>' + (f.pin_no ? '<span class="pinno">' + f.pin_no + '</span>' : '') + esc_(f.name) + '様</b><span>※' + esc_(f.area) + '</span>' + (f.url ? '<br><span class="note">不動産HP：</span><a href="' + esc_(f.url) + '" rel="noopener noreferrer" target="_blank">' + esc_(f.url) + '</a>' : '') + '</li>';
+    }).join('') + '</ul>' : '<p class="empty">表示する加盟店がありません</p>') + '</div>' +
+    '</div></section>');   // 世帯数の出典の行(日付・総務省統計局)はLPに出さない
+  }
+  models.forEach(function (model, mi) {
   var m = model.meta, a = model.area, inc = model.income, tr = model.price_trend, land = model.land, kw = model.keywords,
     t = model.totals, comp = model.competitors, uh = model.used_house, um = model.used_mansion, nh = model.new_house;
-  var missing = report.missing().length;
   var br = inc.brackets || [];
   var donut = (br.length && br.every(function (b) { return b.share != null; })) ? donutSvg_(br) : null;
   var haveBars = inc.city_avg_man != null && inc.prefecture_avg_man != null && inc.national_avg_man != null;
@@ -83,37 +144,10 @@ function renderPage_(model, report, assets, styleCss) {
   var kwMax = vols.length ? Math.max.apply(null, vols) : 1;
   var kwMissing = kw.rows.some(function (r) { return r.monthly_volume == null || r.cpc_low_yen == null; });
   var trendOn = !tr.hidden;
-  var toc = [['top', '表紙']].concat(TOC_.filter(function (x) { return trendOn || x[0] !== 'trend'; }));
-  var n = 0, N = function () { n++; return ('0' + n).slice(-2); };
-  var alt = function () { return (n + 1) % 2 === 0 ? ' alt' : ''; };   // 次の連番が偶数なら薄いグレーの背景(非表示のセクションがあっても交互になる)
-  var h = [];
-  h.push('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<meta name="robots" content="noindex,nofollow,noarchive,noimageindex"><title>エリア調査シート｜' + esc_(m.company) + ' 御中｜' + esc_(m.city) + '</title>' +
-    '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
-    '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap">' +
-    '<style>' + styleCss + '</style><script>document.documentElement.classList.add("js")</script></head><body>');
-  if (missing) h.push('<div class="draft"><div class="wrap"><b>下書き</b><span>未入力の項目が' + missing + '件あります(黄色の枠)。入力システムで入力すると、このページを再読み込みするだけで反映されます。</span></div></div>');
-  h.push('<nav class="nav" aria-label="ページ内移動"><div class="wrap"><img src="' + assets.logoTeal + '" alt="物件王">' +
-    toc.map(function (x) { return '<a class="i" href="#' + x[0] + '">' + x[1] + '</a>'; }).join('') + '</div></nav>');
-  // hero
-  h.push('<header class="hero" id="top"><div class="wrap"><div><p class="eyebrow">エリア調査シート</p><h1>' + esc_(m.company) + '<small>御中</small></h1>' +
-    '<p><span class="pill">' + esc_(m.prefecture) + '　' + esc_(m.city) + '</span><span class="date">' + m.created_display + ' 作成</span></p></div>' +
-    '<img class="king" src="' + assets.king + '" alt="物件王の王様キャラクター">' +
-    '<nav class="anchors" aria-label="セクション">' + toc.filter(function (x) { return x[0] !== 'top'; }).map(function (x) { return '<a href="#' + x[0] + '">' + x[1] + '</a>'; }).join('') + '</nav>' +
-    (model.cta_url ? '<div><a class="btn" href="' + esc_(model.cta_url) + '">お問い合わせ・資料請求</a></div>' : '') + '</div></header><main>');
-  // 01 area
-  var frN = a.franchise.items.length;
-  h.push('<section class="sec' + alt() + (frN > 6 ? ' many' : '') + '" id="area"><div class="wrap rv"><p class="sec-no">' + N() + '　対象エリア</p><h2>' +
-    (a.households != null ? esc_(m.city) + 'を商圏に、<span class="em">' + num_(a.households) + '世帯</span>のエリアを調査しました' : esc_(m.city) + 'を商圏としたエリアを調査しました') +
-    '</h2><div class="split"><div>' + (model._mapSvg || slot_('地図', ['行政区域データの取得に失敗'])) + mapLegend_(a.pins) + '</div><div class="grid">' + kpi_(a.households, '世帯', '世帯数', 'flat') +
-    (a.households == null ? slot_('世帯数', ['世帯数']) : '') + '</div></div>' +
-    '<div class="card fr-card"><p class="sub">' + esc_(m.prefecture) + 'の物件王加盟店' + (frN ? '（' + frN + '社）' : '') + '</p>' +
-    (frN ? '<ul class="fr fr-all">' + a.franchise.items.map(function (f) {
-      return '<li><b>' + (f.pin_no ? '<span class="pinno">' + f.pin_no + '</span>' : '') + esc_(f.name) + '様</b><span>※' + esc_(f.area) + '</span>' + (f.url ? '<br><span class="note">不動産HP：</span><a href="' + esc_(f.url) + '" rel="noopener noreferrer" target="_blank">' + esc_(f.url) + '</a>' : '') + '</li>';
-    }).join('') + '</ul>' : '<p class="empty">表示する加盟店がありません</p>') + '</div>' +
-    '</div></section>');   // 世帯数の出典の行(日付・総務省統計局)はLPに出さない
+
+  var trendOn = !tr.hidden, ID = function (k) { return k + sfx(mi); }, SFX = many ? '（' + m.city + '）' : '';
   // 02 income
-  h.push('<section class="sec' + alt() + '" id="income"><div class="wrap rv"><p class="sec-no">' + N() + '　年収</p><h2>' + esc_(inc.headline || (m.city + 'の平均世帯年収')) + '</h2>' +
+  h.push('<section class="sec' + alt() + '" id="' + ID('income') + '"><div class="wrap rv"><p class="sec-no">' + N() + '　年収' + SFX + '</p><h2>' + esc_(inc.headline || (m.city + 'の平均世帯年収')) + '</h2>' +
     (inc.body ? '<p class="lead">' + esc_(inc.body) + '</p>' : slot_('年収の説明文', ['平均年収・順位・階級別世帯数'])) +
     '<div class="split"><div class="card"><p class="sub">平均世帯年収</p>' +
     (haveBars ? '<div class="chart-d">' + barsFor(560) + '</div><div class="chart-c">' + barsFor(340) + '</div>' : slot_('平均世帯年収', ['市の平均年収', '県平均', '全国平均'])) + '</div>' +
@@ -124,7 +158,7 @@ function renderPage_(model, report, assets, styleCss) {
     }).join('') + '</ul></div>' : slot_('年収階級別の世帯構成', ['年収階級の世帯数(5区分)または構成比'])) + '</div></div>' + srcline_(inc) + '</div></section>');
   // 03 trend
   var c3 = tr.city_3y_pct;
-  if (trendOn) h.push('<section class="sec' + alt() + '" id="trend"><div class="wrap rv"><p class="sec-no">' + N() + '　価格推移</p><h2>' +
+  if (trendOn) h.push('<section class="sec' + alt() + '" id="' + ID('trend') + '"><div class="wrap rv"><p class="sec-no">' + N() + '　価格推移' + SFX + '</p><h2>' +
     (c3 != null ? (Math.abs(c3) < 0.005 ? '直近3年間の価格は、ほぼ横ばいです' : '直近3年間で、価格は<span class="em">' + num_(Math.abs(c3), 2) + '%' + (c3 > 0 ? '上昇' : '下落') + '</span>しています') : '直近3年間の価格推移') + '</h2>' +
     (tr.body ? '<p class="lead">' + esc_(tr.body) + '</p>' : slot_('価格推移の説明文', ['市の3年上昇率(空欄可)', '県の3年上昇率', '年ごとの内訳(3年分)'])) +
     '<div class="grid g4" style="margin-bottom:24px">' + kpi_(tr.city_3y_pct, '%', m.city + ' 3年間', 'accent', 2) + kpi_(tr.prefecture_3y_pct, '%', m.prefecture + ' 3年間', 'flat', 2) +
@@ -136,7 +170,7 @@ function renderPage_(model, report, assets, styleCss) {
         slot_('価格推移グラフ', ['価格推移グラフ(画像)'])) +
     '<ul class="notes note" style="margin-top:14px">' + tr.ai_note.map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul></div>' + srcline_(tr) + '</div></section>');
   // 04 land
-  h.push('<section class="sec' + alt() + '" id="land"><div class="wrap rv"><p class="sec-no">' + N() + '　土地</p><h2>' +
+  h.push('<section class="sec' + alt() + '" id="' + ID('land') + '"><div class="wrap rv"><p class="sec-no">' + N() + '　土地' + SFX + '</p><h2>' +
     (land.tsubo_price_man != null ? esc_(m.city) + 'の土地相場は<span class="em">坪' + num_(land.tsubo_price_man) + '万円</span>' + (land.listings != null ? '、物件数は<span class="em">' + num_(land.listings) + '件</span>' : '') : esc_(m.city) + 'の土地価格相場・物件数') +
     '</h2><div class="grid g4">' + kpi_(land.tsubo_price_man, '万円/坪', '坪単価', 'accent') + kpi_(land.tsubo_price_low_rise_residential_man, '万円/坪', '低層住居専用地域相場', 'flat') +
     kpi_(land.tsubo_price_other_residential_man, '万円/坪', 'それ以外の住居専用地域', 'flat') + kpi_(land.listings, '件', '物件数', 'flat') + '</div>' +
@@ -145,9 +179,9 @@ function renderPage_(model, report, assets, styleCss) {
     '<div class="card" style="margin-top:24px"><p class="sub">' + esc_(m.city) + 'と近隣・県内主要市の比較（坪単価）</p>' +
     (landOk ? '<div class="chart-d">' + landBarsSvg_(items, false) + '</div><div class="chart-c">' + landBarsSvg_(items, true) + '</div>' :
       slot_('近隣・県内主要市の坪単価', ['比較市(市名,坪単価)'].concat(land.compare.suggested.length ? ['候補(隣接市): ' + land.compare.suggested.join('、')] : []))) + '</div>' + srcline_(land) + '</div></section>');
-  h.push(houseSection_('used_house', N(), uh, '中古戸建て'), houseSection_('used_mansion', N(), um, '中古マンション'), houseSection_('new_house', N(), nh, '新築戸建て'));
+  h.push(houseSection_(ID('used_house'), N(), uh, '中古戸建て', SFX), houseSection_(ID('used_mansion'), N(), um, '中古マンション', SFX), houseSection_(ID('new_house'), N(), nh, '新築戸建て', SFX));
   // 08 search(見出しの文章は出さない。セクション名と表だけ)
-  h.push('<section class="sec' + alt() + '" id="search"><div class="wrap rv"><p class="sec-no">' + N() + '　検索ボリューム</p>' +
+  h.push('<section class="sec' + alt() + '" id="' + ID('search') + '"><div class="wrap rv"><p class="sec-no">' + N() + '　検索ボリューム' + SFX + '</p>' +
     '<div class="card"><table class="kw"><thead><tr><th scope="col">検索キーワード</th><th scope="col">月間平均検索ボリューム</th><th scope="col">予想クリック単価</th></tr></thead><tbody>' +
     kw.rows.map(function (r) {
       return '<tr><td>' + esc_(r.keyword) + '</td><td class="v num">' + (r.monthly_volume != null ? num_(r.monthly_volume) + '<span class="bar" style="width:' + roundHalfUp_(100 * r.monthly_volume / kwMax, 1) + '%" aria-hidden="true"></span>' : '<span class="note">未入力</span>') +
@@ -156,7 +190,7 @@ function renderPage_(model, report, assets, styleCss) {
     (kwMissing ? '<div style="margin-top:14px">' + slot_('検索ボリューム・クリック単価', ['月間ボリューム・CPC下限・CPC上限']) + '</div>' : '') +
     '<p class="src">（' + esc_(kw.date) + '　' + esc_(kw.source) + '）</p></div></section>');
   // 09 summary
-  h.push('<section class="sec' + alt() + '" id="summary"><div class="wrap rv"><p class="sec-no">' + N() + '　物件総数・売却相場まとめ</p><h2>' +
+  h.push('<section class="sec' + alt() + '" id="' + ID('summary') + '"><div class="wrap rv"><p class="sec-no">' + N() + '　物件総数・売却相場まとめ' + SFX + '</p><h2>' +
     (t.listings_total != null ? '物件総数<span class="em">' + num_(t.listings_total) + '件</span>、仲介単価は約<span class="em">' + t.brokerage_unit_display_man + '万円</span>' : '物件総数・売却相場まとめ') + '</h2>' +
     '<div class="big2">' + kpi_(t.brokerage_unit_display_man, '万円', '仲介単価(約)', 'accent') + kpi_(t.listings_total, '件', '物件総数', 'accent') + '</div>' +
     (t.listings_total == null ? slot_('物件総数・仲介単価', ['4種別すべての相場と物件数(各セクションの入力)']) : '') +
@@ -166,9 +200,11 @@ function renderPage_(model, report, assets, styleCss) {
     typeCard_('新築一戸建て', nh, [['建物面積（中央値）', nh.building_area_median_m2, '㎡'], ['土地面積（中央値）', nh.land_area_median_m2, '㎡']]) +
     typeCard_('中古一戸建て', uh, [['建物面積（中央値）', uh.building_area_median_m2, '㎡'], ['土地面積（中央値）', uh.land_area_median_m2, '㎡'], ['築年数（中央値）', uh.age_median_years, '年']]) +
     '</div><p class="note" style="margin-top:16px">※仲介単価は加重平均で計算しております</p>' + srcline_(t) + '</div></section></main>');
-  // point
+  });
+  // point(複数エリアのときは、全エリアの物件総数の合計から求める)
+  var pointRounded = many ? (multi && multi.pointRounded != null ? multi.pointRounded : null) : t.point_listings_rounded;
   h.push('<section class="point" id="point"><div class="wrap rv"><img src="' + assets.king + '" alt="物件王の王様キャラクター"><div><span class="tag">POINT</span>' +
-    (t.point_listings_rounded != null ? '<p class="t">商圏で<b class="num">約' + num_(t.point_listings_rounded) + '件</b>の物件情報数を担保できれば、商圏No.1の情報量を担保するHPを作り上げることが実証される</p>' :
+    (pointRounded != null ? '<p class="t">商圏で<b class="num">約' + num_(pointRounded) + '件</b>の物件情報数を担保できれば、商圏No.1の情報量を担保するHPを作り上げることが実証される</p>' :
       '<div class="slot"><b>未入力: 物件総数</b>4種別の物件数が揃うと自動で表示されます。</div>') + '</div></div></section>');
   // competitors
   h.push('<section class="sec' + alt() + '" id="competitors"><div class="wrap rv comp"><p class="sec-no">' + N() + '　近隣不動産会社のHP</p><h2>近隣不動産会社のHPだと・・・</h2>' +
@@ -181,7 +217,7 @@ function renderPage_(model, report, assets, styleCss) {
   h.push('<section class="sec' + alt() + '" id="listings"><div class="wrap rv"><p class="sec-no">' + N() + '　弊社加盟店様の物件情報量</p><h2>弊社加盟店様の物件情報量</h2><figure class="fig"><img src="' + assets.listings + '" alt="加盟店様のホームページの物件掲載例" loading="lazy"></figure></div></section>');
   h.push('<section class="sec q" id="question"><div class="wrap rv"><img class="th" src="' + assets.thinker + '" alt="考え込む男性のイラスト"><h2>どちらのサイトが<br>エンドユーザー様にとって<br><span class="em">魅力的なサイト</span>でしょうか？</h2>' +
     (model.cta_url ? '<a class="btn" href="' + esc_(model.cta_url) + '">お問い合わせ・資料請求</a>' : '') + '<button class="btn" style="background:#fff;border:2px solid var(--c-ink)" onclick="window.print()">PDFで保存(印刷)</button></div></section>');
-  h.push('<footer class="foot"><div class="wrap"><p>' + esc_(m.company) + ' 御中　' + esc_(m.prefecture) + esc_(m.city) + '　エリア調査シート（' + m.created_display + ' 作成）</p><p>' + esc_(m.map_source) + '</p><p><img src="' + assets.logoTeal + '" alt="物件王" style="height:22px;margin-top:10px"></p></div></footer>');
+  h.push('<footer class="foot"><div class="wrap"><p>' + esc_(m.company) + ' 御中　' + (many ? prefs.map(function (p) { return esc_(p); }).join('・') + ' ' + cityNames : esc_(m.prefecture) + esc_(m.city)) + '　エリア調査シート（' + m.created_display + ' 作成）</p><p>' + esc_(m.map_source) + '</p><p><img src="' + assets.logoTeal + '" alt="物件王" style="height:22px;margin-top:10px"></p></div></footer>');
   h.push('<script>' + APP_JS_ + '</script></body></html>');
   return h.join('');
 }

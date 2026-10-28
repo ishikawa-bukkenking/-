@@ -62,6 +62,7 @@ function makeEnv(geoDir) {
       if (global.__geoMode === 'fail') return { status: 'OVER_QUERY_LIMIT', results: [] };
       if (/ZZZ|GSI/.test(addr)) return { status: 'ZERO_RESULTS', results: [] };
       if (/大阪/.test(addr)) return ok(34.69, 135.5);
+      if (/岡崎市/.test(addr)) return ok(34.954, 137.17);
       if (/名古屋市中区/.test(addr)) return ok(35.168, 136.908);
       if (/概算/.test(addr)) return ok(36.4, 138.25, 'APPROXIMATE');
       if (/中央1-1-1/.test(addr)) return ok(36.4019, 138.249);

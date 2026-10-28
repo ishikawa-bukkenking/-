@@ -418,6 +418,7 @@ function viewEdit(id) {
       var cp = el('button', { class: 'ghost', text: 'URLをコピー' }); cp.onclick = function () { copyText(r.url, cp); }; acts.appendChild(cp);
       top.appendChild(el('p', { style: 'margin:10px 0 0;word-break:break-all' }, [el('span', { class: 'note', text: 'LPのURL' + (r.provisional ? '(仮。社内でしか開けない場合があります。「設定」でLPの公開URLを入力してください)' : '') + '：' }), el('a', { href: r.url, target: '_blank', rel: 'noopener', style: 'font-size:.875rem', text: r.url })])); }
     else acts.appendChild(el('span', { class: 'msg', text: 'LPのURLを作れません。ウェブアプリとしてデプロイしてください。' }));
+    if (r.siblings && r.siblings.length > 1) top.appendChild(el('p', { class: 'note', style: 'margin:8px 0 0', text: r.primary ? 'この会社には複数のエリアがあります。LPは会社ごとに1つで、このエリアの下に、2つ目以降のエリアの年収・価格推移などが続けて表示されます。対象エリアの地図には、全エリアが表示されます。' : 'これは会社の2つ目以降のエリアです。LPでは、1つ目のエリアの下に続けて表示されます(上のLPのURLは、会社共通です)。' }));
     var rot = el('button', { class: 'ghost', text: 'URLを作り直す' }); armed(rot, '旧URLが無効になります。もう一度押すと実行', function () { call('api_rotate', [cur], function (x) { openArea(x.id); }); });
     acts.appendChild(rot); acts.appendChild(el('span', { class: 'note', text: '入力は自動で保存されます。' }));
     var wrap = el('div', {}), sec = null, body = null;

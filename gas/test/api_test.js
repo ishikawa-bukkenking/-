@@ -64,8 +64,16 @@ const res = vm.runInContext(`
   // 同じ会社の2つ目のエリアは別データ(LPも別)
   api_save(a2, { 'inputs.area.households': '12000' });
   var lp2 = doGet({ parameter: { id: a2 } }).html;
-  r.area2 = lp2.indexOf('東御市') >= 0 && lp2.indexOf('12,000世帯') >= 0 && lp2.indexOf('414件') < 0 && lp2.indexOf('株式会社○○') >= 0;
+  r.area2 = lp2.indexOf('東御市') >= 0 && lp2.indexOf('>12,000<') >= 0 && lp2.indexOf('株式会社○○') >= 0 && lp2.indexOf('上田市・東御市を商圏に') >= 0;   // 2エリア目も同じ会社のLPに並ぶ
   r.status2 = api_status(a2).missing.length > 10;
+  // 会社のLPは1つ。どのエリアのURLでも同じページ(2エリア分)。2エリア目は1エリア目の下に続く
+  var lpBoth = doGet({ parameter: { id: a1 } }).html;
+  r.combinedSame = lpBoth.length === lp2.length && lpBoth.indexOf('id="income-2"') > lpBoth.indexOf('id="income"') && lpBoth.indexOf('id="income"') > 0 && lpBoth.indexOf('414件') >= 0;
+  r.combinedMap = (lpBoth.match(/<svg class="area-map"/g) || []).length === 1 && lpBoth.indexOf('class="map-label"') > 0 && (lpBoth.match(/class="map-label"/g) || []).length === 2;   // 地図は1枚に2エリアを強調
+  r.combinedKpi = lpBoth.indexOf('上田市の世帯数') >= 0 && lpBoth.indexOf('東御市の世帯数') >= 0 && lpBoth.indexOf('年収（上田市）') >= 0 && lpBoth.indexOf('年収（東御市）') >= 0;
+  r.combinedOnce = (lpBoth.match(/id="point"/g) || []).length === 1 && (lpBoth.match(/id="competitors"/g) || []).length === 1 && (lpBoth.match(/id="listings"/g) || []).length === 1 && (lpBoth.match(/id="question"/g) || []).length === 1;
+  r.combinedUrl = api_get(a2).url === api_get(a1).url && api_get(a1).primary === true && api_get(a2).primary === false;
+  r.combinedFr = (lpBoth.match(/class="fr fr-all"/g) || []).length === 1 && lpBoth.indexOf('物件王加盟店（') >= 0;
   // 周辺加盟店は同梱の一覧から選ばれる(上田市=同一市、東御市=木楽ホーム)
   r.fr1 = lp.indexOf('リフォームワン株式会社様') >= 0 && lp.indexOf('ミライズ不動産株式会社様') >= 0 && lp.indexOf('https://www.one-estate.jp/') >= 0;
   r.fr2 = lp2.indexOf('木楽ホーム株式会社様') >= 0;
@@ -87,9 +95,9 @@ const res = vm.runInContext(`
   var s2 = api_settings_get(); r.settings = [s2.max, s2.threshold, s2.estat, s2.url, s2.unit];
   r.provisionalGone = api_list().provisional === false && api_get(a1).provisional === false;
   r.listUrl = api_list().companies.filter(function (x) { return x.name === '株式会社○○'; })[0].areas[0].url === 'https://script.google.com/macros/s/AKfycbxTEST/exec?id=' + a1;
-  r.point420 = doGet({ parameter: { id: a1 } }).html.indexOf('約420件') >= 0;
+  r.point420 = buildArea_(a1).html.indexOf('約420件') >= 0;
   // --- 今回の変更 ---
-  var lpx = doGet({ parameter: { id: a1 } }).html;
+  var lpx = buildArea_(a1).html;
   var heroPart = lpx.slice(lpx.indexOf('id="top"'), lpx.indexOf('<main>'));
   r.heroNoTotals = heroPart.indexOf('物件総数') < 0 && heroPart.indexOf('仲介単価') < 0 && lpx.indexOf('物件総数・売却相場まとめ') >= 0;   // トップには出さず、まとめには残る
   r.heroNoKpi = heroPart.indexOf('conclusions') < 0;
@@ -105,13 +113,13 @@ const res = vm.runInContext(`
   r.trendDefault = lpx.indexOf('id="trend"') >= 0 && lpx.indexOf('<a class="i" href="#trend">') >= 0;
   var missBefore = api_status(a1).missing.map(function (m) { return m.key; });
   api_save(a1, { 'show.price_trend': '0' });
-  var lph = doGet({ parameter: { id: a1 } }).html;
+  var lph = buildArea_(a1).html;   // 1エリア分のページ(会社の2エリアをまとめたLPではなく)
   r.trendHidden = lph.indexOf('id="trend"') < 0 && lph.indexOf('href="#trend"') < 0 && lph.indexOf('AI査定した参考価格') < 0;
   var nums = lph.split('sec-no">').slice(1).map(function (x) { return x.slice(0, 2); });
   r.numbering = nums.join(',');
   r.trendMissingGone = api_status(a1).missing.every(function (m) { return m.key.indexOf('price_trend') !== 0; });
   r.showBad = api_save(a1, { 'show.price_trend': 'maybe' }).errors['show.price_trend'];
-  api_save(a1, { 'show.price_trend': '1' }); r.trendBack = doGet({ parameter: { id: a1 } }).html.indexOf('id="trend"') >= 0;
+  api_save(a1, { 'show.price_trend': '1' }); r.trendBack = buildArea_(a1).html.indexOf('id="trend"') >= 0;
   // 世帯数の自動取得(e-Stat。応答の形は想定。取得できたら保存して以後は呼ばない)
   api_settings_set({ max: 3, threshold: 1, estat: 'APPID', url: 'https://script.google.com/macros/s/AKfycbxTEST/exec' });
   var auto = api_create_company('自動取得テスト', '長野県', '上田市').areaId;

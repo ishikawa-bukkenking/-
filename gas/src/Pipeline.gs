@@ -228,7 +228,7 @@ function buildModel_(cfg, services, data) {
     if (!f.address) { frNoAddr.push(f.name); return; }
     if (i >= 40) { frNoAddr.push(f.name); return; }   // 位置検索の回数を抑えるため、ピンは先頭40社まで
     var fp = locate_(/^(北海道|東京都|大阪府|京都府|.{2,3}県)/.test(f.address) ? f.address : f.prefecture + f.address, f.name, 'fr', i + 1, { pref: f.prefecture, city: f.city });
-    if (fp) pins.push(fp);
+    if (fp) { fp.key = f.key; pins.push(fp); }
   });
   // 全ピンが入る範囲で、なるべく拡大した地図(対象市+隣接市)を使う。入らなければ県全体の地図
   var located = pins.filter(function (x) { return x.lat !== null; }), mapSvg = geo ? geo.svg : null, mapProj = geo ? geo.proj : null;
@@ -248,7 +248,7 @@ function buildModel_(cfg, services, data) {
   var frRough = pins.filter(function (x) { return x.kind === 'fr' && x.on_map && !x.precise; }).map(function (x) { return x.name; });
   if (pinsOn && model.area.franchise.items.length) rep.add('area.pin_franchise', '周辺加盟店のピン', frNoAddr.length || frFail.length || frRough.length ? 'optional' : 'auto', '加盟店一覧の住所 + Googleマップ',
     (frNoAddr.length ? '住所が未登録でピンなし: ' + frNoAddr.join('、') + '。' : '') + (frFail.length ? 'ピンを立てられない: ' + frFail.join('、') + '。' : '') + (frRough.length ? '住所が大まかで位置が概算: ' + frRough.join('、') : ''));
-  model.area.pins = pins.map(function (x) { return { kind: x.kind, n: x.n, name: x.name, address: x.address, lat: x.lat, lng: x.lng, source: x.source, precise: x.precise, on_map: x.on_map, why: x.why }; });
+  model.area.pins = pins.map(function (x) { return { kind: x.kind, n: x.n, key: x.key, name: x.name, address: x.address, lat: x.lat, lng: x.lng, source: x.source, precise: x.precise, on_map: x.on_map, why: x.why }; });
   model._mapSvg = mapSvg ? addPinsToSvg_(mapSvg, pins.filter(function (x) { return x.on_map; })) : null;
   Object.keys(KEYS_).forEach(function (sec) { KEYS_[sec].forEach(function (k) { if (model[sec][k] === undefined) model[sec][k] = null; }); });
   return { model: model, report: rep };
@@ -276,4 +276,58 @@ function compare_(cfg, land, city, neighbors, rep, opts) {
     rep.add('land.compare', '土地 近隣・県内主要市の坪単価', bad.length === items.length ? 'missing' : 'input', '設定値', bad.length ? '坪単価が空の市はグラフに出しません: ' + bad.join('、') : '');
   }
   return { items: items, suggested: suggestion };
+}
+
+
+/**
+ * 会社の複数エリアを1つのLPにまとめるときの、対象エリアの部分(地図・加盟店一覧)を作る。
+ * - 同じ都道府県のエリアは1枚の地図に並べて強調。都道府県が違えば、都道府県ごとに地図を並べる
+ * - 加盟店は、各エリアで選んだ加盟店を重複なしでまとめて1つの一覧にし、通し番号を振る(ピンと対応)
+ * - POINTの件数は、全エリアの物件総数の合計から求める
+ */
+function combineModels_(models, services) {
+  var multi = { maps: [], pins: [], franchise: { items: [] }, pointRounded: null, mapErrors: [] };
+  // 加盟店(重複なし)。位置は、そのエリアで求めたピンから引き継ぐ
+  var seen = {}, items = [];
+  models.forEach(function (md) {
+    var pinByN = {};
+    (md.area.pins || []).forEach(function (p) { if (p.kind === 'fr') pinByN[p.n] = p; });
+    md.area.franchise.items.forEach(function (f, i) {
+      var key = f.key || (f.name + '@' + f.city);
+      if (seen[key]) return;
+      seen[key] = 1;
+      var p = pinByN[i + 1];
+      items.push(Object.assign({}, f, { key: key, lat: p ? p.lat : null, lng: p ? p.lng : null, pin_no: null }));
+    });
+  });
+  var clients = [];
+  models.forEach(function (md) { (md.area.pins || []).forEach(function (p) { if (p.kind === 'client' && p.lat != null) clients.push({ kind: 'client', name: p.name, lat: p.lat, lng: p.lng, pref: md.meta.prefecture }); }); });
+  // 都道府県ごとの地図
+  var prefs = models.map(function (md) { return md.meta.prefecture; }).filter(function (p, i, a) { return a.indexOf(p) === i; });
+  var anyOn = {}, drawn = [];
+  prefs.forEach(function (pref) {
+    var cities = models.filter(function (md) { return md.meta.prefecture === pref; }).map(function (md) { return md.meta.city; });
+    var g;
+    try { g = loadGeoMulti_(services, pref, cities); } catch (e) { multi.mapErrors.push(pref + ': ' + String(e.message || e)); return; }
+    var mine = clients.filter(function (c) { return c.pref === pref; }).concat(items.filter(function (f) { return f.prefecture === pref && f.lat != null; }));
+    var useZoom = !!g.zproj && mine.length && mine.every(function (x) { return projectPoint_(g.zproj, x.lat, x.lng); });
+    var svg = useZoom ? g.zsvg : g.svg, proj = useZoom ? g.zproj : g.proj, put = [];
+    clients.filter(function (c) { return c.pref === pref; }).forEach(function (c) {
+      var xy = projectPoint_(proj, c.lat, c.lng); if (xy) put.push({ kind: 'client', n: 0, name: c.name, label: '', x: xy[0], y: xy[1], on_map: true });
+    });
+    items.forEach(function (f, i) {
+      if (f.lat == null || f.prefecture !== pref) return;
+      var xy = projectPoint_(proj, f.lat, f.lng);
+      if (xy) { put.push({ kind: 'fr', n: i + 1, name: f.name, x: xy[0], y: xy[1], on_map: true }); anyOn[f.key] = 1; }
+    });
+    multi.maps.push({ pref: pref, svg: addPinsToSvg_(svg, put), cities: cities });
+    put.forEach(function (p) { drawn.push(p); });
+  });
+  items.forEach(function (f, i) { f.pin_no = anyOn[f.key] ? i + 1 : null; });
+  multi.pins = drawn;
+  multi.franchise.items = items;
+  var tot = 0, ok = true;
+  models.forEach(function (md) { if (md.totals.listings_total == null) ok = false; else tot += md.totals.listings_total; });
+  multi.pointRounded = ok ? pointRounded_(tot) : null;
+  return multi;
 }

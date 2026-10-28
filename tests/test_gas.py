@@ -187,6 +187,7 @@ def test_input_system_api(tmp_path):
     assert r["uimg"] == 2                                                             # 貼った画像(価格推移・分布表)は小さめ表示のクラス付き
     assert r["lpImgCount"] == 3 and r["lpFixedSources"] and r["lpHas414"] and r["lpNoCta"] and r["lpAnonOk"]
     assert r["totals"] == {"listings_total": 414, "brokerage": 47} and r["checksNg"] == [] and r["missingStored"] == 3
+    assert r["combinedSame"] and r["combinedMap"] and r["combinedKpi"] and r["combinedOnce"] and r["combinedUrl"] and r["combinedFr"]   # 会社の2エリアを1つのLPに(地図は1枚に2エリア/1エリア目の下に続ける/共通部分は1回)
     assert r["area2"] and r["status2"]                                              # 同じ会社の別エリアは別データ・別LP
     assert r["fr1"] and r["fr2"]                                                    # 上田市=同一市の2社、東御市=木楽ホーム
     assert r["frAdd"] and r["frBad"] and r["frStopped"] and r["frDel"] and r["frStoppedKept"]
@@ -306,3 +307,16 @@ def test_wards_and_compare_order():
     assert a["cmpOrder"] == ["岡崎市", "名古屋市", "豊田市"] and a["cmpOrange"] and a["cmpFirstOrange"] and a["cmpBlankSkipped"]
     assert a["wardPin"] and a["wardZoom"] and a["wardZoomNoPin"] and a["addrCity"] == [True, False, True]   # 区の住所でもピン/区は拡大図
     assert t["shinjuku"] == "新宿区" and not t["hasAgg"]
+
+
+def test_multi_area_lp(tmp_path):
+    """会社の複数エリアを1つのLPに: 地図に全エリアを強調/2エリア目は1エリア目の下に続く/共通部分は1回/POINTは合計/違う都道府県は地図が並ぶ"""
+    import shutil
+    d = tmp_path / "geo"
+    d.mkdir()
+    for pref in ("長野県", "愛知県"):
+        for f in Path(geo_dir(pref)).iterdir():
+            shutil.copy(f, d / f.name)
+    cfg = _plain(yaml.safe_load((ROOT / "configs" / "example-ueda.yaml").read_text("utf8")))
+    r = run_node("multi_test.js", dict(values=sheet_values(cfg), geoDir=str(d)))
+    assert all(r.values()), {k: v for k, v in r.items() if not v}
