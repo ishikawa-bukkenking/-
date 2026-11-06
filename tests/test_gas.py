@@ -224,7 +224,7 @@ def test_input_system_api(tmp_path):
     assert r["trendAi"] == ["中古マンション/土地", 3, 3100.5, None, 1, True] and r["trendLine"] and r["trendEdit"] and r["trendNegBlockedForDist"] and r["autoSaveStale"]
     # 地図のピン: 商談先の住所と周辺加盟店(位置はジオコーダで求め、キャッシュする。範囲外・特定不可・上限超過はピンなしで落ちない)
     assert r["pinNone"] and r["pinClient"] and r["pinFr"] and r["pinCached"] and r["pinOutOfMap"] and r["pinNotFound"] and r["pinGeoFail"] and r["pinRemoved"] and r["pinSvgValid"]
-    assert r["pinMismatch"] and r["pinGsi"] and r["pinRough"] and r["pinFrExpect"] and r["geoAddrNorm"]   # 住所と違う場所にはピンを立てない/地理院で補う/概算は報告
+    assert r["pinMismatch"] and r["pinGsi"] and r["pinRough"] and r["pinFrExpect"] and r["geoAddrNorm"]   # 商談先は対象エリア外の住所でもピン/地理院で補う/概算は報告
     assert r["pinsDefaultOn"] and r["pinsOff"] and r["pinsBackOn"] and r["pinsBad"]            # ピンの表示/非表示(既定は表示。非表示なら位置検索もしない)
     assert r["pickAll"] and r["lpAllFr"] and r["offSaved"] and r["offLp"] and r["offModelPins"] and r["offCleared"] and r["offBadArea"] and r["offDenied"] and r["offDup"]   # 県内の全加盟店を表示/チェックで選ぶ
     # 参照元(REINS・SUUMO・athome+追加)/物件種別の表示切替/ピンの名称
@@ -333,7 +333,17 @@ def test_suumo_import():
     """SUUMOの売却相場取り込み: 保存したページの抜粋から値を読む/空欄に入れる/手直しは守る/市を変えたら消す/取得失敗はエラー記録/メールで利用者確認"""
     r = run_node("suumo_test.js", {})
     assert r["parse"] == [2480, 3310] and r["links"] and r["find"] == ["https://suumo.jp/baikyaku/aichi/sa_nagoya/top/", None]
-    assert r["num"] == [None, 1234, 21.6] and r["res"] == [True, 10, 0]
+    assert r["num"] == [None, 1234, 21.6] and r["res"] == [True, 11, 0]   # 10項目+㎡単価から換算した坪単価
     assert r["vals"] == ["2480", "73", "30", "3310", "21.6", "154", "3550", "106", "128", "21"] and r["rec"]
     assert r["kept"] == ["9999", 1, "2480"] and r["reset"] == [True, "9999", True]
     assert r["err"] == [False, True, True, True] and r["changed"] and r["denied"]
+
+
+def test_pins_outside_area_and_house_heading_and_suumo_ward():
+    """商談先の住所は対象エリアの外でもピンが立つ/郡・ヶの表記ゆれ/相場だけ入力でも見出しに出る/SUUMOの区は市のページから探す"""
+    r = run_node("pin_test.js", dict(geoDir=geo_dir("長野県")))
+    assert r["has"] == [True, True, True, False]
+    assert r["place"] == [["長野県", "東御市"], ["愛知県", "名古屋市中区"], ["愛知県", "愛知郡東郷町"], [None, "上田市"], [None, None]]
+    for k in ("inArea", "outsideCity", "noCityNoPref", "street"):
+        assert r[k] == ["client", True, True, ""], (k, r[k])
+    assert r["heading"] and r["ward"] == ["https://suumo.jp/baikyaku/aichi/sc_nagoyashinaka/top/", 3, 71.4]

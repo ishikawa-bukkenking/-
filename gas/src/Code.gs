@@ -126,8 +126,15 @@ function normalizeAddr_(a) {
 /** 期待する市区町村が text に含まれるか。政令市の区(名古屋市中区)は、市(名古屋市)と区(中区)を別々に確認する */
 function addrHasCity_(text, expect) {
   if (!expect || !expect.city) return true;
-  var t = String(text), wm = String(expect.city).match(/^(.+市)(.+区)$/);
-  return wm ? (t.indexOf(wm[1]) >= 0 && t.indexOf(wm[2]) >= 0) : t.indexOf(expect.city) >= 0;
+  var kana = function (s) { return String(s).replace(/[ヶヵケが]/g, 'ケ'); };   // 茅ヶ崎・茅ケ崎などの表記ゆれ
+  var t = kana(text), city = kana(expect.city).replace(/^.+郡(?=.+[町村]$)/, ''), wm = city.match(/^(.+市)(.+区)$/);   // 郡名はGoogleの結果に出ないことがある
+  return wm ? (t.indexOf(wm[1]) >= 0 && t.indexOf(wm[2]) >= 0) : t.indexOf(city) >= 0;
+}
+/** 住所の文字から、都道府県と市区町村を読み取る(無い部分は null)。商談先の住所が対象エリアの外でも、住所どおりの場所に立てるため */
+function parseAddrPlace_(addr) {
+  var a = normalizeAddr_(addr), pm = a.match(/^(北海道|東京都|大阪府|京都府|.{2,3}?県)/), pref = pm ? pm[1] : null, rest = pm ? a.slice(pm[1].length) : a;
+  var cm = rest.match(/^(.+?郡.+?[町村]|.+?市.+?区|.+?[市区町村])/);
+  return { pref: pref, city: cm ? cm[1] : null };
 }
 
 /** 住所 → 位置。まず Googleマップのジオコーダ、だめなら国土地理院の住所検索。
@@ -143,10 +150,12 @@ function geocode_(addr, expect) {
   try {
     var r = Maps.newGeocoder().setLanguage('ja').setRegion('jp').geocode(q);
     if (r && r.status === 'OK' && r.results && r.results.length) {
-      var x = r.results[0], comps = JSON.stringify(x.address_components || []), l = x.geometry.location;
-      if (expect.pref && comps.indexOf(expect.pref) < 0) why = '住所の都道府県が一致しません';
-      else if (!addrHasCity_(comps, expect)) why = '住所の市区町村が「' + expect.city + '」と一致しません(Googleマップは「' + String(x.formatted_address || '').slice(0, 40) + '」と判断)';
-      else res = { lat: l.lat, lng: l.lng, source: 'Googleマップ', precise: x.geometry.location_type !== 'APPROXIMATE' };
+      for (var ri = 0; ri < r.results.length && !res; ri++) {   // 先頭の候補が違う場所でも、期待する市区町村に合う候補があれば採用する
+        var x = r.results[ri], comps = JSON.stringify(x.address_components || []), l = x.geometry.location;
+        if (expect.pref && comps.indexOf(expect.pref) < 0) why = why || '住所の都道府県が一致しません';
+        else if (!addrHasCity_(comps, expect)) why = why || '住所の市区町村が「' + expect.city + '」と一致しません(Googleマップは「' + String(x.formatted_address || '').slice(0, 40) + '」と判断)';
+        else { res = { lat: l.lat, lng: l.lng, source: 'Googleマップ', precise: x.geometry.location_type !== 'APPROXIMATE' }; why = ''; }
+      }
     } else if (r && r.status && r.status !== 'ZERO_RESULTS') { transient = true; why = 'Googleマップの位置検索を使えませんでした(' + r.status + ')'; }
     else why = '住所から位置を特定できませんでした';
   } catch (e) { transient = true; why = 'Googleマップの位置検索を使えませんでした'; }

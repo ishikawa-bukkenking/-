@@ -202,7 +202,7 @@ const res = vm.runInContext(`
   __geoMode('fail'); api_save(pinA, { 'inputs.client.address': '長野県上田市テスト失敗' }); r.pinGeoFail = buildArea_(pinA).html.indexOf('pin-client') < 0; __geoMode('');
   // 位置の正確さ: 住所の市区町村が違う結果は採用しない / 地理院で補う / 概算は報告する
   api_save(pinA, { 'inputs.client.address': '長野県松本市中央1-1-1' }); var mis = buildArea_(pinA);
-  r.pinMismatch = mis.model.area.pins[0].lat === null && /一致しません/.test(mis.model.area.pins[0].why) && mis.html.indexOf('pin-client') < 0;
+  r.pinMismatch = mis.model.area.pins[0].lat !== null && mis.model.area.pins[0].why === '';   // 商談先は対象の上田市の外(松本市)でも、住所どおりに位置を求める
   var gs0 = __gsiCalls(); api_save(pinA, { 'inputs.client.address': '長野県上田市GSI' + '999' }); var gsi = buildArea_(pinA);
   r.pinGsi = __gsiCalls() > gs0 && gsi.model.area.pins[0].source === '国土地理院' && gsi.model.area.pins[0].on_map === true;
   api_save(pinA, { 'inputs.client.address': '長野県上田市概算' }); var rough = buildArea_(pinA);

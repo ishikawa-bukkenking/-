@@ -39,8 +39,8 @@ function mapLegend_(pins) {
 }
 
 function houseSection_(id, no, sec, label, sfx) {   // no: 表示用の連番(文字列)
-  var ok = sec.price_man != null && sec.listings != null;
-  var h2 = ok ? esc_(label) + 'の相場は<span class="em">' + num_(sec.price_man) + '万円</span>、物件数は<span class="em">' + num_(sec.listings) + '件</span>' : esc_(label) + 'の価格相場・物件数';
+  var ok = sec.price_man != null && sec.listings != null;   // 相場だけ入っていても、見出しに出す(物件数は入っていれば添える)
+  var h2 = sec.price_man != null ? esc_(label) + 'の相場は<span class="em">' + num_(sec.price_man) + '万円</span>' + (sec.listings != null ? '、物件数は<span class="em">' + num_(sec.listings) + '件</span>' : '') : esc_(label) + 'の価格相場・物件数';
   var s = '<section class="sec' + (Number(no) % 2 === 0 ? ' alt' : '') + '" id="' + id + '"><div class="wrap rv"><p class="sec-no">' + no + '　' + esc_(label) + (sfx || '') + '</p><h2>' + h2 + '</h2>';
   s += '<div class="grid g2" style="max-width:640px">' + kpi_(sec.price_man, '万円', '売却価格相場') + kpi_(sec.listings, '件', '物件数') + '</div>';
   if (!ok) s += '<div style="margin-top:16px">' + slot_(label + 'の相場・物件数', [label + 'の相場・物件数']) + '</div>';

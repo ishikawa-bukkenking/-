@@ -83,6 +83,11 @@ function suumoLookup_(pref, city, fetch, cache) {
   }
   if (!links.length) throw new Error('SUUMOの「' + pref + '」のページから地域の一覧を読み取れませんでした(ページの作りが変わった可能性があります): ' + prefUrl);
   var hitLink = suumoFind_(links, city);
+  var wd = String(city).match(/^(.+市)(.+区)$/);
+  if (!hitLink && wd) {   // 政令指定都市の区は、市のページ(例: 名古屋市)の中にリンクがある
+    var parent = suumoFind_(links, wd[1]);
+    if (parent) hitLink = suumoFind_(parseSuumoLinks_(suumoFetchText_(parent.url, fetch), slug), city);
+  }
   if (!hitLink) throw new Error('SUUMOの「' + pref + '」のページに「' + city + '」が見つかりません(SUUMOでは市区町村・区ごとのページです)。');
   var market = parseSuumoMarket_(suumoFetchText_(hitLink.url, fetch)), values = {}, got = [], missing = [];
   if (!market.mansion && !market.land && !market.house) throw new Error('SUUMOのページから「売却価格相場」を読み取れませんでした(ページの作りが変わった可能性があります): ' + hitLink.url);
@@ -90,6 +95,8 @@ function suumoLookup_(pref, city, fetch, cache) {
     var v = market[m.sec] ? market[m.sec][m.label] : null;
     if (v === null || v === undefined) missing.push(m.name); else { values[m.key] = v; got.push(m.name); }
   });
+  // 坪単価は、取り込んだ㎡単価からの換算(1坪=3.305785㎡)。土地の相場がある地域だけ
+  if (values['inputs.land.price_per_m2_man'] !== undefined) { values['inputs.land.tsubo_price_man'] = Math.round(values['inputs.land.price_per_m2_man'] * 3.305785 * 10) / 10; got.push('土地 坪単価(㎡単価からの換算)'); }
   return { url: hitLink.url, name: hitLink.name, values: values, got: got, missing: missing };
 }
 

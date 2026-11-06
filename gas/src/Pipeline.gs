@@ -227,7 +227,12 @@ function buildModel_(cfg, services, data) {
       on_map: false, why: ok ? '' : (g && g.why) || '住所から位置を特定できませんでした' };
   }
   var pinLabel = String(((inputs.client || {}).pin_label) || '').trim() || '御社';   // 地図の自社ピンの名称(本社・○○店など)
-  if (clientAddr) { var cp = locate_(clientAddr, cfg.company || '御社', 'client', 0, { pref: pref, city: city }); if (cp) { cp.label = pinLabel; pins.push(cp); } }
+  if (clientAddr) {   // 商談先は対象エリアの外にあってもよい。住所に書かれた都道府県・市区町村で確認する(書かれていなければ対象エリアとみなして補う)
+    var pl = parseAddrPlace_(clientAddr), q = clientAddr;
+    if (pl.city && !pl.pref && /[町村]$/.test(pl.city) && !/郡/.test(pl.city) && clientAddr.indexOf(city) < 0) pl.city = null;   // 「栄町1-2-3」の町は丁目名であって市区町村ではない
+    if (!pl.city) { q = (pl.pref ? '' : pref) + city + clientAddr; pl = { pref: pl.pref || pref, city: city }; }
+    var cp = locate_(q, cfg.company || '御社', 'client', 0, { pref: pl.pref || null, city: pl.city }); if (cp) { cp.label = pinLabel; pins.push(cp); }
+  }
   var frNoAddr = [];
   model.area.franchise.items.forEach(function (f, i) {
     f.pin_no = null;
