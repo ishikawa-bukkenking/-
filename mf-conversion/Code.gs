@@ -265,6 +265,8 @@ function dateSortValue(d) {
  * MF会計のCSVインポートでは、1つの取引Noに複数行を割り当て、
  * 借方または貸方が複数項目になる場合は残りの行の反対側を0円にする
  * ことで「借方合計＝貸方合計」の複合仕訳として取り込める。
+ * 取引日が異なる行は、元の取引Noが同じでも別の取引Noに振り直して、
+ * 日付違いの行が1つの複合仕訳に混ざらないようにする。
  * ここでは借方（前受金）の合計額を1行目にまとめ、2行目以降は借方金額を
  * 0円にする。ただし借方勘定科目・補助科目（会社名）・税区分は、どの行を
  * 見てもひと目でわかるよう、全行に残したままにする（貸方は各行がそれぞれの
@@ -313,7 +315,34 @@ function combineCompoundEntries(outRows) {
     rowsAffected += rows.length;
   }
 
-  return { groupedCount: groupedCount, rowsAffected: rowsAffected };
+  // 同じ取引Noが、取引日の違う複数のグループに残っていないかを確認する。
+  // 元データでは同じ請求書の明細が同じ取引Noを持つことがあり、売上計上日
+  // （会費=月初、PPC広告=期間末日）がずれると、MF会計では「同じ取引No＝1つの
+  // 複合仕訳」として日付違いの行が一緒に取り込まれてしまう。そのため、
+  // 取引Noを使うのは1つのグループ（会社＋取引日）だけにし、2つ目以降の
+  // グループには未使用の新しい取引Noを振り直す。
+  var maxNo = 0;
+  for (var m = 0; m < outRows.length; m++) {
+    var n = Number(outRows[m]['取引No']);
+    if (isFinite(n) && n > maxNo) maxNo = n;
+  }
+  var noOwner = {};
+  var renumberedCount = 0;
+  for (var g2 = 0; g2 < order.length; g2++) {
+    var grp = groups[order[g2]];
+    var no = String(grp[0]['取引No']);
+    if (!(no in noOwner)) {
+      noOwner[no] = order[g2];
+      continue;
+    }
+    if (noOwner[no] === order[g2]) continue;
+    maxNo++;
+    for (var q = 0; q < grp.length; q++) grp[q]['取引No'] = maxNo;
+    noOwner[String(maxNo)] = order[g2];
+    renumberedCount++;
+  }
+
+  return { groupedCount: groupedCount, rowsAffected: rowsAffected, renumberedCount: renumberedCount };
 }
 
 function readSheetAsObjects(sheet) {
