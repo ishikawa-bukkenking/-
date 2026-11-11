@@ -486,6 +486,7 @@ function pickNearestYear(month, day, refStr) {
 /**
  * 売上高の行の取引日を商品ラベルから決める。
  *  - PPC広告 + 期間（例: PPC広告費用（9月1日～9月30日））→ 期間の末日
+ *  - PPC広告で期間が無く「○月分」だけある → その月の1日
  *  - 会費（例: 物件王12月分会費）→ その月の1日
  *  - それ以外 → 変更なし（date が空のまま返る）
  * 判定できなかった場合は review に理由を入れる（日付は元のまま）。
@@ -501,7 +502,19 @@ function resolveSalesDate(label, invoiceDate) {
       var endDay = parseInt(m[4], 10);
       return { date: pickNearestYear(endMonth, endDay, invoiceDate), review: '' };
     }
-    return { date: '', review: 'PPC広告の期間（○月○日～○月○日）を読み取れなかったため、取引日は元データのままです' };
+    // 期間が書かれていない場合は「○月分」の月の1日にする
+    var py = s.match(/(\d{4})年\s*(\d{1,2})月/);
+    if (py) {
+      return { date: parseInt(py[1], 10) + '/' + parseInt(py[2], 10) + '/1', review: '' };
+    }
+    var pm = s.match(/(\d{1,2})月\s*分/);
+    if (pm) {
+      var pmonth = parseInt(pm[1], 10);
+      if (pmonth >= 1 && pmonth <= 12) {
+        return { date: pickNearestYear(pmonth, 1, invoiceDate), review: '' };
+      }
+    }
+    return { date: '', review: 'PPC広告の期間（○月○日～○月○日）も「○月分」も読み取れなかったため、取引日は元データのままです' };
   }
 
   if (s.indexOf('会費') !== -1) {
