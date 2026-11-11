@@ -27,6 +27,17 @@
  *   リンクをクリックすると「変換結果アーカイブ」内のその回のデータへ直接
  *   ジャンプする。
  *
+ * 出力する2つのデータ:
+ *   データ1「変換結果1（売掛金・前受金）」
+ *       (借方)売掛金[補助科目=会社名] / (貸方)前受金[補助科目=会社名]
+ *   データ2「変換結果（前受金取り崩し仕訳）」
+ *       (借方)前受金[補助科目=会社名] / (貸方)売上高[補助科目=物件王会費など]
+ *       懇親会費は (貸方)会議費・課仕10%
+ *   データ2の取引日ルール（貸方が売上高の行のみ）:
+ *       ・「会費」を含む → その月の1日（例: 物件王12月分会費 → 12/1）
+ *       ・「PPC広告」で期間つき → 期間の末日（例: PPC広告費用（9月1日～9月30日） → 9/30）
+ *       ・上記以外・会議費 → 元データの取引日のまま
+ *
  * 複合仕訳化について:
  *   同じ会社（借方補助科目）・同じ取引日の行が複数あると、MF会計の複合仕訳
  *   CSV形式（同じ取引Noを割り当て、2行目以降の借方を空欄/0円にする）に
@@ -37,7 +48,8 @@
 
 var SHEET_INPUT = '入力データ';
 var SHEET_MAPPING = 'カテゴリマッピング';
-var SHEET_OUTPUT = '変換結果（前受金取り崩し仕訳）';
+var SHEET_OUTPUT_AR = '変換結果1（売掛金・前受金）';   // データ1: (借方)売掛金 / (貸方)前受金
+var SHEET_OUTPUT = '変換結果（前受金取り崩し仕訳）';   // データ2: (借方)前受金 / (貸方)売上高・会議費
 var SHEET_REVIEW = '要確認';
 var SHEET_ARCHIVE = '変換結果アーカイブ';
 var SHEET_HISTORY = '処理履歴';
@@ -47,7 +59,7 @@ var SHEET_README = 'README';
 // それ以外（マッピング表・要確認・アーカイブ・履歴・README）は補助的な
 // データなので、tidyTabs() が自動的に非表示にする（削除はしない。
 // 必要なときは Google スプレッドシート側の「非表示のシート」から開ける）。
-var VISIBLE_SHEETS = [SHEET_INPUT, SHEET_OUTPUT];
+var VISIBLE_SHEETS = [SHEET_INPUT, SHEET_OUTPUT_AR, SHEET_OUTPUT];
 var AUXILIARY_SHEETS = [SHEET_MAPPING, SHEET_REVIEW, SHEET_ARCHIVE, SHEET_HISTORY, SHEET_README];
 
 var HEADERS = ['取引No', '取引日', '借方勘定科目', '借方補助科目', '借方部門', '借方取引先', '借方税区分',
@@ -87,7 +99,7 @@ function onEdit(e) {
       : '';
     var compNote = result.compoundInfo.groupedCount > 0 ? (' / 複合仕訳化' + result.compoundInfo.groupedCount + '件') : '';
     SpreadsheetApp.getActiveSpreadsheet().toast(
-      '生成' + result.outRows.length + '件 / 要確認' + result.reviewItems.length + '件' + regNote + compNote +
+      'データ1 ' + result.arRows.length + '件 / データ2 ' + result.outRows.length + '件 / 要確認' + result.reviewItems.length + '件' + regNote + compNote +
       '（対象月: ' + result.batchMonth + '）',
       '変換結果を自動更新しました', 6
     );
@@ -109,7 +121,8 @@ function regenerate() {
   SpreadsheetApp.getUi().alert(
     '再生成が完了しました。\n' +
     '入力行数: ' + result.inputRows.length + '\n' +
-    '生成行数: ' + result.outRows.length + '\n' +
+    '生成行数(データ1 売掛金/前受金): ' + result.arRows.length + '\n' +
+    '生成行数(データ2 前受金/売上高): ' + result.outRows.length + '\n' +
     '除外行数(0円): ' + result.excludedItems.length + '\n' +
     '要確認件数: ' + result.reviewItems.length + '\n' +
     'カテゴリマッピング表に自動登録: ' + result.registeredCount + '件（うち類似ラベルから自動入力 ' + result.inferredCount + '件）\n' +
@@ -179,6 +192,20 @@ function regenerateCore() {
     }
   }
 
+  // データ1: 売掛金/前受金（元データをそのまま会社名補助科目で整える。0円行は除外）
+  var arRows = [];
+  for (var ai = 0; ai < inputRows.length; ai++) {
+    var air = inputRows[ai];
+    if (!air['取引No'] && air['取引No'] !== 0) continue;
+    var arRow = buildReceivableRow(air);
+    if (arRow) arRows.push(arRow);
+  }
+  arRows.sort(function (a, b) {
+    if (a['借方補助科目'] < b['借方補助科目']) return -1;
+    if (a['借方補助科目'] > b['借方補助科目']) return 1;
+    return Number(a['取引No']) - Number(b['取引No']);
+  });
+
   var regInfo = registerMappingItems(mappingSheet, newLabels);
   var registeredCount = regInfo.total;
 
@@ -204,6 +231,7 @@ function regenerateCore() {
     return Number(a['取引No']) - Number(b['取引No']);
   });
 
+  writeRowsSheet(ss, SHEET_OUTPUT_AR, arRows);
   writeOutputSheet(ss, outRows, reviewItems);
   writeReviewSheet(ss, reviewItems, excludedItems);
 
@@ -215,6 +243,7 @@ function regenerateCore() {
   return {
     inputRows: inputRows,
     outRows: outRows,
+    arRows: arRows,
     reviewItems: reviewItems,
     excludedItems: excludedItems,
     batchMonth: batchMonth,
@@ -406,6 +435,111 @@ function registerMappingItems(mappingSheet, newLabels) {
   return { total: rowsToAdd.length, inferred: inferred };
 }
 
+/** 全角数字を半角にする。 */
+function toHalfDigits(str) {
+  return String(str || '').replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
+}
+
+/** 月日だけ分かっているとき、基準日（請求日）に最も近い年を選んで "y/m/d" を返す。 */
+function pickNearestYear(month, day, refStr) {
+  var rp = String(refStr).split('/');
+  var refY = parseInt(rp[0], 10), refM = parseInt(rp[1], 10), refD = parseInt(rp[2], 10);
+  if (!refY || !refM || !refD) return refStr;
+  var ref = new Date(refY, refM - 1, refD).getTime();
+  var best = refY, bestDiff = Infinity;
+  for (var y = refY - 1; y <= refY + 1; y++) {
+    var diff = Math.abs(new Date(y, month - 1, day).getTime() - ref);
+    if (diff < bestDiff) { bestDiff = diff; best = y; }
+  }
+  return best + '/' + month + '/' + day;
+}
+
+/**
+ * 売上高の行の取引日を商品ラベルから決める。
+ *  - PPC広告 + 期間（例: PPC広告費用（9月1日～9月30日））→ 期間の末日
+ *  - 会費（例: 物件王12月分会費）→ その月の1日
+ *  - それ以外 → 変更なし（date が空のまま返る）
+ * 判定できなかった場合は review に理由を入れる（日付は元のまま）。
+ * ※ CSVの文字化けで「～」が「?」になっていることがあるので、区切りに「?」も許容する。
+ */
+function resolveSalesDate(label, invoiceDate) {
+  var s = toHalfDigits(label);
+
+  if (s.indexOf('PPC') !== -1 || s.indexOf('ＰＰＣ') !== -1) {
+    var m = s.match(/(\d{1,2})月\s*(\d{1,2})日\s*[～~〜?？\-–−－ー]\s*(?:(\d{1,2})月\s*)?(\d{1,2})日/);
+    if (m) {
+      var endMonth = m[3] ? parseInt(m[3], 10) : parseInt(m[1], 10);
+      var endDay = parseInt(m[4], 10);
+      return { date: pickNearestYear(endMonth, endDay, invoiceDate), review: '' };
+    }
+    return { date: '', review: 'PPC広告の期間（○月○日～○月○日）を読み取れなかったため、取引日は元データのままです' };
+  }
+
+  if (s.indexOf('会費') !== -1) {
+    var y = s.match(/(\d{4})年\s*(\d{1,2})月/);
+    if (y) {
+      return { date: parseInt(y[1], 10) + '/' + parseInt(y[2], 10) + '/1', review: '' };
+    }
+    var mm = s.match(/(\d{1,2})月/);
+    if (mm) {
+      var month = parseInt(mm[1], 10);
+      if (month >= 1 && month <= 12) {
+        return { date: pickNearestYear(month, 1, invoiceDate), review: '' };
+      }
+    }
+    return { date: '', review: '会費の対象月（○月分）を読み取れなかったため、取引日は元データのままです' };
+  }
+
+  return { date: '', review: '' };
+}
+
+/**
+ * データ1: (借方)売掛金[会社名] / (貸方)前受金[会社名] の1行を作る。
+ * 0円の行は変換結果に含めない（データ2と同じ除外ルール）。
+ * 売掛金・前受金はどちらも不課税なので税区分は「対象外」。
+ */
+function buildReceivableRow(ir) {
+  var amountRaw = ir['借方金額(円)'];
+  var amount = (amountRaw === '' || amountRaw === null || amountRaw === undefined) ? 0 : Number(amountRaw);
+  if (amount === 0) return null;
+  var company = ir['貸方取引先'] || ir['借方補助科目'] || '';
+  var label = String(ir['貸方補助科目'] || '').split('?').join('～').split('？').join('～');
+
+  var row = {};
+  for (var h = 0; h < HEADERS.length; h++) row[HEADERS[h]] = '';
+  row['取引No'] = ir['取引No'];
+  row['取引日'] = formatDate(ir['取引日']);
+  row['借方勘定科目'] = '売掛金';
+  row['借方補助科目'] = company;
+  row['借方税区分'] = '対象外';
+  row['借方金額(円)'] = ir['借方金額(円)'];
+  row['借方税額'] = 0;
+  row['貸方勘定科目'] = '前受金';
+  row['貸方補助科目'] = company;
+  row['貸方税区分'] = '対象外';
+  row['貸方金額(円)'] = ir['貸方金額(円)'] !== '' ? ir['貸方金額(円)'] : ir['借方金額(円)'];
+  row['貸方税額'] = 0;
+  row['摘要'] = label;
+  return row;
+}
+
+/** 要確認列なしのシンプルな出力シート（データ1用）。 */
+function writeRowsSheet(ss, sheetName, rows) {
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) sheet = ss.insertSheet(sheetName);
+  sheet.clear();
+  var data = [HEADERS];
+  for (var r = 0; r < rows.length; r++) {
+    var line = [];
+    for (var h = 0; h < HEADERS.length; h++) line.push(rows[r][HEADERS[h]]);
+    data.push(line);
+  }
+  sheet.getRange(1, 1, data.length, HEADERS.length).setValues(data);
+  sheet.getRange(1, 1, 1, HEADERS.length).setBackground(HEADER_FILL).setFontColor('#ffffff').setFontWeight('bold');
+  sheet.setFrozenRows(1);
+  sheet.autoResizeColumns(1, HEADERS.length);
+}
+
 function formatDate(d) {
   // input like "2026/10/01" or a Date object from Sheets -> "2026/10/1"
   if (Object.prototype.toString.call(d) === '[object Date]') {
@@ -440,7 +574,7 @@ function transformRow(ir, mapping, ambiguous, fuzzyIndex) {
   row['借方補助科目'] = ir['貸方取引先'];
   row['借方部門'] = '';
   row['借方取引先'] = '';
-  row['借方税区分'] = ir['借方税区分'];
+  row['借方税区分'] = '対象外'; // 前受金は不課税。元データの借方（売掛金側）の税区分は引き継がない
   row['借方インボイス'] = '';
   row['借方金額(円)'] = ir['借方金額(円)'];
   row['借方税額'] = 0;
@@ -492,6 +626,13 @@ function transformRow(ir, mapping, ambiguous, fuzzyIndex) {
   row['貸方インボイス'] = '';
   row['貸方金額(円)'] = ir['貸方金額(円)'];
   row['貸方税額'] = 0;
+
+  // 取引日ルール: 貸方が売上高の行だけ、商品ラベルから売上計上日を決める
+  if (row['貸方勘定科目'] === '売上高') {
+    var sd = resolveSalesDate(label, row['取引日']);
+    if (sd.date) row['取引日'] = sd.date;
+    if (sd.review) reviews.push(sd.review);
+  }
 
   var summary = label.split('?').join('～').split('？').join('～');
   row['摘要'] = summary;
