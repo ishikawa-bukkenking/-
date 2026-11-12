@@ -204,3 +204,29 @@ CHROME=... node tools/screenshots.mjs file://$PWD/out/<ID>/index.html /tmp/shot 
 
 - **ピンと見出しの修正**: 商談先の住所は、対象エリアの外(隣の市など)でも住所どおりの場所にピンが立ちます(住所に市区町村が無ければ対象エリアとみなして補います)。郡の町(愛知郡東郷町)や「ヶ/ケ」の表記ゆれでも位置を特定でき、Googleの先頭以外の候補も確認します。物件の相場だけ入力して物件数が空でも、見出しに相場が出ます。
 - **東京都の対象エリア**: 島しょ部(大島町・利島村・新島村・神津島村・三宅村・御蔵島村・八丈町・青ヶ島村・小笠原村)は選択肢・地図・隣接・市町村数から外し、本島の23区・26市・4町村(計53)だけを扱います。「所属未定地」も数えません(愛知県の市町村数は54)。
+
+## Railway で動かす(Google Apps Script の代わり)
+
+`gas/dist/Bundle.gs`(GAS版と同じコード)を、Node.jsのサーバー(`server/`)がそのまま実行します。Googleのサービスは `server/shim.js` で置き換え、保存先は PostgreSQL です。
+
+| GAS版 | Railway版 |
+|---|---|
+| スプレッドシート(保存先) | PostgreSQL(`kv` テーブルに、シート・設定・画像を保存) |
+| Googleログイン(組織内) | Googleでログイン(OAuth)。メールが `@bukkenking.com` のときだけ入力システムを使える |
+| LP用と入力システム用の2つのデプロイ | 1つのサービス。`/?id=…` はLP(誰でも・noindex)、`/` は入力システム(ログイン必須) |
+| Googleマップの位置検索 | Geocoding API(`GOOGLE_MAPS_API_KEY`)。無いときは国土地理院のみ |
+| Drive の画像 | PostgreSQL に保存 |
+
+### 手順
+1. Railway で New Project → このリポジトリを選ぶ。「Add PostgreSQL」で DB を追加し、サービスの Variables に `DATABASE_URL`(`${{Postgres.DATABASE_URL}}`)を設定。
+2. Settings → Networking で「Generate Domain」。出たURLを `BASE_URL` に設定(独自ドメインを付けた場合はそのURL)。
+3. Google Cloud Console → 「APIとサービス」→「認証情報」→「OAuthクライアントIDを作成」(種類: ウェブアプリケーション)。「承認済みの JavaScript 生成元」に `BASE_URL` を追加し、クライアントIDを `GOOGLE_CLIENT_ID` に設定。
+4. `SESSION_SECRET` にランダムな長い文字列を設定。必要なら `GOOGLE_MAPS_API_KEY`(Geocoding API を有効化)・`ANTHROPIC_API_KEY` も設定。
+5. デプロイ後、`BASE_URL` を開いて Google でログイン。LPのURLは「設定」に `BASE_URL` を入れると正式なURLになります(未設定でも `BASE_URL/?id=…` で仮に作られます)。
+
+環境変数の一覧は `.env.example`。ローカルで試すときは `DEV_LOGIN_EMAIL=名前@bukkenking.com npm start`(`NODE_ENV=production` では無効)。保存先は `DATA_FILE`(既定 `data/local-store.json`)。
+
+### 注意
+- サーバーは1台で動かします(リクエストは1つずつ処理し、保存はその都度PostgreSQLへ)。台数を増やす場合は保存の排他が必要です。
+- 以前のスプレッドシートのデータは自動では移りません。必要なら、会社・エリアを入力システムで作り直すか、移行用の取り込みを別途作ります。
+- SUUMOなどの外部取得は、Railwayのサーバーから行います(GASより通りやすい場合がありますが、実サイトでの確認は未実施)。

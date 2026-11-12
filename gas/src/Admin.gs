@@ -201,8 +201,8 @@ function api_settings_set(v) {
   var max = parseNum_(v.max), th = parseNum_(v.threshold), url = String(v.url || '').trim();
   if (!(max >= 1 && max <= 10)) throw new Error('周辺加盟店の最大社数は1〜10で入力してください。');
   if (th === undefined || th < 0) throw new Error('「同程度」の範囲は0以上の数で入力してください。');
-  if (url && !/^https:\/\/script\.google\.com\/(macros\/s\/[A-Za-z0-9_-]+\/exec|a\/macros\/[^\/]+\/s\/[A-Za-z0-9_-]+\/exec)$/.test(url.replace(/\/+$/, '')))
-    throw new Error('LPの公開URLは https://script.google.com/macros/s/…/exec の形で入力してください。');
+  if (url && !/^https:\/\/[A-Za-z0-9.-]+(:\d+)?(\/[A-Za-z0-9_\-.\/]*)?$/.test(url.replace(/\/+$/, '')))
+    throw new Error('LPの公開URLは https:// で始まるURLで入力してください(例: https://xxxx.up.railway.app)。');
   var sh = sheetOrThrow_(SHEET_SETTINGS_);
   sh.getRange('B1').setValue(url.replace(/\/+$/, '')); sh.getRange('B2').setValue(String(v.estat || '').trim());
   syncIndex_(rebuildIndex_);   // 商談先一覧のURLも新しい公開URLに更新
