@@ -348,3 +348,17 @@ def test_pins_outside_area_and_house_heading_and_suumo_ward():
     for k in ("inArea", "outsideCity", "noCityNoPref", "street"):
         assert r[k] == ["client", True, True, ""], (k, r[k])
     assert r["heading"] and r["ward"] == ["https://suumo.jp/baikyaku/aichi/sc_nagoyashinaka/top/", 3, 71.4]
+
+
+def test_data_migration():
+    """旧システムのデータ書き出し→新システムへの取り込み: 会社・エリア・加盟店・画像が移る/重複しない/形式違い・権限なしは拒否"""
+    r = subprocess.run(["node", str(GAS / "test" / "migrate_test.js")], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    j = json.loads(r.stdout)
+    assert j["export"] == [1, 2, 202, 1, 0]
+    o = j["out"]
+    assert o["res"] == {"companies": 1, "areas": 2, "franchises": 202, "images": 1, "skipped": 0}
+    assert o["list"] == [["株式会社移行", ["上田市", "東御市"]]] and o["val"] == ["12000", "長野県上田市中央1-1-1"]
+    assert o["img"] and o["imgReadable"] and o["fr"] == 202 and o["frHas"] and o["lp"]
+    assert o["again"]["companies"] == 0 and o["again"]["areas"] == 0 and o["again"]["skipped"] == 3 and o["companiesAfter"] == 1
+    assert o["bad"] and o["denied"]

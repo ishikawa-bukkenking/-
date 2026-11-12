@@ -614,7 +614,28 @@ function viewSettings() {
     };
     card.appendChild(sv); card.appendChild(tb); card.appendChild(el('p', { id: 'msg', class: 'note' }));
     card.appendChild(el('p', { class: 'note', text: 'ログイン中: ' + r.email }));
-    $('main').replaceChildren(card);
+    var mg = el('div', { class: 'card' }, [el('h3', { text: 'データの移行' }),
+      el('p', { class: 'note', text: '旧システムの「書き出す」で作ったファイルを、新システムの「取り込む」で読み込みます。会社・エリアはIDが同じものを除いて追加し、加盟店一覧は取り込んだ内容に置き換わります。画像も一緒に移ります。' })]);
+    var ex = el('button', { class: 'ghost', text: 'データを書き出す' }), fi = el('input', { type: 'file', accept: '.json,application/json', style: 'margin-left:12px' }), im = el('button', { text: 'データを取り込む', style: 'margin-left:8px' }), mm = el('p', { class: 'note' });
+    ex.onclick = function () {
+      mm.textContent = '書き出し中…(画像が多いと時間がかかります)'; mm.className = 'note';
+      call('api_export_all', [], function (d) {
+        var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(d)], { type: 'application/json' })); a.download = 'area-sheet-export.json'; document.body.appendChild(a); a.click(); a.remove();
+        mm.textContent = '書き出しました(会社' + d.sheets['会社'].length + '件・エリア' + d.sheets['エリア'].length + '件・加盟店' + d.sheets['加盟店一覧'].length + '件・画像' + Object.keys(d.files).length + '枚)' + (d.missingFiles.length ? '。見つからない画像が' + d.missingFiles.length + '枚あります' : '');
+      }, function (m) { mm.textContent = m; mm.className = 'msg'; });
+    };
+    im.onclick = function () {
+      var f = fi.files[0]; if (!f) { mm.textContent = '取り込むファイルを選んでください'; mm.className = 'msg'; return; }
+      var rd = new FileReader();
+      rd.onload = function () {
+        var d; try { d = JSON.parse(rd.result); } catch (e) { mm.textContent = 'ファイルを読めません'; mm.className = 'msg'; return; }
+        mm.textContent = '取り込み中…'; mm.className = 'note';
+        call('api_import_all', [d], function (r) { mm.textContent = '取り込みました: 会社' + r.companies + '件・エリア' + r.areas + '件・加盟店' + r.franchises + '件・画像' + r.images + '枚(既にあるため除いたもの' + r.skipped + '件)'; mm.className = 'note'; }, function (m) { mm.textContent = m; mm.className = 'msg'; });
+      };
+      rd.readAsText(f);
+    };
+    mg.appendChild(ex); mg.appendChild(fi); mg.appendChild(im); mg.appendChild(mm);
+    $('main').replaceChildren(card, mg);
   });
 }
 
