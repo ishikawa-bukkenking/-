@@ -43,10 +43,11 @@ const RPC_SHIM = '<script>window.google={script:{run:(function(){function mk(ok,
   '.then(function(r){if(r.status===401){location.reload();throw new Error("ログインし直してください")}return r.json()})' +
   '.then(function(j){if(j.ok){if(ok)ok(j.result)}else if(fail)fail({message:j.error})},function(e){if(fail)fail({message:String(e&&e.message||e)})})}}})}return mk()})()}};</script>';
 function loginPage(msg) {
+  if (!CLIENT_ID) msg = '設定が足りません: 環境変数 GOOGLE_CLIENT_ID が空です。Railway の Variables に追加して、Deploy を押してください。';
   return '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width,initial-scale=1"><title>エリア調査シート 入力システム</title>' +
     '<script src="https://accounts.google.com/gsi/client" async defer></script><style>body{font-family:sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;background:#f4f8f9}.b{background:#fff;padding:36px 32px;border-radius:12px;box-shadow:0 2px 12px #0001;text-align:center;max-width:360px}h1{font-size:18px;color:#0097A7;margin:0 0 8px}p{color:#555;font-size:14px;line-height:1.7}#m{color:#c33}</style></head><body><div class="b"><h1>エリア調査シート 入力システム</h1>' +
     '<p>@' + ALLOWED_DOMAIN + ' のGoogleアカウントでログインしてください。</p><div id="g" style="display:flex;justify-content:center;margin:18px 0"></div><p id="m">' + esc(msg || '') + '</p></div>' +
-    '<script>window.onload=function(){if(!window.google||!google.accounts){setTimeout(window.onload,300);return}google.accounts.id.initialize({client_id:' + JSON.stringify(CLIENT_ID) + ',callback:function(r){' +
+    '<script>window.onload=function(){if(!window.google||!google.accounts){setTimeout(window.onload,300);return}if(!' + JSON.stringify(CLIENT_ID) + ')return;google.accounts.id.initialize({client_id:' + JSON.stringify(CLIENT_ID) + ',callback:function(r){' +
     'fetch("/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({credential:r.credential})}).then(function(x){return x.json()}).then(function(j){if(j.ok)location.reload();else document.getElementById("m").textContent=j.error},function(){document.getElementById("m").textContent="通信に失敗しました"})}});' +
     'google.accounts.id.renderButton(document.getElementById("g"),{theme:"outline",size:"large",text:"signin_with",locale:"ja"})}</script></body></html>';
 }
