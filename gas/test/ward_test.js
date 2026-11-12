@@ -54,6 +54,7 @@ const aichi = run(input.geoDirAichi, `
 `);
 const tokyo = run(input.geoDirTokyo, `
   var P = buildPrefecture_('東京都', fetchJson_(GEO_URL_.replace('{code}', '13')));
+  r.islands = ['大島町', '八丈町', '小笠原村', '三宅村', '所属未定地'].filter(function (n) { return P.munis[n]; }); r.mainland = ['瑞穂町', '奥多摩町', '八王子市', '新宿区'].every(function (n) { return P.munis[n]; }); r.islandErr = (function () { try { resolveCity_(P, '八丈町'); return ''; } catch (e) { return String(e.message); } })();
   r.shinjuku = resolveCity_(P, '新宿区'); r.count = P.count; r.hasAgg = P.names.some(function (n) { return P.munis[n].agg; });
 `);
 console.log(JSON.stringify({ aichi, tokyo }));

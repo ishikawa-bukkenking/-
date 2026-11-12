@@ -20,6 +20,10 @@ GEO_SOURCE = "国土数値情報 行政区域データ(2021-01-01時点)"
 GEO_LICENSE_NOTE = "出典: 国土数値情報(行政区域データ) 国土交通省 / 加工: smartnews-smri/japan-topography"
 
 
+# 東京都の島しょ部(本島から離れた島)は対象エリアに含めない
+TOKYO_ISLANDS = {"大島町", "利島村", "新島村", "神津島村", "三宅村", "御蔵島村", "八丈町", "青ヶ島村", "小笠原村"}
+
+
 class GeoError(RuntimeError):
     pass
 
@@ -45,6 +49,8 @@ def muni_name(props: dict) -> str | None:
     c3, c4 = props.get("N03_003"), props.get("N03_004")
     if c3 and c3.endswith("市") and c4 and c4.endswith("区"):
         return c3
+    if c4 == "所属未定地" or (props.get("N03_001") == "東京都" and c4 in TOKYO_ISLANDS):
+        return None
     return c4
 
 

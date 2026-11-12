@@ -306,14 +306,15 @@ def test_wards_and_compare_order():
     rows = [dict(name=r["name"], prefecture=r["prefecture"], city=r["city"], address=r["address"], url=r["url"]) for r in franchises()]
     r = run_node("ward_test.js", dict(geoDirAichi=geo_dir("愛知県"), geoDirTokyo=geo_dir("東京都"), frRows=rows))
     a, t = r["aichi"], r["tokyo"]
-    assert a["hasCity"] and a["wards"] == 16 and a["count"] == 55 and a["namesN"] == 55 + 16        # 市全体と各区の両方。市町村数は区を数えない
+    assert a["hasCity"] and a["wards"] == 16 and a["count"] == 54 and a["namesN"] == 54 + 16        # 市全体と各区の両方。市町村数は区を数えない
     assert a["resolve"] == ["名古屋市中区", "名古屋市", "岡崎市", "名古屋市中区"] and a["resolveShort"]["ok"] == "名古屋市中区" and a["resolveBad"]
     assert a["wardNbNoAgg"] and a["cityNbNoWard"] and a["wardNeighbors"][0] == "名古屋市東区"          # 隣接は同じ単位(区↔区、市↔市)
-    assert a["codes"] == ["23100", "23106"] and a["geo"] == ["名古屋市中区", "23106", 55, True, True, True] and a["geoCity"] == ["名古屋市", "23100", True]
+    assert a["codes"] == ["23100", "23106"] and a["geo"] == ["名古屋市中区", "23106", 54, True, True, True] and a["geoCity"] == ["名古屋市", "23100", True]
     assert a["model"][0] == "名古屋市中区" and a["model"][2] == "same_city" and a["lpWard"]
     assert a["cmpOrder"] == ["岡崎市", "名古屋市", "豊田市"] and a["cmpOrange"] and a["cmpFirstOrange"] and a["cmpBlankSkipped"]
     assert a["wardPin"] and a["wardZoom"] and a["wardZoomNoPin"] and a["addrCity"] == [True, False, True]   # 区の住所でもピン/区は拡大図
     assert t["shinjuku"] == "新宿区" and not t["hasAgg"]
+    assert t["islands"] == [] and t["mainland"] and "見つかりません" in t["islandErr"] and t["count"] == 53   # 東京都は島しょ部を除く本島の市区町村(23区+26市+4町村)
 
 
 def test_multi_area_lp(tmp_path):

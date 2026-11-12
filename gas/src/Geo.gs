@@ -15,9 +15,12 @@ function wardParts_(p) {
   if (c3 && /市$/.test(c3) && c4 && /区$/.test(c4)) return { parent: c3, ward: c3 + c4 };
   return null;
 }
+/** 東京都の島しょ部(本島から離れた島)。対象エリアの表示・地図・隣接から外す */
+var TOKYO_ISLANDS_ = ['大島町', '利島村', '新島村', '神津島村', '三宅村', '御蔵島村', '八丈町', '青ヶ島村', '小笠原村'];
 function muniName_(p) {
   var c3 = p.N03_003, c4 = p.N03_004;
   if (c3 && /市$/.test(c3) && c4 && /区$/.test(c4)) return c3;
+  if (c4 === '所属未定地' || (p.N03_001 === '東京都' && TOKYO_ISLANDS_.indexOf(c4) >= 0)) return null;
   return c4 || null;
 }
 
