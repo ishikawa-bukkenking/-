@@ -45,7 +45,7 @@ const RPC_SHIM = '<script>window.google={script:{run:(function(){function mk(ok,
 function loginPage(msg) {
   if (!CLIENT_ID) msg = '設定が足りません: 環境変数 GOOGLE_CLIENT_ID が空です。Railway の Variables に追加して、Deploy を押してください。';
   return '<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta name="viewport" content="width=device-width,initial-scale=1"><title>エリア調査シート 入力システム</title>' +
-    '<script src="https://accounts.google.com/gsi/client" async defer></script><style>body{font-family:sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;background:#f4f8f9}.b{background:#fff;padding:36px 32px;border-radius:12px;box-shadow:0 2px 12px #0001;text-align:center;max-width:360px}h1{font-size:18px;color:#0097A7;margin:0 0 8px}p{color:#555;font-size:14px;line-height:1.7}#m{color:#c33}</style></head><body><div class="b"><h1>エリア調査シート 入力システム</h1>' +
+    '<link rel="icon" type="image/png" href="/favicon.png"><script src="https://accounts.google.com/gsi/client" async defer></script><style>body{font-family:sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;background:#f4f8f9}.b{background:#fff;padding:36px 32px;border-radius:12px;box-shadow:0 2px 12px #0001;text-align:center;max-width:360px}h1{font-size:18px;color:#0097A7;margin:0 0 8px}p{color:#555;font-size:14px;line-height:1.7}#m{color:#c33}</style></head><body><div class="b"><h1>エリア調査シート 入力システム</h1>' +
     '<p>@' + ALLOWED_DOMAIN + ' のGoogleアカウントでログインしてください。</p><div id="g" style="display:flex;justify-content:center;margin:18px 0"></div><p id="m">' + esc(msg || '') + '</p></div>' +
     '<script>window.onload=function(){if(!window.google||!google.accounts){setTimeout(window.onload,300);return}if(!' + JSON.stringify(CLIENT_ID) + ')return;google.accounts.id.initialize({client_id:' + JSON.stringify(CLIENT_ID) + ',callback:function(r){' +
     'fetch("/auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({credential:r.credential})}).then(function(x){return x.json()}).then(function(j){if(j.ok)location.reload();else document.getElementById("m").textContent=j.error},function(){document.getElementById("m").textContent="通信に失敗しました"})}});' +
@@ -73,6 +73,7 @@ function loginPage(msg) {
     try {
       const u = new URL(req.url, 'http://x'), p = u.pathname;
       if (p === '/healthz') return send(res, 200, 'ok', 'text/plain');
+      if (p === '/favicon.ico' || p === '/favicon.png') { const m = vm_run(ctx, 'ASSETS.favicon').match(/^data:image\/png;base64,(.+)$/); return send(res, 200, Buffer.from(m[1], 'base64'), 'image/png', { 'Cache-Control': 'public, max-age=86400' }); }
       if (p === '/robots.txt') return send(res, 200, 'User-agent: *\nDisallow: /\n', 'text/plain');
       if (req.method === 'POST' && p === '/auth') {
         const j = JSON.parse(await readBody(req, 1e5) || '{}');
@@ -99,7 +100,7 @@ function loginPage(msg) {
           return send(res, 200, out);
         }
         if (!readSession(req)) return send(res, 200, loginPage(''));
-        const html = vm_run(ctx, 'APP_HTML_'), i = html.search(/<head[^>]*>/i);
+        const html = vm_run(ctx, 'APP_HTML_').replace('<title>', '<link rel="icon" type="image/png" href="/favicon.png"><title>'), i = html.search(/<head[^>]*>/i);
         return send(res, 200, i >= 0 ? html.replace(/<head[^>]*>/i, m => m + RPC_SHIM) : RPC_SHIM + html);
       }
       send(res, 404, '<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex"><p style="font-family:sans-serif;padding:40px">ページが見つかりません。</p>');

@@ -84,3 +84,17 @@ def test_server_auth_persist_and_public_lp(tmp_path):
         assert s.rpc("api_get", c["areaId"])[1]["result"]["values"]["inputs.client.address"] == "長野県上田市中央1-1-1"
     finally:
         s.stop()
+
+
+@pytest.mark.skipif(not (ROOT / "node_modules" / "pg").exists(), reason="npm install が必要")
+def test_favicon(tmp_path):
+    s = Srv(tmp_path, DEV)
+    try:
+        r = urllib.request.urlopen(f"http://127.0.0.1:{s.port}/favicon.ico", timeout=10)
+        b = r.read()
+        assert r.headers["Content-Type"] == "image/png" and b[:8] == b"\x89PNG\r\n\x1a\n"
+        assert 'rel="icon"' in s.req("/")[2]                                   # 入力画面
+        c = s.rpc("api_create_company", "株式会社アイコン", "長野県", "上田市")[1]["result"]
+        assert 'rel="icon" type="image/png" href="data:image/png;base64,' in s.req(f"/?id={c['areaId']}")[2]   # LP
+    finally:
+        s.stop()

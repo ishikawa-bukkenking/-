@@ -52,7 +52,7 @@ def main() -> None:
     b, f = ROOT / "assets" / "brand", ROOT / "assets" / "fixed"
     assets = {
         "logoTeal": data_uri(b / "logo-teal.png"), "logoWhite": data_uri(b / "logo-white.png"),
-        "king": data_uri(b / "king.png", 520), "thinker": data_uri(b / "thinker.png", 420),
+        "favicon": data_uri(b / "favicon.png", 64), "king": data_uri(b / "king.png", 520), "thinker": data_uri(b / "thinker.png", 420),
         "listings": data_uri(f / "franchise-listings.png", 640, "JPEG"),
     }
     (dist / "Assets.gs").write_text("/** 生成物(gas/build.py)。差し替えは assets/ の画像を置き換えて再ビルド */\nvar ASSETS = "

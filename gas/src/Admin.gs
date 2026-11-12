@@ -1,7 +1,7 @@
 /** 入力システム(ウェブアプリ上の入力画面)のサーバー側。すべての api_* は、ログイン中のGoogleアカウントのメールアドレスを検証する */
 
 function appPage_() {
-  return HtmlService.createHtmlOutput(APP_HTML_).setTitle('エリア調査シート 入力システム')
+  return HtmlService.createHtmlOutput(APP_HTML_.replace('<title>', '<link rel="icon" type="image/png" href="' + ASSETS.favicon + '"><title>')).setTitle('エリア調査シート 入力システム')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1').setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 

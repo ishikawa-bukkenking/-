@@ -134,7 +134,7 @@ function renderPage_(models, report, assets, styleCss, multi) {
   var alt = function () { return (n + 1) % 2 === 0 ? ' alt' : ''; };   // 次の連番が偶数なら薄いグレーの背景(非表示のセクションがあっても交互になる)
   var h = [];
   h.push('<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<meta name="robots" content="noindex,nofollow,noarchive,noimageindex"><title>エリア調査シート｜' + esc_(m.company) + ' 御中｜' + cityNames + '</title>' +
+    '<meta name="robots" content="noindex,nofollow,noarchive,noimageindex"><link rel="icon" type="image/png" href="' + ASSETS.favicon + '"><title>エリア調査シート｜' + esc_(m.company) + ' 御中｜' + cityNames + '</title>' +
     '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
     '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap">' +
     '<style>' + styleCss + '</style><script>document.documentElement.classList.add("js")</script></head><body>');
