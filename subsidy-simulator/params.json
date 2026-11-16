@@ -1,0 +1,455 @@
+{
+ "_meta": {
+  "fiscalYear": "令和8年度",
+  "appliesToPlansSubmittedOnOrAfter": "2026-08-03",
+  "verifiedOn": "2026-11-16",
+  "note": "制度の数字はすべてこの表に置く。年度が変わったら、一次資料で見直して、この表だけを直す。value=値、source=出典、verified=確認日。"
+ },
+ "common": {
+  "minTrainingHours": {
+   "value": 10,
+   "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.16 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06013 ロ",
+   "verified": "2026-11-16"
+  },
+  "attendanceMinPercent": {
+   "value": 80,
+   "source": "人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06012 ロ(ｲ)",
+   "verified": "2026-11-16",
+   "note": "通学制・同時双方向型。eラーニング・通信制は、期間中の修了が要件"
+  },
+  "wageHoursCap": {
+   "value": 1200,
+   "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.15 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ハ",
+   "verified": "2026-11-16",
+   "note": "専門実践教育訓練は1,600時間(ツールは対象外)"
+  },
+  "timesPerWorkerPerYear": {
+   "value": 3,
+   "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.15 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ニ",
+   "verified": "2026-11-16"
+  },
+  "rounding": {
+   "mode": "floor",
+   "status": "unconfirmed",
+   "note": "端数処理の規定は、資料で確認できなかった。円未満切り捨ての仮置き。"
+  },
+  "taxIncluded": {
+   "value": true,
+   "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.43",
+   "verified": "2026-11-16",
+   "note": "消費税は対象経費に含まれる。入力は税込"
+  },
+  "planWindowMonths": {
+   "earliest": {
+    "value": 6,
+    "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.3・Ⅲ-1",
+    "verified": "2026-11-16"
+   },
+   "latest": {
+    "value": 1,
+    "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.3・Ⅲ-1",
+    "verified": "2026-11-16"
+   }
+  },
+  "claimWithinMonthsAfterEnd": {
+   "value": 2,
+   "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.3",
+   "verified": "2026-11-16"
+  },
+  "bonusClaim": {
+   "paidMonths": {
+    "value": 3,
+    "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.27",
+    "verified": "2026-11-16"
+   },
+   "withinMonthsAfter": {
+    "value": 5,
+    "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.27",
+    "verified": "2026-11-16"
+   }
+  },
+  "smeDefinition": {
+   "retail": {
+    "label": "小売業(飲食店を含む)",
+    "capital": {
+     "value": 50000000,
+     "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13",
+     "verified": "2026-11-16"
+    },
+    "employees": {
+     "value": 50,
+     "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13",
+     "verified": "2026-11-16"
+    }
+   },
+   "service": {
+    "label": "サービス業",
+    "capital": {
+     "value": 50000000,
+     "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13",
+     "verified": "2026-11-16"
+    },
+    "employees": {
+     "value": 100,
+     "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13",
+     "verified": "2026-11-16"
+    }
+   },
+   "wholesale": {
+    "label": "卸売業",
+    "capital": {
+     "value": 100000000,
+     "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13",
+     "verified": "2026-11-16"
+    },
+    "employees": {
+     "value": 100,
+     "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13",
+     "verified": "2026-11-16"
+    }
+   },
+   "other": {
+    "label": "その他の業種(建設業・不動産業を含む)",
+    "capital": {
+     "value": 300000000,
+     "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13",
+     "verified": "2026-11-16"
+    },
+    "employees": {
+     "value": 300,
+     "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13",
+     "verified": "2026-11-16"
+    }
+   }
+  }
+ },
+ "courses": {
+  "jinzai": {
+   "label": "人材育成訓練(OFF-JT)",
+   "annualCap": {
+    "value": 10000000,
+    "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.15 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 イ",
+    "verified": "2026-11-16",
+    "note": "1事業所1年度。通常分と割増分の合計"
+   },
+   "expenseRate": {
+    "small": {
+     "regular": {
+      "base": {
+       "value": 0.45,
+       "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023",
+       "verified": "2026-11-16"
+      },
+      "bonus": {
+       "value": 0.6,
+       "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023",
+       "verified": "2026-11-16"
+      }
+     },
+     "fixedTerm": {
+      "base": {
+       "value": 0.7,
+       "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023",
+       "verified": "2026-11-16"
+      },
+      "bonus": {
+       "value": 0.85,
+       "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023",
+       "verified": "2026-11-16"
+      }
+     }
+    },
+    "large": {
+     "regular": {
+      "base": {
+       "value": 0.3,
+       "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023",
+       "verified": "2026-11-16"
+      },
+      "bonus": {
+       "value": 0.45,
+       "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023",
+       "verified": "2026-11-16"
+      }
+     },
+     "fixedTerm": {
+      "base": {
+       "value": 0.7,
+       "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023",
+       "verified": "2026-11-16"
+      },
+      "bonus": {
+       "value": 0.85,
+       "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023",
+       "verified": "2026-11-16"
+      }
+     }
+    }
+   },
+   "wageUnit": {
+    "small": {
+     "base": {
+      "value": 800,
+      "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023",
+      "verified": "2026-11-16"
+     },
+     "bonus": {
+      "value": 1000,
+      "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023",
+      "verified": "2026-11-16"
+     }
+    },
+    "large": {
+     "base": {
+      "value": 400,
+      "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023",
+      "verified": "2026-11-16"
+     },
+     "bonus": {
+      "value": 500,
+      "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023",
+      "verified": "2026-11-16"
+     }
+    }
+   },
+   "expenseLimit": [
+    {
+     "minHours": 10,
+     "maxHours": 100,
+     "small": {
+      "value": 150000,
+      "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ",
+      "verified": "2026-11-16"
+     },
+     "large": {
+      "value": 100000,
+      "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ",
+      "verified": "2026-11-16"
+     }
+    },
+    {
+     "minHours": 100,
+     "maxHours": 200,
+     "small": {
+      "value": 300000,
+      "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ",
+      "verified": "2026-11-16"
+     },
+     "large": {
+      "value": 200000,
+      "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ",
+      "verified": "2026-11-16"
+     }
+    },
+    {
+     "minHours": 200,
+     "maxHours": null,
+     "small": {
+      "value": 500000,
+      "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ",
+      "verified": "2026-11-16"
+     },
+     "large": {
+      "value": 300000,
+      "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ",
+      "verified": "2026-11-16"
+     }
+    }
+   ],
+   "elearningLimit": {
+    "small": {
+     "value": 150000,
+     "source": "人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ(ｲ)",
+     "verified": "2026-11-16"
+    },
+    "large": {
+     "value": 100000,
+     "source": "人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ(ｲ)",
+     "verified": "2026-11-16"
+    }
+   },
+   "elearningWage": {
+    "value": false,
+    "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2注1 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023 イ",
+    "verified": "2026-11-16",
+    "note": "賃金助成なし"
+   }
+  },
+  "reskilling": {
+   "label": "事業展開等リスキリング支援コース(令和8年度末までの時限措置)",
+   "annualCap": {
+    "value": 100000000,
+    "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 イ",
+    "verified": "2026-11-16",
+    "note": "1事業所1年度。設備投資加算を含む"
+   },
+   "expenseRate": {
+    "small": {
+     "regular": {
+      "base": {
+       "value": 0.75,
+       "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504",
+       "verified": "2026-11-16"
+      },
+      "bonus": {
+       "value": 0.75,
+       "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504",
+       "verified": "2026-11-16"
+      }
+     },
+     "fixedTerm": {
+      "base": {
+       "value": 0.75,
+       "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504",
+       "verified": "2026-11-16"
+      },
+      "bonus": {
+       "value": 0.75,
+       "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504",
+       "verified": "2026-11-16"
+      }
+     }
+    },
+    "large": {
+     "regular": {
+      "base": {
+       "value": 0.6,
+       "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504",
+       "verified": "2026-11-16"
+      },
+      "bonus": {
+       "value": 0.6,
+       "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504",
+       "verified": "2026-11-16"
+      }
+     },
+     "fixedTerm": {
+      "base": {
+       "value": 0.6,
+       "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504",
+       "verified": "2026-11-16"
+      },
+      "bonus": {
+       "value": 0.6,
+       "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504",
+       "verified": "2026-11-16"
+      }
+     }
+    }
+   },
+   "wageUnit": {
+    "small": {
+     "base": {
+      "value": 1000,
+      "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504",
+      "verified": "2026-11-16"
+     },
+     "bonus": {
+      "value": 1000,
+      "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504",
+      "verified": "2026-11-16"
+     }
+    },
+    "large": {
+     "base": {
+      "value": 500,
+      "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504",
+      "verified": "2026-11-16"
+     },
+     "bonus": {
+      "value": 500,
+      "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504",
+      "verified": "2026-11-16"
+     }
+    }
+   },
+   "expenseLimit": [
+    {
+     "minHours": 10,
+     "maxHours": 100,
+     "small": {
+      "value": 300000,
+      "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ｲ)",
+      "verified": "2026-11-16"
+     },
+     "large": {
+      "value": 200000,
+      "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ｲ)",
+      "verified": "2026-11-16"
+     }
+    },
+    {
+     "minHours": 100,
+     "maxHours": 200,
+     "small": {
+      "value": 400000,
+      "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ｲ)",
+      "verified": "2026-11-16"
+     },
+     "large": {
+      "value": 250000,
+      "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ｲ)",
+      "verified": "2026-11-16"
+     }
+    },
+    {
+     "minHours": 200,
+     "maxHours": null,
+     "small": {
+      "value": 500000,
+      "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ｲ)",
+      "verified": "2026-11-16"
+     },
+     "large": {
+      "value": 300000,
+      "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ｲ)",
+      "verified": "2026-11-16"
+     }
+    }
+   ],
+   "elearningLimit": {
+    "small": {
+     "value": 150000,
+     "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ﾛ)",
+     "verified": "2026-11-16"
+    },
+    "large": {
+     "value": 100000,
+     "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ﾛ)",
+     "verified": "2026-11-16"
+    }
+   },
+   "elearningWage": {
+    "value": false,
+    "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504 ロ",
+    "verified": "2026-11-16",
+    "note": "賃金助成なし"
+   },
+   "equipmentAddOn": {
+    "rate": {
+     "value": 0.5,
+     "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504",
+     "verified": "2026-11-16",
+     "note": "中小企業のみ"
+    },
+    "capPerWorker": {
+     "value": 150000,
+     "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ト",
+     "verified": "2026-11-16"
+    },
+    "capTenOrMore": {
+     "value": 1500000,
+     "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ト",
+     "verified": "2026-11-16"
+    },
+    "note": "設備投資加算は、賃金要件(5%)または資格等手当要件(3%)等を満たした場合の加算。導入費用は、事業主が入力する"
+   },
+   "elearningTimesPerYear": {
+    "value": 1,
+    "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 へ(ﾛ)",
+    "verified": "2026-11-16",
+    "note": "令和8年8月3日以降の計画届"
+   }
+  }
+ }
+}
