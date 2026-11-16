@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>印刷の動作確認</title>
+<style>
+body{font:16px/1.7 "Hiragino Sans","Noto Sans JP",Meiryo,sans-serif;color:#374141;margin:24px;max-width:720px}
+button{height:48px;padding:0 20px;margin:4px 8px 4px 0;border:1px solid #04746D;background:#04746D;color:#fff;border-radius:6px;font:inherit;font-weight:700;cursor:pointer}
+button.sub{background:#fff;color:#04746D}
+#doc{display:none}
+@media print{ @page{size:A4;margin:12mm} body{margin:0} .ui{display:none} #doc{display:block;border:1pt solid #05968C;padding:12pt} }
+.log{margin-top:16px;padding:12px;background:#F4F7F7;border-radius:6px;white-space:pre-wrap}
+</style></head><body>
+<div class="ui">
+  <h1>印刷の動作確認</h1>
+  <p>この画面は、Apps Script の中で、印刷(PDF保存)が動くかを確かめるためのものです。順番に押して、結果を教えてください。</p>
+  <button id="b1">1. 印刷する(window.print)</button>
+  <button id="b2" class="sub">2. 別のタブで書類を開く</button>
+  <button id="b3" class="sub">3. HTMLファイルとして保存</button>
+  <div class="log" id="log">(結果がここに出ます)</div>
+</div>
+<div id="doc"><h2>印刷テスト</h2><p>この文章が、A4の紙(PDF)に出れば、印刷は動いています。ロゴ・色は関係ありません。</p></div>
+<script>
+const log = (t) => { document.getElementById('log').textContent += '\n' + t; };
+const frame = (window.self !== window.top) ? 'iframeの中(Apps Scriptの枠)' : 'iframeの外';
+log('実行場所: ' + frame);
+document.getElementById('b1').onclick = () => { try { window.print(); log('1: window.print() を呼びました。印刷の画面が出ましたか?'); } catch (e) { log('1: エラー ' + e); } };
+document.getElementById('b2').onclick = () => {
+  try {
+    const w = window.open('', '_blank');
+    if (!w) { log('2: 新しいタブが、ブロックされました'); return; }
+    w.document.write('<!doctype html><meta charset="utf-8"><title>書類</title><h2>別タブの書類</h2><p>ここで、Ctrl+P(Macは⌘P)が使えますか?</p><button onclick="print()">印刷</button>');
+    w.document.close(); log('2: 新しいタブを開きました');
+  } catch (e) { log('2: エラー ' + e); }
+};
+document.getElementById('b3').onclick = () => {
+  try {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['<!doctype html><meta charset="utf-8"><p>保存テスト</p>'], { type: 'text/html' }));
+    a.download = 'save-test.html'; document.body.appendChild(a); a.click(); a.remove(); log('3: ダウンロードを試しました。ファイルが保存されましたか?');
+  } catch (e) { log('3: エラー ' + e); }
+};
+</script></body></html>

@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>助成金シミュレーター</title>
+<style>
+:root{
+  /* 色:ロゴのティールと濃いグレーが土台。アクセントは1色だけ(結果の数字にだけ使う) */
+  --teal:#05968C;       /* ロゴの色。面・線・大きな図形に使う */
+  --teal-d:#04746D;     /* 文字・ボタン用(白との差 5.64:1) */
+  --ink:#374141;        /* 文字(白との差 10.53:1)。純黒は使わない */
+  --muted:#5A6666;      /* 補足の文字(白との差 5.95:1) */
+  --line:#D9E0E0;       /* 区切りの細い線 */
+  --bg:#F4F7F7;         /* ごく薄いグレーの面 */
+  --surface:#FFFFFF;
+  --accent:#C2410C;     /* オレンジ(白との差 5.18:1)。結果の数字と、エラー・上限の枠だけに使う */
+  /* 角丸:4段階を役割で固定 */
+  --r0:0;               /* ① 角なし:区切り・表 */
+  --r-s:6px;            /* ② 小:入力欄・ボタン */
+  --r-l:14px;           /* ③ 大:カード・パネル */
+  --r-p:999px;          /* ④ ピル:ラベル・バッジ */
+  /* 余白(8の倍数) */
+  --s1:8px; --s2:16px; --s3:24px; --s4:40px; --s5:64px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:400 16px/1.7 "Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",Meiryo,sans-serif;
+  letter-spacing:.02em}
+button,input,select{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* ヘッダー */
+.top{background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{max-width:1200px;margin:0 auto;padding:12px var(--s3);display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap}
+.top img{height:40px;width:auto;display:block}
+.top h1{margin:0;font-size:20px;font-weight:700;line-height:1.3}
+.top .tag{margin-left:auto;font-size:14px;color:var(--muted);border:1px solid var(--line);border-radius:var(--r-p);padding:2px 12px}
+
+/* 概算の帯(いつも見える位置) */
+.notice{background:var(--surface);border-bottom:1px solid var(--line)}
+.notice-in{max-width:1200px;margin:0 auto;padding:var(--s1) var(--s3);display:flex;gap:var(--s2);align-items:baseline;flex-wrap:wrap}
+.notice strong{color:var(--teal-d);white-space:nowrap}
+.notice span{font-size:15px}
+
+/* 全体の組み */
+.wrap{max-width:1200px;margin:0 auto;padding:var(--s3);display:grid;gap:var(--s3);grid-template-columns:minmax(0,400px) minmax(0,1fr);align-items:start}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr);padding:var(--s2)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);padding:var(--s3)}
+.eyebrow{font-size:12px;letter-spacing:.18em;color:var(--muted);font-weight:500;margin:0}
+h2{margin:0 0 var(--s2);font-size:22px;line-height:1.4;font-weight:700}
+h3{margin:0 0 var(--s1);font-size:18px;line-height:1.5;font-weight:700}
+
+/* 入力 */
+.field{margin:0 0 var(--s2)}
+.field>label,.field>legend{display:block;font-weight:700;margin:0 0 4px;padding:0}
+.field .hint{display:block;font-size:14px;color:var(--muted);margin-top:4px;line-height:1.5}
+fieldset.field{border:0;padding:0;min-inline-size:0}
+.inp{display:flex;align-items:center;gap:var(--s1)}
+.inp input{width:100%;height:48px;padding:0 12px;border:1px solid #9AA6A6;border-radius:var(--r-s);background:var(--surface);text-align:right}
+.inp input[type=text],.inp input[type=date]{text-align:left}
+.inp .unit{white-space:nowrap;color:var(--muted);min-width:2.2em}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--s2)}
+.two>*,.inp input{min-width:0}
+@media (max-width:420px){.two.dates{grid-template-columns:minmax(0,1fr)}}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid #9AA6A6;border-radius:var(--r-s);overflow:hidden}
+.seg label{position:relative;display:flex;align-items:center;justify-content:center;text-align:center;min-height:48px;padding:4px 8px;cursor:pointer;line-height:1.35;font-weight:500;background:var(--surface)}
+.seg label+label{border-left:1px solid #9AA6A6}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg label:has(input:checked){background:var(--teal-d);color:#fff;font-weight:700}
+.seg label:has(input:focus-visible){outline:3px solid var(--ink);outline-offset:-3px}
+input:focus-visible,button:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--teal-d);outline-offset:2px}
+.field.invalid .inp input{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.err{color:var(--accent);font-size:14px;margin-top:4px}
+.sep{border:0;border-top:1px solid var(--line);margin:var(--s3) 0}
+
+/* 結果 */
+.result{display:grid;gap:var(--s3);min-width:0}
+.hero{padding:var(--s4) var(--s3) var(--s3)}
+.hero .label{margin:0;font-size:18px;font-weight:700}
+.hero .big{margin:var(--s1) 0 0;text-align:right;color:var(--accent);font-weight:800;line-height:1.05;letter-spacing:-.01em;
+  font-size:clamp(56px,10vw,104px);overflow-wrap:anywhere}
+.hero .bonus{margin:var(--s2) 0 0;text-align:right;font-size:20px;font-weight:700;color:var(--teal-d)}
+.hero .bonus small{display:block;font-size:14px;font-weight:400;color:var(--muted)}
+.hero .cap{margin-top:var(--s2);padding:var(--s1) var(--s2);border:1px solid var(--accent);border-radius:var(--r-s);color:var(--accent);font-weight:700}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s2)}
+@media (max-width:560px){.kpis{grid-template-columns:1fr}}
+.kpi{border:1px solid var(--line);border-radius:var(--r-l);padding:var(--s2);background:var(--surface)}
+.kpi .k{font-size:15px;color:var(--muted);margin:0}
+.kpi .v{margin:4px 0 0;text-align:right;font-size:28px;font-weight:700;line-height:1.3}
+.kpi .s{margin:0;text-align:right;font-size:14px;color:var(--muted)}
+.btns{display:flex;gap:var(--s2);flex-wrap:wrap}
+.btn{height:48px;padding:0 var(--s3);border-radius:var(--r-s);border:1px solid var(--teal-d);background:var(--teal-d);color:#fff;font-weight:700;cursor:pointer}
+.btn.sub{background:var(--surface);color:var(--teal-d)}
+.btn:hover{filter:brightness(.95)}
+details{border:1px solid var(--line);border-radius:var(--r-l);background:var(--surface)}
+details>summary{cursor:pointer;list-style:none;padding:var(--s2) var(--s3);font-weight:700;display:flex;justify-content:space-between;align-items:center}
+details>summary::-webkit-details-marker{display:none}
+details>summary::after{content:"＋";color:var(--teal-d)}
+details[open]>summary::after{content:"－"}
+details .body{padding:0 var(--s3) var(--s3)}
+.step{margin:0 0 var(--s2);padding:0 0 var(--s2);border-bottom:1px solid var(--line)}
+.step:last-child{border:0;margin:0;padding:0}
+.step p{margin:2px 0}
+.step .eq{color:var(--muted);font-size:15px}
+table.cmp{width:100%;border-collapse:collapse}
+.cmp th,.cmp td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:right}
+.cmp th:first-child,.cmp td:first-child{text-align:left}
+.cmp thead th{font-size:15px;color:var(--muted);font-weight:700}
+.cmp tfoot td{font-weight:800;font-size:18px}
+.check{list-style:none;margin:0;padding:0;display:grid;gap:var(--s1)}
+.check li{display:grid;grid-template-columns:24px 1fr;gap:var(--s1);align-items:start}
+.check li::before{content:"";width:18px;height:18px;margin-top:5px;border:2px solid var(--teal-d);border-radius:var(--r-s)}
+.sharoshi{border-left:4px solid var(--teal);background:var(--bg);padding:var(--s2);border-radius:var(--r0)}
+.src{font-size:14px;color:var(--muted)}
+.msg{padding:var(--s2);border:1px solid var(--accent);border-radius:var(--r-s);color:var(--accent)}
+.hidden{display:none!important}
+
+/* 企業規模の判定 */
+.mini{border:1px solid var(--line);border-radius:var(--r-s);margin-top:var(--s1);background:var(--surface)}
+.mini>summary{padding:10px var(--s2);font-weight:500;font-size:15px}
+.mini .mini-body{padding:0 var(--s2) var(--s2)}
+.inp select{width:100%;height:48px;padding:0 8px;border:1px solid #9AA6A6;border-radius:var(--r-s);background:var(--surface)}
+.ok{color:var(--teal-d);font-weight:700}
+
+/* 印刷用の書類(画面には出さない) */
+.doc{display:none}
+@media print{
+  @page{size:A4;margin:10mm 12mm}
+  html,body{background:#fff}
+  body{font-size:9.5pt;line-height:1.45;color:var(--ink)}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .top,.notice,.wrap{display:none!important}
+  .doc{display:block}
+  .doc-head{display:flex;align-items:center;gap:12pt;border-bottom:1.5pt solid var(--teal);padding-bottom:8pt}
+  .doc-head img{height:28pt;width:auto}
+  .doc-head h1{margin:0;font-size:15pt;line-height:1.3}
+  .doc-head .who{flex:1;min-width:0}
+  .doc-head .who p{margin:0;font-size:10pt;color:var(--muted)}
+  .doc-date{margin:0;font-size:10pt;white-space:nowrap}
+  .doc-note{margin:6pt 0;padding:4pt 10pt;border:1pt solid var(--accent);border-radius:var(--r-s);font-size:10pt}
+  .doc-note strong{color:var(--accent)}
+  .doc-hero{margin:4pt 0 4pt;padding:5pt 12pt;border:1pt solid var(--line);border-radius:var(--r-l)}
+  .doc-hero .l{margin:0;font-size:11pt;font-weight:700}
+  .doc-hero .b{margin:0;text-align:right;color:var(--accent);font-weight:800;font-size:34pt;line-height:1.1}
+  .doc-hero .p{margin:2pt 0 0;text-align:right;font-weight:700;color:var(--teal-d);font-size:11pt}
+  .doc h2{margin:6pt 0 2pt;font-size:10.5pt}
+  .doc table{width:100%;border-collapse:collapse;font-size:9pt}
+  .doc th,.doc td{padding:2pt 6pt;border-bottom:.5pt solid var(--line);text-align:right}
+  .doc th:first-child,.doc td:first-child{text-align:left;font-weight:500}
+  .doc thead th{color:var(--muted);font-weight:700}
+  .doc tfoot td{font-weight:800}
+  .doc ul{margin:0;padding-left:14pt;font-size:8.5pt}
+  .doc li{margin:0}
+  .doc-sr{margin-top:6pt;padding:4pt 10pt;border-left:3pt solid var(--teal);background:var(--bg);font-size:9pt}
+  .doc-foot{margin-top:5pt;font-size:8pt;color:var(--muted)}
+  .doc-foot strong{color:var(--ink)}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <img src="data:image/png;base64,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" alt="物件王">
+    <h1>助成金シミュレーター</h1>
+    <span class="tag" id="yearTag">社内専用</span>
+  </div>
+</header>
+
+<div class="notice" role="note">
+  <div class="notice-in">
+    <strong>これは概算です。</strong>
+    <span>支給を保証するものではありません。最終的な支給額は、労働局の審査で決まります。申請手続きは、社会保険労務士にご相談ください。</span>
+  </div>
+</div>
+
+<main class="wrap">
+  <!-- 入力 -->
+  <section class="card" aria-labelledby="h-in">
+    <p class="eyebrow" aria-hidden="true">INPUT</p>
+    <h2 id="h-in">条件を入れる</h2>
+
+    <div class="field">
+      <label for="company">会社名(任意)</label>
+      <div class="inp"><input id="company" type="text" placeholder="例:株式会社○○工務店" autocomplete="off"></div>
+      <span class="hint">書類にだけ入ります。保存はされません。</span>
+    </div>
+    <div class="field">
+      <label for="title">研修名(任意)</label>
+      <div class="inp"><input id="title" type="text" placeholder="例:施工管理の基礎研修" autocomplete="off"></div>
+      <span class="hint">書類にだけ入ります。</span>
+    </div>
+
+    <fieldset class="field"><legend>コース</legend>
+      <div class="seg">
+        <label><input type="radio" name="course" value="jinzai" checked><span>人材育成訓練</span></label>
+        <label><input type="radio" name="course" value="reskilling"><span>事業展開等<br>リスキリング</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="field"><legend>企業規模</legend>
+      <div class="seg">
+        <label><input type="radio" name="size" value="small" checked><span>中小企業</span></label>
+        <label><input type="radio" name="size" value="large"><span>中小企業以外</span></label>
+      </div>
+      <details class="mini" id="smeHelp">
+        <summary>業種・資本金・従業員数から判定する</summary>
+        <div class="mini-body">
+          <div class="field"><label for="ind">主たる事業</label>
+            <div class="inp"><select id="ind">
+              <option value="other">建設業・不動産業・製造業・その他</option>
+              <option value="retail">小売業(飲食店を含む)</option>
+              <option value="service">サービス業</option>
+              <option value="wholesale">卸売業</option>
+            </select></div></div>
+          <div class="two">
+            <div class="field"><label for="capital">資本金・出資額</label><div class="inp"><input id="capital" type="number" inputmode="numeric" min="0" step="100"><span class="unit">万円</span></div></div>
+            <div class="field"><label for="emps">常時雇用の労働者</label><div class="inp"><input id="emps" type="number" inputmode="numeric" min="0" step="1"><span class="unit">人</span></div></div>
+          </div>
+          <span class="hint" style="display:block;margin-bottom:var(--s1)">どちらか一方が基準以下なら、中小企業です。個人・医療法人などで資本金がない場合は、空欄で、人数だけ入れてください。常時雇用は、2か月を超えて使用され、週の所定労働時間が通常の労働者と概ね同じ人です。</span>
+          <button type="button" class="btn sub" id="judgeBtn">判定して反映する</button>
+          <p id="judgeMsg" class="src" style="margin:var(--s1) 0 0"></p>
+        </div>
+      </details>
+    </fieldset>
+
+    <div class="two">
+      <div class="field" data-for="regular">
+        <label for="regular">正規雇用の受講者</label>
+        <div class="inp"><input id="regular" type="number" inputmode="numeric" min="0" step="1" value="5"><span class="unit">人</span></div>
+      </div>
+      <div class="field" data-for="fixedTerm">
+        <label for="fixedTerm">有期契約の受講者</label>
+        <div class="inp"><input id="fixedTerm" type="number" inputmode="numeric" min="0" step="1" value="0"><span class="unit">人</span></div>
+      </div>
+    </div>
+
+    <fieldset class="field"><legend>訓練の形式</legend>
+      <div class="seg">
+        <label><input type="radio" name="format" value="classroom" checked><span>通学・同時双方向</span></label>
+        <label><input type="radio" name="format" value="elearning"><span>eラーニング・通信制</span></label>
+      </div>
+    </fieldset>
+
+    <div class="field" data-for="hours">
+      <label for="hours">訓練時間(1人あたり)</label>
+      <div class="inp"><input id="hours" type="number" inputmode="decimal" min="0" step="1" value="30"><span class="unit">時間</span></div>
+      <span class="hint">OFF-JTの時間。10時間以上が対象です。</span>
+    </div>
+
+    <div class="two">
+      <div class="field" data-for="sched">
+        <label for="sched">所定労働時間内の割合</label>
+        <div class="inp"><input id="sched" type="number" inputmode="numeric" min="0" max="100" step="1" value="100"><span class="unit">%</span></div>
+        <span class="hint">賃金助成は所定内だけ。</span>
+      </div>
+      <div class="field" data-for="attend">
+        <label for="attend">実際に受講する割合</label>
+        <div class="inp"><input id="attend" type="number" inputmode="numeric" min="0" max="100" step="1" value="100"><span class="unit">%</span></div>
+        <span class="hint">通学型は80%以上が必要。</span>
+      </div>
+    </div>
+
+    <div class="field" data-for="expense">
+      <label for="expense">対象経費(1人あたり・税込)</label>
+      <div class="inp"><span class="unit" style="min-width:0">¥</span><input id="expense" type="number" inputmode="numeric" min="0" step="1000" value="100000"></div>
+      <span class="hint">受講料・教科書代など。消費税も対象経費に含まれます。</span>
+    </div>
+
+    <div class="field hidden" id="equipField" data-for="equip">
+      <label for="equip">設備投資の導入費用(任意)</label>
+      <div class="inp"><span class="unit" style="min-width:0">¥</span><input id="equip" type="number" inputmode="numeric" min="0" step="10000" value="0"></div>
+      <span class="hint">中小企業のみ。通学・同時双方向型で、実技の訓練に機器・設備を使う場合の設備投資加算(50%)に使います。</span>
+    </div>
+
+    <hr class="sep">
+    <div class="two dates">
+      <div class="field">
+        <label for="start">訓練の開始予定日(任意)</label>
+        <div class="inp"><input id="start" type="date"></div>
+      </div>
+      <div class="field">
+        <label for="end">訓練の終了予定日(任意)</label>
+        <div class="inp"><input id="end" type="date"></div>
+      </div>
+    </div>
+    <span class="hint" style="display:block;color:var(--muted);font-size:14px">日付を入れると、提出の締切日が出ます。</span>
+  </section>
+
+  <!-- 結果 -->
+  <div class="result" aria-live="polite">
+    <section class="card hero" aria-labelledby="h-res">
+      <p class="eyebrow" aria-hidden="true">ESTIMATE</p>
+      <h2 id="h-res" class="hidden">計算結果</h2>
+      <div id="errBox" class="msg hidden"></div>
+      <div id="okBox">
+        <p class="label">助成金の見込み合計(基本分・概算)</p>
+        <p class="big num" id="big">¥0</p>
+        <p class="bonus num" id="bonus">&nbsp;</p>
+        <div class="cap hidden" id="capBox"></div>
+        <p id="warn" class="src" style="margin:var(--s2) 0 0"></p>
+      </div>
+    </section>
+
+    <div class="kpis" id="kpis">
+      <div class="kpi"><p class="k">経費助成</p><p class="v num" id="kExp">¥0</p><p class="s">受講料などへの助成</p></div>
+      <div class="kpi"><p class="k">賃金助成</p><p class="v num" id="kWage">¥0</p><p class="s">受講中の人件費への助成</p></div>
+      <div class="kpi"><p class="k">1人あたり</p><p class="v num" id="kPer">¥0</p><p class="s" id="kPerS"></p></div>
+    </div>
+
+    <section class="card" aria-labelledby="h-burden">
+      <h3 id="h-burden">助成後の自己負担の目安</h3>
+      <p class="num" style="margin:0;text-align:right;font-size:32px;font-weight:700" id="burden">¥0</p>
+      <p class="src" style="margin:var(--s1) 0 0" id="burdenS"></p>
+      <p class="src" style="margin:var(--s1) 0 0">対象経費の合計から、経費助成を引いた額です。賃金助成は、会社が払った賃金への助成なので、ここには入れていません。訓練機関から返金などを受けた場合は、経費助成の対象外になります。</p>
+    </section>
+
+    <div class="btns">
+      <button class="btn sub" id="cmpBtn" type="button" aria-expanded="false" aria-controls="cmpBox">条件を変えて比べる</button>
+      <button class="btn" id="printBtn" type="button">1ページの書類にする</button>
+    </div>
+
+    <section class="card hidden" id="cmpBox" aria-label="加算なしと加算ありの比較">
+      <h3>加算なし と あり を並べる</h3>
+      <table class="cmp num">
+        <thead><tr><th></th><th>基本分のみ</th><th id="cmpHead">加算を満たす場合</th></tr></thead>
+        <tbody id="cmpBody"></tbody>
+        <tfoot id="cmpFoot"></tfoot>
+      </table>
+    </section>
+
+    <details>
+      <summary>計算の内訳を見る</summary>
+      <div class="body" id="steps"></div>
+    </details>
+
+    <section class="card" aria-labelledby="h-chk">
+      <p class="eyebrow" aria-hidden="true">CHECK</p>
+      <h3 id="h-chk">計算に出ない条件(商談前の確認)</h3>
+      <ul class="check" id="check"></ul>
+    </section>
+
+    <section class="sharoshi">
+      <strong>申請手続きは、社会保険労務士にご相談ください。</strong>
+      <p class="src" style="margin:4px 0 0">助成金の申請手続きは、社会保険労務士の業務です。物件王が、申請を代行・案内するものではありません。<span style="color:var(--accent)">(文言は下書き。既存スライドの文言に合わせて確定します)</span></p>
+    </section>
+
+    <p class="src" id="srcLine"></p>
+  </div>
+</main>
+
+
+<!-- 印刷・PDF用の書類(A4・1ページ)。画面には出ません -->
+<section class="doc" id="doc" aria-hidden="true">
+  <header class="doc-head">
+    <img src="data:image/png;base64,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" alt="">
+    <div class="who"><p id="dCompany"></p><h1>助成金の概算</h1><p id="dCourse"></p></div>
+    <p class="doc-date" id="dDate"></p>
+  </header>
+  <div class="doc-note"><strong>これは概算です。</strong>支給を保証するものではありません。最終的な支給額は、労働局の審査で決まります。</div>
+  <div class="doc-hero">
+    <p class="l">助成金の見込み合計(基本分)</p>
+    <p class="b num" id="dBig"></p>
+    <p class="p num" id="dBonus"></p>
+  </div>
+  <h2>前提の条件</h2>
+  <table><tbody id="dCond"></tbody></table>
+  <h2>内訳</h2>
+  <table><thead><tr><th></th><th>基本分</th><th id="dHead"></th></tr></thead><tbody id="dRows"></tbody><tfoot id="dFoot"></tfoot></table>
+  <h2>申請の前に確認が必要な条件</h2>
+  <ul id="dCheck"></ul>
+  <div class="doc-sr"><strong>申請手続きは、社会保険労務士にご相談ください。</strong>助成金の申請手続きは、社会保険労務士の業務です。</div>
+  <p class="doc-foot" id="dSrc"></p>
+</section>
+
+<script type="application/json" id="params">{"_meta": {"fiscalYear": "令和8年度", "appliesToPlansSubmittedOnOrAfter": "2026-08-03", "verifiedOn": "2026-11-16", "note": "制度の数字はすべてこの表に置く。年度が変わったら、一次資料で見直して、この表だけを直す。value=値、source=出典、verified=確認日。", "fiscalYearEnd": {"value": "2027-03-31", "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.15 / 支給要領 06026 イ", "verified": "2026-11-16", "note": "年度は支給申請日を基準に、4月1日〜翌年3月31日。令和9年度の制度は資料で未確認"}}, "common": {"minTrainingHours": {"value": 10, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.16 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06013 ロ", "verified": "2026-11-16"}, "attendanceMinPercent": {"value": 80, "source": "人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06012 ロ(ｲ)", "verified": "2026-11-16", "note": "通学制・同時双方向型。eラーニング・通信制は、期間中の修了が要件"}, "wageHoursCap": {"value": 1200, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.15 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ハ", "verified": "2026-11-16", "note": "専門実践教育訓練は1,600時間(ツールは対象外)"}, "timesPerWorkerPerYear": {"value": 3, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.15 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ニ", "verified": "2026-11-16"}, "rounding": {"mode": "floor", "status": "unconfirmed", "note": "端数処理の規定は、資料で確認できなかった。円未満切り捨ての仮置き。"}, "taxIncluded": {"value": true, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.43", "verified": "2026-11-16", "note": "消費税は対象経費に含まれる。入力は税込"}, "planWindowMonths": {"earliest": {"value": 6, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.3・Ⅲ-1", "verified": "2026-11-16"}, "latest": {"value": 1, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.3・Ⅲ-1", "verified": "2026-11-16"}}, "claimWithinMonthsAfterEnd": {"value": 2, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.3", "verified": "2026-11-16"}, "bonusClaim": {"paidMonths": {"value": 3, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.27", "verified": "2026-11-16"}, "withinMonthsAfter": {"value": 5, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.27", "verified": "2026-11-16"}}, "smeDefinition": {"retail": {"label": "小売業(飲食店を含む)", "capital": {"value": 50000000, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13", "verified": "2026-11-16"}, "employees": {"value": 50, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13", "verified": "2026-11-16"}}, "service": {"label": "サービス業", "capital": {"value": 50000000, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13", "verified": "2026-11-16"}, "employees": {"value": 100, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13", "verified": "2026-11-16"}}, "wholesale": {"label": "卸売業", "capital": {"value": 100000000, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13", "verified": "2026-11-16"}, "employees": {"value": 100, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13", "verified": "2026-11-16"}}, "other": {"label": "その他の業種(建設業・不動産業を含む)", "capital": {"value": 300000000, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13", "verified": "2026-11-16"}, "employees": {"value": 300, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.13", "verified": "2026-11-16"}}}}, "courses": {"jinzai": {"label": "人材育成訓練(OFF-JT)", "annualCap": {"value": 10000000, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.15 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 イ", "verified": "2026-11-16", "note": "1事業所1年度。通常分と割増分の合計"}, "expenseRate": {"small": {"regular": {"base": {"value": 0.45, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023", "verified": "2026-11-16"}, "bonus": {"value": 0.6, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023", "verified": "2026-11-16"}}, "fixedTerm": {"base": {"value": 0.7, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023", "verified": "2026-11-16"}, "bonus": {"value": 0.85, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023", "verified": "2026-11-16"}}}, "large": {"regular": {"base": {"value": 0.3, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023", "verified": "2026-11-16"}, "bonus": {"value": 0.45, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023", "verified": "2026-11-16"}}, "fixedTerm": {"base": {"value": 0.7, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023", "verified": "2026-11-16"}, "bonus": {"value": 0.85, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023", "verified": "2026-11-16"}}}}, "wageUnit": {"small": {"base": {"value": 800, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023", "verified": "2026-11-16"}, "bonus": {"value": 1000, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023", "verified": "2026-11-16"}}, "large": {"base": {"value": 400, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023", "verified": "2026-11-16"}, "bonus": {"value": 500, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2・p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023", "verified": "2026-11-16"}}}, "expenseLimit": [{"minHours": 10, "maxHours": 100, "small": {"value": 150000, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ", "verified": "2026-11-16"}, "large": {"value": 100000, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ", "verified": "2026-11-16"}}, {"minHours": 100, "maxHours": 200, "small": {"value": 300000, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ", "verified": "2026-11-16"}, "large": {"value": 200000, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ", "verified": "2026-11-16"}}, {"minHours": 200, "maxHours": null, "small": {"value": 500000, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ", "verified": "2026-11-16"}, "large": {"value": 300000, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.14 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ", "verified": "2026-11-16"}}], "elearningLimit": {"small": {"value": 150000, "source": "人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ(ｲ)", "verified": "2026-11-16"}, "large": {"value": 100000, "source": "人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06026 ロ(ｲ)", "verified": "2026-11-16"}}, "elearningWage": {"value": false, "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.2注1 / 人材育成支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731969.pdf 06023 イ", "verified": "2026-11-16", "note": "賃金助成なし"}}, "reskilling": {"label": "事業展開等リスキリング支援コース(令和8年度末までの時限措置)", "annualCap": {"value": 100000000, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 イ", "verified": "2026-11-16", "note": "1事業所1年度。設備投資加算を含む"}, "expenseRate": {"small": {"regular": {"base": {"value": 0.75, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504", "verified": "2026-11-16"}, "bonus": {"value": 0.75, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504", "verified": "2026-11-16"}}, "fixedTerm": {"base": {"value": 0.75, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504", "verified": "2026-11-16"}, "bonus": {"value": 0.75, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504", "verified": "2026-11-16"}}}, "large": {"regular": {"base": {"value": 0.6, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504", "verified": "2026-11-16"}, "bonus": {"value": 0.6, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504", "verified": "2026-11-16"}}, "fixedTerm": {"base": {"value": 0.6, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504", "verified": "2026-11-16"}, "bonus": {"value": 0.6, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504", "verified": "2026-11-16"}}}}, "wageUnit": {"small": {"base": {"value": 1000, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504", "verified": "2026-11-16"}, "bonus": {"value": 1000, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504", "verified": "2026-11-16"}}, "large": {"base": {"value": 500, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504", "verified": "2026-11-16"}, "bonus": {"value": 500, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504", "verified": "2026-11-16"}}}, "expenseLimit": [{"minHours": 10, "maxHours": 100, "small": {"value": 300000, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ｲ)", "verified": "2026-11-16"}, "large": {"value": 200000, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ｲ)", "verified": "2026-11-16"}}, {"minHours": 100, "maxHours": 200, "small": {"value": 400000, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ｲ)", "verified": "2026-11-16"}, "large": {"value": 250000, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ｲ)", "verified": "2026-11-16"}}, {"minHours": 200, "maxHours": null, "small": {"value": 500000, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ｲ)", "verified": "2026-11-16"}, "large": {"value": 300000, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ｲ)", "verified": "2026-11-16"}}], "elearningLimit": {"small": {"value": 150000, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ﾛ)", "verified": "2026-11-16"}, "large": {"value": 100000, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ロ(ﾛ)", "verified": "2026-11-16"}}, "elearningWage": {"value": false, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504 ロ", "verified": "2026-11-16", "note": "賃金助成なし"}, "equipmentAddOn": {"rate": {"value": 0.5, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0504", "verified": "2026-11-16", "note": "中小企業のみ"}, "capPerWorker": {"value": 150000, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ト", "verified": "2026-11-16"}, "capTenOrMore": {"value": 1500000, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ト", "verified": "2026-11-16"}, "note": "設備投資加算は、賃金要件(5%)または資格等手当要件(3%)等を満たした場合の加算。導入費用は、事業主が入力する", "classroomOnly": {"value": true, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0402", "verified": "2026-11-16", "note": "通学制・同時双方向型で、実技の訓練で機器・設備を実際に使うものに限る"}}, "elearningTimesPerYear": {"value": 1, "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 へ(ﾛ)", "verified": "2026-11-16", "note": "令和8年8月3日以降の計画届"}}}}</script>
+<script>/*
+ * 助成金シミュレーター 計算(画面なし・外部通信なし・保存なし)
+ * 制度の数字は、すべて params.json から読む。このファイルに、数字は書かない。
+ * ブラウザ(window.SubsidyCalc)と Node.js(require)の、どちらでも動く。
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.SubsidyCalc = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  const val = (x) => (x && typeof x === 'object' && 'value' in x ? x.value : x);
+
+  // 小数の誤差(0.6*100000 など)を丸めてから、円未満を切り捨てる。端数処理は、params.common.rounding(仮)
+  function yen(n) {
+    return Math.floor(Math.round(n * 1000) / 1000 + 1e-9);
+  }
+
+  function limitTier(course, hours) {
+    for (const t of course.expenseLimit) {
+      if (hours >= t.minHours && (t.maxHours === null || hours < t.maxHours)) return t;
+    }
+    return null;
+  }
+
+  const GROUPS = [
+    { key: 'regular', label: '正規雇用労働者等' },
+    { key: 'fixedTerm', label: '有期契約労働者等' },
+  ];
+
+  // 1人あたり。bonus=true で、賃金要件等を満たす場合(加算込み)
+  function perPerson(params, course, input, bonus, groupKey) {
+    const c = params.common;
+    const size = input.size;
+    const phase = bonus ? 'bonus' : 'base';
+    const elearning = input.format === 'elearning';
+    const hours = input.hours;
+
+    const rate = val(course.expenseRate[size][groupKey][phase]);
+    let limit, tier = null;
+    if (elearning) {
+      limit = val(course.elearningLimit[size]);
+    } else {
+      tier = limitTier(course, hours);
+      limit = val(tier[size]);
+    }
+    const expenseRaw = yen(input.expensePerPerson * rate);
+    const expense = Math.min(expenseRaw, limit);
+
+    const wageUnit = val(course.wageUnit[size][phase]);
+    const sched = (input.scheduledPercent ?? 100) / 100;
+    const attend = (input.attendancePercent ?? 100) / 100;
+    const attendedScheduledHours = hours * sched * attend;
+    const wageHours = elearning && !val(course.elearningWage) ? 0 : Math.min(attendedScheduledHours, val(c.wageHoursCap));
+    const wage = yen(wageUnit * wageHours);
+
+    return {
+      rate, limit, limitHit: expenseRaw > limit, expenseRaw, expense,
+      wageUnit, wageHours, wage, total: expense + wage,
+      tier: tier ? { minHours: tier.minHours, maxHours: tier.maxHours } : null,
+    };
+  }
+
+  function validate(params, input) {
+    const errors = [];
+    const warnings = [];
+    let eligible = true;
+    let reason = null;
+    const c = params.common;
+    const minH = val(c.minTrainingHours);
+
+    if (!params.courses[input.course]) errors.push('コースを選んでください。');
+    const n = (input.regular || 0) + (input.fixedTerm || 0);
+    if (!(n > 0)) errors.push('受講者の人数を、1人以上で入力してください。');
+    if (!(input.hours > 0)) errors.push('訓練時間を入力してください。');
+    if (!(input.expensePerPerson >= 0)) errors.push('対象経費は、0円以上で入力してください(消費税込み)。');
+
+    if (!errors.length) {
+      if (input.hours < minH) {
+        eligible = false;
+        reason = 'under_min_hours';
+        warnings.push('訓練時間は' + minH + '時間以上で入力してください。' + minH + '時間未満は、この助成金の対象外です。');
+      } else if (input.format !== 'elearning' && (input.attendancePercent ?? 100) < val(c.attendanceMinPercent)) {
+        eligible = false;
+        reason = 'attendance';
+        warnings.push('通学・同時双方向型は、実訓練時間の' + val(c.attendanceMinPercent) + '%以上の受講が必要です。この受講率では、対象外になります。');
+      }
+    }
+    return { errors, warnings, eligible, reason };
+  }
+
+  function totalsFor(params, course, input, bonus) {
+    const groups = GROUPS.filter((g) => (input[g.key] || 0) > 0).map((g) => {
+      const pp = perPerson(params, course, input, bonus, g.key);
+      const count = input[g.key];
+      return { key: g.key, label: g.label, count, perPerson: pp,
+        expense: pp.expense * count, wage: pp.wage * count, total: pp.total * count };
+    });
+    let expense = 0, wage = 0;
+    for (const g of groups) { expense += g.expense; wage += g.wage; }
+    const people = groups.reduce((a, g) => a + g.count, 0);
+
+    // リスキリングコースの設備投資加算(中小企業のみ。加算込みの場合のみ)
+    let equipment = 0, equipmentCapHit = false;
+    const add = course.equipmentAddOn;
+    if (bonus && add && input.size === 'small' && (input.equipmentCost || 0) > 0 && (!val(add.classroomOnly) || input.format !== 'elearning')) {
+      const raw = yen(input.equipmentCost * val(add.rate));
+      const cap = people >= 10 ? val(add.capTenOrMore) : val(add.capPerWorker) * people;
+      equipment = Math.min(raw, cap);
+      equipmentCapHit = raw > cap;
+    }
+
+    const raw = expense + wage + equipment;
+    const cap = val(course.annualCap);
+    const capped = Math.min(raw, cap);
+    return { groups, people, expense, wage, equipment, equipmentCapHit,
+      raw, cap, total: capped, capApplied: raw > cap, capReached: raw >= cap };
+  }
+
+  function calculate(params, input) {
+    const v = validate(params, input);
+    const out = { ok: v.errors.length === 0, errors: v.errors, warnings: v.warnings.slice(),
+      eligible: v.eligible, ineligibleReason: v.reason, input };
+    if (!out.ok) return out;
+
+    const course = params.courses[input.course];
+    const people = (input.regular || 0) + (input.fixedTerm || 0);
+    out.expenseTotal = input.expensePerPerson * people;
+
+    if (!v.eligible) {
+      const zero = { groups: [], people, expense: 0, wage: 0, equipment: 0, raw: 0, cap: val(course.annualCap),
+        total: 0, capApplied: false, capReached: false, equipmentCapHit: false };
+      out.base = zero; out.withBonus = zero; out.bonus = 0;
+      out.burden = { base: out.expenseTotal, withBonus: out.expenseTotal };
+      return out;
+    }
+
+    out.base = totalsFor(params, course, input, false);
+    out.withBonus = totalsFor(params, course, input, true);
+    out.bonus = out.withBonus.total - out.base.total;
+
+    // 実質負担(目安) = 対象経費の合計 − 経費助成の合計(賃金助成は引かない。別に表示)。
+    // 年間上限で切った場合は、切った分を、経費助成から先に減らす(仮)
+    const exp = (t) => Math.max(0, t.expense - (t.raw - t.total));
+    out.burden = {
+      base: out.expenseTotal - exp(out.base),
+      withBonus: out.expenseTotal - exp(out.withBonus),
+    };
+
+    if (out.base.capApplied) out.warnings.push('1事業所1年度の上限(' + val(course.annualCap).toLocaleString('ja-JP') + '円)に達しています。超えた分は、支給されません。');
+    else if (out.base.capReached) out.warnings.push('1事業所1年度の上限に達しています。');
+    if (input.format === 'elearning') out.warnings.push('eラーニング・通信制は、経費助成のみです(賃金助成は対象外)。');
+    return out;
+  }
+
+  // ---- 日付(目安。休日・祝日の扱いは、労働局の指示に従う) ----
+  function parse(iso) {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(Date.UTC(y, m - 1, d));
+  }
+  function iso(dt) { return dt.toISOString().slice(0, 10); }
+  function addMonths(dt, n) {
+    const y = dt.getUTCFullYear(), m = dt.getUTCMonth() + n, d = dt.getUTCDate();
+    const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(y, m, Math.min(d, last)));
+  }
+  function addDays(dt, n) { return new Date(dt.getTime() + n * 86400000); }
+
+  // 計画届:訓練開始日の6か月前〜1か月前(同日。同日がなければ月末)
+  function planWindow(params, startIso) {
+    const s = parse(startIso), c = params.common.planWindowMonths;
+    return { from: iso(addMonths(s, -val(c.earliest))), to: iso(addMonths(s, -val(c.latest))) };
+  }
+  // 支給申請:訓練終了日の翌日から2か月以内
+  function claimDeadline(params, endIso) {
+    const first = addDays(parse(endIso), 1);
+    return iso(addDays(addMonths(first, val(params.common.claimWithinMonthsAfterEnd)), -1));
+  }
+  // 割増し分の申請:要件を満たす賃金を3か月継続して支払った日の翌日から5か月以内
+  function bonusClaimDeadline(params, threeMonthsPaidEndIso) {
+    const first = addDays(parse(threeMonthsPaidEndIso), 1);
+    return iso(addDays(addMonths(first, val(params.common.bonusClaim.withinMonthsAfter)), -1));
+  }
+
+  // 年度をまたぐ場合などの注意(年度は支給申請日を基準に、4月1日〜翌年3月31日)
+  function dateWarnings(params, startIso, endIso) {
+    const out = [];
+    const fyEnd = val(params._meta.fiscalYearEnd);
+    if (endIso) {
+      const d = claimDeadline(params, endIso);
+      if (d > fyEnd) out.push('支給申請の締切が' + params._meta.fiscalYear + 'を過ぎます。支給申請日が翌年度になると、翌年度の制度・数字が適用されます(未確認)。');
+    } else if (startIso && startIso > fyEnd) {
+      out.push('訓練の開始日が' + params._meta.fiscalYear + 'を過ぎています。この数字は' + params._meta.fiscalYear + 'のものです。翌年度の制度は未確認です。');
+    }
+    return out;
+  }
+
+  // 中小企業の判定(資本金か労働者数のどちらか一方が基準以下)。資本金がない法人・個人は、労働者数のみ
+  function judgeSme(params, industryKey, capital, employees) {
+    const d = params.common.smeDefinition[industryKey];
+    if (!d) return null;
+    const byCapital = capital != null && capital <= val(d.capital);
+    const byEmployees = employees != null && employees <= val(d.employees);
+    return byCapital || byEmployees ? 'small' : 'large';
+  }
+
+  return { calculate, validate, planWindow, claimDeadline, bonusClaimDeadline, dateWarnings, judgeSme, val, yen };
+});
+</script>
+<script>
+(function(){
+  'use strict';
+  const P = JSON.parse(document.getElementById('params').textContent);
+  const C = window.SubsidyCalc, v = C.val;
+  const $ = (id) => document.getElementById(id);
+  const yen = (n) => '¥' + Math.round(n).toLocaleString('ja-JP');
+  const pct = (r) => (Math.round(r * 1000) / 10) + '%';
+  const radio = (name) => document.querySelector('input[name="' + name + '"]:checked').value;
+  const num = (id) => { const s = $(id).value; return s === '' ? NaN : Number(s); };
+
+  function read() {
+    return { course: radio('course'), size: radio('size'), format: radio('format'),
+      regular: num('regular'), fixedTerm: num('fixedTerm'), hours: num('hours'),
+      scheduledPercent: num('sched'), attendancePercent: num('attend'),
+      expensePerPerson: num('expense'), equipmentCost: num('equip') || 0 };
+  }
+  const jp = (iso) => { const [y, m, d] = iso.split('-').map(Number); return y + '年' + m + '月' + d + '日'; };
+
+  function stepsFor(r, t, bonus) {
+    const course = P.courses[r.input.course];
+    let h = '';
+    t.groups.forEach((g) => {
+      const p = g.perPerson;
+      h += '<div class="step"><p><strong>' + g.label + ' ' + g.count + '人</strong></p>';
+      h += '<p class="eq num">経費助成:対象経費 ' + yen(r.input.expensePerPerson) + ' × ' + pct(p.rate) + ' = ' + yen(p.expenseRaw) + '</p>';
+      if (r.input.format === 'elearning') {
+        h += '<p class="eq num">限度額(eラーニング・通信制) ' + yen(p.limit) + '</p>';
+      } else {
+        h += '<p class="eq num">限度額(訓練時間 ' + p.tier.minHours + '時間以上' + (p.tier.maxHours ? p.tier.maxHours + '時間未満' : '') + ') ' + yen(p.limit) + '</p>';
+      }
+      h += '<p class="num">→ ' + (p.limitHit ? '限度額で止まり、' : '限度額の範囲内で、') + '<strong>' + yen(p.expense) + '</strong></p>';
+      if (p.wageHours > 0) {
+        h += '<p class="eq num">賃金助成:' + yen(p.wageUnit) + ' × ' + (Math.round(p.wageHours * 100) / 100) + '時間(所定内の受講時間' + (p.wageHours >= v(P.common.wageHoursCap) ? '。上限' + v(P.common.wageHoursCap) + '時間' : '') + ') = <strong>' + yen(p.wage) + '</strong></p>';
+      } else {
+        h += '<p class="eq">賃金助成:対象外(eラーニング・通信制、または所定内の時間がありません)</p>';
+      }
+      h += '<p class="num">1人あたり ' + yen(p.total) + ' × ' + g.count + '人 = <strong>' + yen(g.total) + '</strong></p></div>';
+    });
+    if (t.equipment > 0) h += '<div class="step"><p class="num">設備投資加算:導入費用 ' + yen(r.input.equipmentCost) + ' × ' + pct(v(course.equipmentAddOn.rate)) + (t.equipmentCapHit ? '(限度額で止まる)' : '') + ' = <strong>' + yen(t.equipment) + '</strong></p></div>';
+    h += '<div class="step"><p class="num">合計 ' + yen(t.raw) + (t.capApplied ? '。1事業所1年度の上限 ' + yen(t.cap) + ' で止まり、' + yen(t.total) : '') + '</p></div>';
+    return h;
+  }
+
+  function checklist(inp) {
+    const c = P.common, isRk = inp.course === 'reskilling', items = [];
+    const sd = $('start').value, ed = $('end').value;
+    if (sd) { const pw = C.planWindow(P, sd); items.push('<strong>計画届:' + jp(pw.to) + 'まで</strong>(原則、開始の' + v(c.planWindowMonths.earliest) + 'か月前〜' + v(c.planWindowMonths.latest) + 'か月前。' + jp(pw.from) + 'から提出できます。休日の場合は翌開庁日)'); }
+    else items.push('<strong>計画届:</strong>訓練開始日の' + v(c.planWindowMonths.earliest) + 'か月前から' + v(c.planWindowMonths.latest) + 'か月前までに、管轄の労働局へ(開始予定日を入れると締切日が出ます)');
+    if (ed) items.push('<strong>支給申請:' + jp(C.claimDeadline(P, ed)) + 'まで</strong>(終了日の翌日から' + v(c.claimWithinMonthsAfterEnd) + 'か月以内。目安)');
+    else items.push('<strong>支給申請:</strong>訓練終了日の翌日から' + v(c.claimWithinMonthsAfterEnd) + 'か月以内(終了予定日を入れると締切日が出ます)');
+    if (inp.format === 'elearning') {
+      items.push('eラーニング・通信制は、訓練期間中に修了することが必要です。自社内で行う訓練(事業内訓練)の場合は、対象外です' + (isRk ? '。同じ労働者は、1年度に1回までです' : ''));
+    } else {
+      items.push('通学・同時双方向型は、実訓練時間の' + v(c.attendanceMinPercent) + '%以上の受講が必要です');
+    }
+    if (isRk) {
+      items.push('訓練は、①新規事業などの事業展開、②DX・GX化、③人事・人材育成計画で今後従事する職務、のいずれかに必要な内容であること。「事業展開等実施計画」(様式第1-3号)を作ります');
+      items.push('事業主の要件:事業内計画を、労働組合等の意見を聴いて作り、労働者に周知/職業能力開発推進者の選任/訓練中の賃金を適正に払う');
+      items.push('設備投資加算は、中小企業が、通学・同時双方向型の実技訓練で機器・設備を使う場合のみ。賃金要件(5%)または資格等手当要件(3%)を満たし、別の申請(' + v(c.bonusClaim.paidMonths) + 'か月継続して払った日の翌日から' + v(c.bonusClaim.withinMonthsAfter) + 'か月以内)になります');
+      items.push('このコースは、令和8年度末までの時限措置です。1事業所1年度の上限 ' + yen(v(P.courses.reskilling.annualCap)) + '、1人につき1年度' + v(c.timesPerWorkerPerYear) + '回まで');
+    } else {
+      items.push('事業主の要件:雇用保険適用事業主/職業能力開発推進者の選任/事業内職業能力開発計画の策定・周知/キャリアコンサルティングの機会を規程で定める/直近6か月に会社都合の解雇などがない');
+      items.push('加算分は<strong>別の申請</strong>です(要件を満たす賃金を' + v(c.bonusClaim.paidMonths) + 'か月継続して払った日の翌日から' + v(c.bonusClaim.withinMonthsAfter) + 'か月以内。対象者全員が要件を満たすこと)');
+      items.push('1人につき1年度' + v(c.timesPerWorkerPerYear) + '回まで/1事業所1年度の上限 ' + yen(v(P.courses.jinzai.annualCap)));
+    }
+    items.push('訓練経費は事業主が全額負担すること(返金などを受けると経費助成は対象外)。受講料の価格設定に関する疎明書(様式第28号)が必要です');
+    items.push('最終の支給額は、労働局の審査で決まります');
+    return items;
+  }
+
+  function renderDoc(r, inp, items) {
+    const isRk = inp.course === 'reskilling';
+    const course = P.courses[inp.course];
+    const dd = $('docDate') ? $('docDate').value : '';
+    const today = new Date();
+    const iso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    $('dDate').textContent = jp(iso);
+    $('dCompany').textContent = $('company').value ? $('company').value + ' 御中' : '';
+    $('dCourse').textContent = ($('title').value ? $('title').value + '/' : '') + '人材開発支援助成金「' + (isRk ? '事業展開等リスキリング支援コース' : '人材育成支援コース(人材育成訓練)') + '」';
+    if (!r.ok) { $('dBig').textContent = '—'; $('dBonus').textContent = ''; return; }
+    $('dBig').textContent = yen(r.base.total);
+    $('dBonus').textContent = r.eligible ? (isRk ? '設備投資加算を含める場合:+' : '賃金要件等を満たす場合:+') + yen(r.bonus) + '(別途申請)' : '';
+    const people = (inp.regular || 0) + (inp.fixedTerm || 0);
+    const cond = [
+      ['企業規模', inp.size === 'small' ? '中小企業' : '中小企業以外'],
+      ['受講者', '正規雇用 ' + (inp.regular || 0) + '人/有期契約 ' + (inp.fixedTerm || 0) + '人(計' + people + '人)'],
+      ['訓練の形式', inp.format === 'elearning' ? 'eラーニング・通信制' : '通学・同時双方向'],
+      ['訓練時間(1人あたり)', inp.hours + '時間(所定労働時間内 ' + inp.scheduledPercent + '%、受講 ' + inp.attendancePercent + '%)'],
+      ['対象経費(1人あたり・税込)', yen(inp.expensePerPerson)],
+    ];
+    $('dCond').innerHTML = cond.map((x) => '<tr><td>' + x[0] + '</td><td>' + x[1] + '</td></tr>').join('');
+    $('dHead').textContent = isRk ? '設備投資加算を含む' : '賃金要件等を満たす場合';
+    const b = r.base, w = r.withBonus;
+    const rows = [['経費助成', b.expense, w.expense], ['賃金助成', b.wage, w.wage]];
+    if (isRk) rows.push(['設備投資加算', b.equipment, w.equipment]);
+    rows.push(['助成後の自己負担の目安(対象経費の合計 − 経費助成)', r.burden.base, r.burden.withBonus]);
+    $('dRows').innerHTML = rows.map((x) => '<tr><td>' + x[0] + '</td><td class="num">' + yen(x[1]) + '</td><td class="num">' + yen(x[2]) + '</td></tr>').join('');
+    $('dFoot').innerHTML = '<tr><td>助成金の見込み合計</td><td class="num">' + yen(b.total) + '</td><td class="num">' + yen(w.total) + '</td></tr>';
+    // 書類には、日付が入っているものだけ具体の締切を出し、他は要点を短く
+    const short = items.map((t) => t.replace(/<[^>]+>/g, ''));
+    C.dateWarnings(P, $('start').value, $('end').value).forEach((t) => short.push(t));
+    $('dCheck').innerHTML = short.map((t) => '<li>' + t + '</li>').join('');
+    $('dSrc').innerHTML = '<strong>出典:</strong>厚生労働省「人材開発支援助成金」' + P._meta.fiscalYear + '版パンフレット・支給要領(令和8年8月3日版)。数字は' + P._meta.verifiedOn + 'に確認したもの。端数は円未満切り捨て(仮)。株式会社物件王';
+  }
+
+  function render() {
+    const inp = read();
+    const isRk = inp.course === 'reskilling';
+    $('equipField').classList.toggle('hidden', !(isRk && inp.size === 'small'));
+    const r = C.calculate(P, inp);
+
+    ['regular','fixedTerm','hours','sched','attend','expense'].forEach((id) => {
+      const el = document.querySelector('[data-for="' + id + '"]'); if (!el) return;
+      const bad = Number.isNaN(inp[{regular:'regular',fixedTerm:'fixedTerm',hours:'hours',sched:'scheduledPercent',attend:'attendancePercent',expense:'expensePerPerson'}[id]]);
+      el.classList.toggle('invalid', bad);
+    });
+
+    const bonusWord = isRk ? '設備投資加算' : '賃金要件等を満たす場合';
+    $('cmpHead').textContent = isRk ? '設備投資加算を含む' : '賃金要件等を満たす場合';
+
+    if (!r.ok) {
+      $('errBox').classList.remove('hidden'); $('okBox').classList.add('hidden');
+      $('errBox').innerHTML = '入力をご確認ください:<br>' + r.errors.join('<br>');
+      return;
+    }
+    $('errBox').classList.add('hidden'); $('okBox').classList.remove('hidden');
+
+    const b = r.base, w = r.withBonus;
+    $('big').textContent = yen(b.total);
+    $('bonus').innerHTML = r.eligible
+      ? (isRk ? '設備投資加算を含める場合:' : '加算を満たす場合:') + '+' + yen(r.bonus) + '<small>' + (isRk ? '(別途申請。導入費用を入れると出ます)' : '(別途申請。賃金要件・資格等手当要件)') + '</small>'
+      : '&nbsp;';
+    const cap = $('capBox');
+    if (r.eligible && b.capReached) { cap.classList.remove('hidden'); cap.textContent = '1事業所1年度の上限(' + yen(b.cap) + ')に達しています。超えた分は支給されません。'; }
+    else cap.classList.add('hidden');
+    $('warn').innerHTML = r.warnings.filter((x) => !x.includes('上限')).join('<br>');
+
+    $('kExp').textContent = yen(b.expense);
+    $('kWage').textContent = yen(b.wage);
+    const per = b.people ? b.total / b.people : 0;
+    $('kPer').textContent = yen(per);
+    $('kPerS').textContent = b.people + '人の平均';
+    $('burden').textContent = yen(r.burden.base);
+    $('burdenS').textContent = '対象経費の合計 ' + yen(r.expenseTotal) + ' − 経費助成 ' + yen(r.expenseTotal - r.burden.base) + (r.eligible ? '(' + bonusWord + ':' + yen(r.burden.withBonus) + ')' : '');
+
+    // 比較
+    const rows = [['経費助成', b.expense, w.expense], ['賃金助成', b.wage, w.wage]];
+    if (isRk) rows.push(['設備投資加算', b.equipment, w.equipment]);
+    $('cmpBody').innerHTML = rows.map((x) => '<tr><td>' + x[0] + '</td><td>' + yen(x[1]) + '</td><td>' + yen(x[2]) + '</td></tr>').join('') +
+      '<tr><td>自己負担の目安</td><td>' + yen(r.burden.base) + '</td><td>' + yen(r.burden.withBonus) + '</td></tr>';
+    $('cmpFoot').innerHTML = '<tr><td>助成金の見込み合計</td><td>' + yen(b.total) + '</td><td>' + yen(w.total) + '</td></tr>';
+
+    // 内訳
+    $('steps').innerHTML = r.eligible
+      ? '<h3>基本分</h3>' + stepsFor(r, b, false) + '<h3 style="margin-top:var(--s3)">' + bonusWord + '</h3>' + stepsFor(r, w, true)
+      : '<p>この条件は、対象外です。</p>';
+
+    // チェックリスト(画面と書類で共通)
+    const items = checklist(inp);
+    $('check').innerHTML = items.map((x) => '<li><span>' + x + '</span></li>').join('');
+    const dw = C.dateWarnings(P, $('start').value, $('end').value);
+    if (dw.length) $('warn').innerHTML += (r.warnings.length ? '<br>' : '') + dw.join('<br>');
+    renderDoc(r, inp, items);
+
+    $('srcLine').textContent = '数字は' + P._meta.fiscalYear + 'のもの(' + P._meta.verifiedOn + ' 確認)。出典:厚生労働省「人材開発支援助成金」令和8年度版パンフレット・支給要領(令和8年8月3日版)。端数は円未満切り捨て(仮)。';
+  }
+
+  document.addEventListener('input', render);
+  document.addEventListener('change', render);
+  $('cmpBtn').addEventListener('click', function () {
+    const box = $('cmpBox'); const open = box.classList.toggle('hidden') === false;
+    this.setAttribute('aria-expanded', String(open));
+  });
+  $('printBtn').addEventListener('click', () => window.print());
+  $('yearTag').textContent = '社内専用 / ' + P._meta.fiscalYear + 'の数字';
+  $('judgeBtn').addEventListener('click', () => {
+    const cap = $('capital').value === '' ? null : Number($('capital').value) * 10000;
+    const emp = $('emps').value === '' ? null : Number($('emps').value);
+    const msg = $('judgeMsg');
+    if (cap === null && emp === null) { msg.textContent = '資本金か従業員数を、入れてください。'; return; }
+    const res = C.judgeSme(P, $('ind').value, cap, emp);
+    document.querySelector('input[name="size"][value="' + res + '"]').checked = true;
+    msg.innerHTML = '<span class="ok">' + (res === 'small' ? '中小企業' : '中小企業以外') + '</span>として反映しました。判定は、支給申請時点の内容で決まります。';
+    render();
+  });
+  render();
+})();
+</script>
+</body>
+</html>
