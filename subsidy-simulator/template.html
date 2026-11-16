@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ja" data-accent="a">
+<html lang="ja">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -15,7 +15,7 @@
   --line:#D9E0E0;       /* 区切りの細い線 */
   --bg:#F4F7F7;         /* ごく薄いグレーの面 */
   --surface:#FFFFFF;
-  --accent:#C2410C;     /* 案A オレンジ(白との差 5.18:1) */
+  --accent:#C2410C;     /* オレンジ(白との差 5.18:1)。結果の数字と、エラー・上限の枠だけに使う */
   /* 角丸:4段階を役割で固定 */
   --r0:0;               /* ① 角なし:区切り・表 */
   --r-s:6px;            /* ② 小:入力欄・ボタン */
@@ -24,8 +24,6 @@
   /* 余白(8の倍数) */
   --s1:8px; --s2:16px; --s3:24px; --s4:40px; --s5:64px;
 }
-:root[data-accent="b"]{--accent:#3949A8}   /* 案B インディゴ(白との差 7.80:1) */
-:root[data-accent="c"]{--accent:#B0245A}   /* 案C ベリー(白との差 6.47:1) */
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);
@@ -120,34 +118,55 @@ table.cmp{width:100%;border-collapse:collapse}
 .msg{padding:var(--s2);border:1px solid var(--accent);border-radius:var(--r-s);color:var(--accent)}
 .hidden{display:none!important}
 
-/* 案の切り替え(モック専用。本番では出さない) */
-.mockbar{background:var(--ink);color:#fff}
-.mockbar-in{max-width:1200px;margin:0 auto;padding:var(--s1) var(--s3);display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap}
-.mockbar .seg{border-color:#fff;max-width:520px;flex:1 1 320px}
-.mockbar .seg label{background:transparent;color:#fff;min-height:40px;border-color:#fff}
-.mockbar .seg label+label{border-left-color:#fff}
-.mockbar .seg label:has(input:checked){background:#fff;color:var(--ink)}
-.mockbar .dot{display:inline-block;width:14px;height:14px;border-radius:var(--r-p);margin-right:6px;vertical-align:-2px;border:1px solid #fff}
+/* 企業規模の判定 */
+.mini{border:1px solid var(--line);border-radius:var(--r-s);margin-top:var(--s1);background:var(--surface)}
+.mini>summary{padding:10px var(--s2);font-weight:500;font-size:15px}
+.mini .mini-body{padding:0 var(--s2) var(--s2)}
+.inp select{width:100%;height:48px;padding:0 8px;border:1px solid #9AA6A6;border-radius:var(--r-s);background:var(--surface)}
+.ok{color:var(--teal-d);font-weight:700}
+
+/* 印刷用の書類(画面には出さない) */
+.doc{display:none}
+@media print{
+  @page{size:A4;margin:10mm 12mm}
+  html,body{background:#fff}
+  body{font-size:9.5pt;line-height:1.45;color:var(--ink)}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .top,.notice,.wrap{display:none!important}
+  .doc{display:block}
+  .doc-head{display:flex;align-items:center;gap:12pt;border-bottom:1.5pt solid var(--teal);padding-bottom:8pt}
+  .doc-head img{height:28pt;width:auto}
+  .doc-head h1{margin:0;font-size:15pt;line-height:1.3}
+  .doc-head .who{flex:1;min-width:0}
+  .doc-head .who p{margin:0;font-size:10pt;color:var(--muted)}
+  .doc-date{margin:0;font-size:10pt;white-space:nowrap}
+  .doc-note{margin:6pt 0;padding:4pt 10pt;border:1pt solid var(--accent);border-radius:var(--r-s);font-size:10pt}
+  .doc-note strong{color:var(--accent)}
+  .doc-hero{margin:4pt 0 4pt;padding:5pt 12pt;border:1pt solid var(--line);border-radius:var(--r-l)}
+  .doc-hero .l{margin:0;font-size:11pt;font-weight:700}
+  .doc-hero .b{margin:0;text-align:right;color:var(--accent);font-weight:800;font-size:34pt;line-height:1.1}
+  .doc-hero .p{margin:2pt 0 0;text-align:right;font-weight:700;color:var(--teal-d);font-size:11pt}
+  .doc h2{margin:6pt 0 2pt;font-size:10.5pt}
+  .doc table{width:100%;border-collapse:collapse;font-size:9pt}
+  .doc th,.doc td{padding:2pt 6pt;border-bottom:.5pt solid var(--line);text-align:right}
+  .doc th:first-child,.doc td:first-child{text-align:left;font-weight:500}
+  .doc thead th{color:var(--muted);font-weight:700}
+  .doc tfoot td{font-weight:800}
+  .doc ul{margin:0;padding-left:14pt;font-size:8.5pt}
+  .doc li{margin:0}
+  .doc-sr{margin-top:6pt;padding:4pt 10pt;border-left:3pt solid var(--teal);background:var(--bg);font-size:9pt}
+  .doc-foot{margin-top:5pt;font-size:8pt;color:var(--muted)}
+  .doc-foot strong{color:var(--ink)}
+}
 </style>
 </head>
 <body>
-
-<div class="mockbar" role="region" aria-label="デザイン案の切り替え(モック専用)">
-  <div class="mockbar-in">
-    <span>デザイン案(アクセントの色だけ違います):</span>
-    <div class="seg" id="accentSeg">
-      <label><input type="radio" name="accent" value="a" checked><span><i class="dot" style="background:#C2410C"></i>案A オレンジ</span></label>
-      <label><input type="radio" name="accent" value="b"><span><i class="dot" style="background:#3949A8"></i>案B インディゴ</span></label>
-      <label><input type="radio" name="accent" value="c"><span><i class="dot" style="background:#B0245A"></i>案C ベリー</span></label>
-    </div>
-  </div>
-</div>
 
 <header class="top">
   <div class="top-in">
     <img src="{{LOGO}}" alt="物件王">
     <h1>助成金シミュレーター</h1>
-    <span class="tag">社内専用</span>
+    <span class="tag" id="yearTag">社内専用</span>
   </div>
 </header>
 
@@ -164,6 +183,11 @@ table.cmp{width:100%;border-collapse:collapse}
     <p class="eyebrow" aria-hidden="true">INPUT</p>
     <h2 id="h-in">条件を入れる</h2>
 
+    <div class="field">
+      <label for="company">会社名(任意)</label>
+      <div class="inp"><input id="company" type="text" placeholder="例:株式会社○○工務店" autocomplete="off"></div>
+      <span class="hint">書類にだけ入ります。保存はされません。</span>
+    </div>
     <div class="field">
       <label for="title">研修名(任意)</label>
       <div class="inp"><input id="title" type="text" placeholder="例:施工管理の基礎研修" autocomplete="off"></div>
@@ -182,6 +206,25 @@ table.cmp{width:100%;border-collapse:collapse}
         <label><input type="radio" name="size" value="small" checked><span>中小企業</span></label>
         <label><input type="radio" name="size" value="large"><span>中小企業以外</span></label>
       </div>
+      <details class="mini" id="smeHelp">
+        <summary>業種・資本金・従業員数から判定する</summary>
+        <div class="mini-body">
+          <div class="field"><label for="ind">主たる事業</label>
+            <div class="inp"><select id="ind">
+              <option value="other">建設業・不動産業・製造業・その他</option>
+              <option value="retail">小売業(飲食店を含む)</option>
+              <option value="service">サービス業</option>
+              <option value="wholesale">卸売業</option>
+            </select></div></div>
+          <div class="two">
+            <div class="field"><label for="capital">資本金・出資額</label><div class="inp"><input id="capital" type="number" inputmode="numeric" min="0" step="100"><span class="unit">万円</span></div></div>
+            <div class="field"><label for="emps">常時雇用の労働者</label><div class="inp"><input id="emps" type="number" inputmode="numeric" min="0" step="1"><span class="unit">人</span></div></div>
+          </div>
+          <span class="hint" style="display:block;margin-bottom:var(--s1)">どちらか一方が基準以下なら、中小企業です。個人・医療法人などで資本金がない場合は、空欄で、人数だけ入れてください。常時雇用は、2か月を超えて使用され、週の所定労働時間が通常の労働者と概ね同じ人です。</span>
+          <button type="button" class="btn sub" id="judgeBtn">判定して反映する</button>
+          <p id="judgeMsg" class="src" style="margin:var(--s1) 0 0"></p>
+        </div>
+      </details>
     </fieldset>
 
     <div class="two">
@@ -230,7 +273,7 @@ table.cmp{width:100%;border-collapse:collapse}
     <div class="field hidden" id="equipField" data-for="equip">
       <label for="equip">設備投資の導入費用(任意)</label>
       <div class="inp"><span class="unit" style="min-width:0">¥</span><input id="equip" type="number" inputmode="numeric" min="0" step="10000" value="0"></div>
-      <span class="hint">中小企業のみ。設備投資加算(50%)の計算に使います。</span>
+      <span class="hint">中小企業のみ。通学・同時双方向型で、実技の訓練に機器・設備を使う場合の設備投資加算(50%)に使います。</span>
     </div>
 
     <hr class="sep">
@@ -309,6 +352,30 @@ table.cmp{width:100%;border-collapse:collapse}
   </div>
 </main>
 
+
+<!-- 印刷・PDF用の書類(A4・1ページ)。画面には出ません -->
+<section class="doc" id="doc" aria-hidden="true">
+  <header class="doc-head">
+    <img src="{{LOGO}}" alt="">
+    <div class="who"><p id="dCompany"></p><h1>助成金の概算</h1><p id="dCourse"></p></div>
+    <p class="doc-date" id="dDate"></p>
+  </header>
+  <div class="doc-note"><strong>これは概算です。</strong>支給を保証するものではありません。最終的な支給額は、労働局の審査で決まります。</div>
+  <div class="doc-hero">
+    <p class="l">助成金の見込み合計(基本分)</p>
+    <p class="b num" id="dBig"></p>
+    <p class="p num" id="dBonus"></p>
+  </div>
+  <h2>前提の条件</h2>
+  <table><tbody id="dCond"></tbody></table>
+  <h2>内訳</h2>
+  <table><thead><tr><th></th><th>基本分</th><th id="dHead"></th></tr></thead><tbody id="dRows"></tbody><tfoot id="dFoot"></tfoot></table>
+  <h2>申請の前に確認が必要な条件</h2>
+  <ul id="dCheck"></ul>
+  <div class="doc-sr"><strong>申請手続きは、社会保険労務士にご相談ください。</strong>助成金の申請手続きは、社会保険労務士の業務です。</div>
+  <p class="doc-foot" id="dSrc"></p>
+</section>
+
 <script type="application/json" id="params">{{PARAMS}}</script>
 <script>{{CALC}}</script>
 <script>
@@ -353,6 +420,68 @@ table.cmp{width:100%;border-collapse:collapse}
     if (t.equipment > 0) h += '<div class="step"><p class="num">設備投資加算:導入費用 ' + yen(r.input.equipmentCost) + ' × ' + pct(v(course.equipmentAddOn.rate)) + (t.equipmentCapHit ? '(限度額で止まる)' : '') + ' = <strong>' + yen(t.equipment) + '</strong></p></div>';
     h += '<div class="step"><p class="num">合計 ' + yen(t.raw) + (t.capApplied ? '。1事業所1年度の上限 ' + yen(t.cap) + ' で止まり、' + yen(t.total) : '') + '</p></div>';
     return h;
+  }
+
+  function checklist(inp) {
+    const c = P.common, isRk = inp.course === 'reskilling', items = [];
+    const sd = $('start').value, ed = $('end').value;
+    if (sd) { const pw = C.planWindow(P, sd); items.push('<strong>計画届:' + jp(pw.to) + 'まで</strong>(原則、開始の' + v(c.planWindowMonths.earliest) + 'か月前〜' + v(c.planWindowMonths.latest) + 'か月前。' + jp(pw.from) + 'から提出できます。休日の場合は翌開庁日)'); }
+    else items.push('<strong>計画届:</strong>訓練開始日の' + v(c.planWindowMonths.earliest) + 'か月前から' + v(c.planWindowMonths.latest) + 'か月前までに、管轄の労働局へ(開始予定日を入れると締切日が出ます)');
+    if (ed) items.push('<strong>支給申請:' + jp(C.claimDeadline(P, ed)) + 'まで</strong>(終了日の翌日から' + v(c.claimWithinMonthsAfterEnd) + 'か月以内。目安)');
+    else items.push('<strong>支給申請:</strong>訓練終了日の翌日から' + v(c.claimWithinMonthsAfterEnd) + 'か月以内(終了予定日を入れると締切日が出ます)');
+    if (inp.format === 'elearning') {
+      items.push('eラーニング・通信制は、訓練期間中に修了することが必要です。自社内で行う訓練(事業内訓練)の場合は、対象外です' + (isRk ? '。同じ労働者は、1年度に1回までです' : ''));
+    } else {
+      items.push('通学・同時双方向型は、実訓練時間の' + v(c.attendanceMinPercent) + '%以上の受講が必要です');
+    }
+    if (isRk) {
+      items.push('訓練は、①新規事業などの事業展開、②DX・GX化、③人事・人材育成計画で今後従事する職務、のいずれかに必要な内容であること。「事業展開等実施計画」(様式第1-3号)を作ります');
+      items.push('事業主の要件:事業内計画を、労働組合等の意見を聴いて作り、労働者に周知/職業能力開発推進者の選任/訓練中の賃金を適正に払う');
+      items.push('設備投資加算は、中小企業が、通学・同時双方向型の実技訓練で機器・設備を使う場合のみ。賃金要件(5%)または資格等手当要件(3%)を満たし、別の申請(' + v(c.bonusClaim.paidMonths) + 'か月継続して払った日の翌日から' + v(c.bonusClaim.withinMonthsAfter) + 'か月以内)になります');
+      items.push('このコースは、令和8年度末までの時限措置です。1事業所1年度の上限 ' + yen(v(P.courses.reskilling.annualCap)) + '、1人につき1年度' + v(c.timesPerWorkerPerYear) + '回まで');
+    } else {
+      items.push('事業主の要件:雇用保険適用事業主/職業能力開発推進者の選任/事業内職業能力開発計画の策定・周知/キャリアコンサルティングの機会を規程で定める/直近6か月に会社都合の解雇などがない');
+      items.push('加算分は<strong>別の申請</strong>です(要件を満たす賃金を' + v(c.bonusClaim.paidMonths) + 'か月継続して払った日の翌日から' + v(c.bonusClaim.withinMonthsAfter) + 'か月以内。対象者全員が要件を満たすこと)');
+      items.push('1人につき1年度' + v(c.timesPerWorkerPerYear) + '回まで/1事業所1年度の上限 ' + yen(v(P.courses.jinzai.annualCap)));
+    }
+    items.push('訓練経費は事業主が全額負担すること(返金などを受けると経費助成は対象外)。受講料の価格設定に関する疎明書(様式第28号)が必要です');
+    items.push('最終の支給額は、労働局の審査で決まります');
+    return items;
+  }
+
+  function renderDoc(r, inp, items) {
+    const isRk = inp.course === 'reskilling';
+    const course = P.courses[inp.course];
+    const dd = $('docDate') ? $('docDate').value : '';
+    const today = new Date();
+    const iso = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    $('dDate').textContent = jp(iso);
+    $('dCompany').textContent = $('company').value ? $('company').value + ' 御中' : '';
+    $('dCourse').textContent = ($('title').value ? $('title').value + '/' : '') + '人材開発支援助成金「' + (isRk ? '事業展開等リスキリング支援コース' : '人材育成支援コース(人材育成訓練)') + '」';
+    if (!r.ok) { $('dBig').textContent = '—'; $('dBonus').textContent = ''; return; }
+    $('dBig').textContent = yen(r.base.total);
+    $('dBonus').textContent = r.eligible ? (isRk ? '設備投資加算を含める場合:+' : '賃金要件等を満たす場合:+') + yen(r.bonus) + '(別途申請)' : '';
+    const people = (inp.regular || 0) + (inp.fixedTerm || 0);
+    const cond = [
+      ['企業規模', inp.size === 'small' ? '中小企業' : '中小企業以外'],
+      ['受講者', '正規雇用 ' + (inp.regular || 0) + '人/有期契約 ' + (inp.fixedTerm || 0) + '人(計' + people + '人)'],
+      ['訓練の形式', inp.format === 'elearning' ? 'eラーニング・通信制' : '通学・同時双方向'],
+      ['訓練時間(1人あたり)', inp.hours + '時間(所定労働時間内 ' + inp.scheduledPercent + '%、受講 ' + inp.attendancePercent + '%)'],
+      ['対象経費(1人あたり・税込)', yen(inp.expensePerPerson)],
+    ];
+    $('dCond').innerHTML = cond.map((x) => '<tr><td>' + x[0] + '</td><td>' + x[1] + '</td></tr>').join('');
+    $('dHead').textContent = isRk ? '設備投資加算を含む' : '賃金要件等を満たす場合';
+    const b = r.base, w = r.withBonus;
+    const rows = [['経費助成', b.expense, w.expense], ['賃金助成', b.wage, w.wage]];
+    if (isRk) rows.push(['設備投資加算', b.equipment, w.equipment]);
+    rows.push(['助成後の自己負担の目安(対象経費の合計 − 経費助成)', r.burden.base, r.burden.withBonus]);
+    $('dRows').innerHTML = rows.map((x) => '<tr><td>' + x[0] + '</td><td class="num">' + yen(x[1]) + '</td><td class="num">' + yen(x[2]) + '</td></tr>').join('');
+    $('dFoot').innerHTML = '<tr><td>助成金の見込み合計</td><td class="num">' + yen(b.total) + '</td><td class="num">' + yen(w.total) + '</td></tr>';
+    // 書類には、日付が入っているものだけ具体の締切を出し、他は要点を短く
+    const short = items.map((t) => t.replace(/<[^>]+>/g, ''));
+    C.dateWarnings(P, $('start').value, $('end').value).forEach((t) => short.push(t));
+    $('dCheck').innerHTML = short.map((t) => '<li>' + t + '</li>').join('');
+    $('dSrc').innerHTML = '<strong>出典:</strong>厚生労働省「人材開発支援助成金」' + P._meta.fiscalYear + '版パンフレット・支給要領(令和8年8月3日版)。数字は' + P._meta.verifiedOn + 'に確認したもの。端数は円未満切り捨て(仮)。株式会社物件王';
   }
 
   function render() {
@@ -407,20 +536,12 @@ table.cmp{width:100%;border-collapse:collapse}
       ? '<h3>基本分</h3>' + stepsFor(r, b, false) + '<h3 style="margin-top:var(--s3)">' + bonusWord + '</h3>' + stepsFor(r, w, true)
       : '<p>この条件は、対象外です。</p>';
 
-    // チェックリスト
-    const c = P.common, items = [];
-    const sd = $('start').value, ed = $('end').value;
-    if (sd) { const pw = C.planWindow(P, sd); items.push('<strong>計画届:' + jp(pw.to) + 'まで</strong>(原則、開始の' + v(c.planWindowMonths.earliest) + 'か月前〜' + v(c.planWindowMonths.latest) + 'か月前。' + jp(pw.from) + 'から提出できます。休日の場合は翌開庁日)'); }
-    else items.push('<strong>計画届:</strong>訓練開始日の' + v(c.planWindowMonths.earliest) + 'か月前から' + v(c.planWindowMonths.latest) + 'か月前までに、管轄の労働局へ(開始予定日を入れると締切日が出ます)');
-    if (ed) items.push('<strong>支給申請:' + jp(C.claimDeadline(P, ed)) + 'まで</strong>(終了日の翌日から' + v(c.claimWithinMonthsAfterEnd) + 'か月以内。目安)');
-    else items.push('<strong>支給申請:</strong>訓練終了日の翌日から' + v(c.claimWithinMonthsAfterEnd) + 'か月以内(終了予定日を入れると締切日が出ます)');
-    items.push('通学・同時双方向型は、実訓練時間の' + v(c.attendanceMinPercent) + '%以上の受講が必要です');
-    items.push('事業主の要件:雇用保険適用事業主/職業能力開発推進者の選任/事業内職業能力開発計画の策定・周知/キャリアコンサルティングの機会を規程で定める/直近6か月に会社都合の解雇などがない');
-    items.push('加算分は<strong>別の申請</strong>です(要件を満たす賃金を' + v(c.bonusClaim.paidMonths) + 'か月継続して払った日の翌日から' + v(c.bonusClaim.withinMonthsAfter) + 'か月以内。対象者全員が要件を満たすこと)');
-    items.push('1人につき1年度' + v(c.timesPerWorkerPerYear) + '回まで/1事業所1年度の上限 ' + yen(v(P.courses[inp.course].annualCap)));
-    items.push('訓練経費は事業主が全額負担すること(返金などを受けると経費助成は対象外)。受講料の価格設定に関する疎明書(様式第28号)が必要です');
-    items.push('最終の支給額は、労働局の審査で決まります');
+    // チェックリスト(画面と書類で共通)
+    const items = checklist(inp);
     $('check').innerHTML = items.map((x) => '<li><span>' + x + '</span></li>').join('');
+    const dw = C.dateWarnings(P, $('start').value, $('end').value);
+    if (dw.length) $('warn').innerHTML += (r.warnings.length ? '<br>' : '') + dw.join('<br>');
+    renderDoc(r, inp, items);
 
     $('srcLine').textContent = '数字は' + P._meta.fiscalYear + 'のもの(' + P._meta.verifiedOn + ' 確認)。出典:厚生労働省「人材開発支援助成金」令和8年度版パンフレット・支給要領(令和8年8月3日版)。端数は円未満切り捨て(仮)。';
   }
@@ -432,9 +553,17 @@ table.cmp{width:100%;border-collapse:collapse}
     this.setAttribute('aria-expanded', String(open));
   });
   $('printBtn').addEventListener('click', () => window.print());
-  document.querySelectorAll('input[name="accent"]').forEach((el) => el.addEventListener('change', () => {
-    document.documentElement.dataset.accent = document.querySelector('input[name="accent"]:checked').value;
-  }));
+  $('yearTag').textContent = '社内専用 / ' + P._meta.fiscalYear + 'の数字';
+  $('judgeBtn').addEventListener('click', () => {
+    const cap = $('capital').value === '' ? null : Number($('capital').value) * 10000;
+    const emp = $('emps').value === '' ? null : Number($('emps').value);
+    const msg = $('judgeMsg');
+    if (cap === null && emp === null) { msg.textContent = '資本金か従業員数を、入れてください。'; return; }
+    const res = C.judgeSme(P, $('ind').value, cap, emp);
+    document.querySelector('input[name="size"][value="' + res + '"]').checked = true;
+    msg.innerHTML = '<span class="ok">' + (res === 'small' ? '中小企業' : '中小企業以外') + '</span>として反映しました。判定は、支給申請時点の内容で決まります。';
+    render();
+  });
   render();
 })();
 </script>

@@ -105,5 +105,11 @@ eq('個人(資本金なし)は人数のみ', C.judgeSme(params, 'service', null,
 eq('人数0はエラー', run({ regular: 0, fixedTerm: 0 }).ok, false);
 eq('9時間の案内に「10時間以上」', run({ hours: 9 }).warnings[0].includes('10時間以上'), true);
 
+// ---- 設備投資加算は通学・同時双方向型のみ、年度の注意 ----
+eq('R7 eラーニングは設備投資加算なし', rk({ format: 'elearning', hours: 20, regular: 3, equipmentCost: 1000000 }).withBonus.equipment, 0);
+eq('年度内の終了は注意なし', C.dateWarnings(params, '2027-01-10', '2027-01-31').length, 0);
+eq('支給申請が翌年度にかかる', C.dateWarnings(params, '2027-02-01', '2027-03-31').length, 1);
+eq('開始日が翌年度', C.dateWarnings(params, '2027-04-10', '').length, 1);
+
 console.log(`\n${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail ? 1 : 0);

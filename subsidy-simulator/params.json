@@ -3,7 +3,13 @@
   "fiscalYear": "令和8年度",
   "appliesToPlansSubmittedOnOrAfter": "2026-08-03",
   "verifiedOn": "2026-11-16",
-  "note": "制度の数字はすべてこの表に置く。年度が変わったら、一次資料で見直して、この表だけを直す。value=値、source=出典、verified=確認日。"
+  "note": "制度の数字はすべてこの表に置く。年度が変わったら、一次資料で見直して、この表だけを直す。value=値、source=出典、verified=確認日。",
+  "fiscalYearEnd": {
+   "value": "2027-03-31",
+   "source": "人材育成支援コース ご案内 詳細版(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731967.pdf p.15 / 支給要領 06026 イ",
+   "verified": "2026-11-16",
+   "note": "年度は支給申請日を基準に、4月1日〜翌年3月31日。令和9年度の制度は資料で未確認"
+  }
  },
  "common": {
   "minTrainingHours": {
@@ -442,7 +448,13 @@
      "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0510 ト",
      "verified": "2026-11-16"
     },
-    "note": "設備投資加算は、賃金要件(5%)または資格等手当要件(3%)等を満たした場合の加算。導入費用は、事業主が入力する"
+    "note": "設備投資加算は、賃金要件(5%)または資格等手当要件(3%)等を満たした場合の加算。導入費用は、事業主が入力する",
+    "classroomOnly": {
+     "value": true,
+     "source": "事業展開等リスキリング支援コース 支給要領(R8.8.3版) https://www.mhlw.go.jp/content/11800000/001731981.pdf 0402",
+     "verified": "2026-11-16",
+     "note": "通学制・同時双方向型で、実技の訓練で機器・設備を実際に使うものに限る"
+    }
    },
    "elearningTimesPerYear": {
     "value": 1,

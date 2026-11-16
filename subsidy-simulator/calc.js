@@ -103,7 +103,7 @@
     // リスキリングコースの設備投資加算(中小企業のみ。加算込みの場合のみ)
     let equipment = 0, equipmentCapHit = false;
     const add = course.equipmentAddOn;
-    if (bonus && add && input.size === 'small' && (input.equipmentCost || 0) > 0) {
+    if (bonus && add && input.size === 'small' && (input.equipmentCost || 0) > 0 && (!val(add.classroomOnly) || input.format !== 'elearning')) {
       const raw = yen(input.equipmentCost * val(add.rate));
       const cap = people >= 10 ? val(add.capTenOrMore) : val(add.capPerWorker) * people;
       equipment = Math.min(raw, cap);
@@ -182,6 +182,19 @@
     return iso(addDays(addMonths(first, val(params.common.bonusClaim.withinMonthsAfter)), -1));
   }
 
+  // 年度をまたぐ場合などの注意(年度は支給申請日を基準に、4月1日〜翌年3月31日)
+  function dateWarnings(params, startIso, endIso) {
+    const out = [];
+    const fyEnd = val(params._meta.fiscalYearEnd);
+    if (endIso) {
+      const d = claimDeadline(params, endIso);
+      if (d > fyEnd) out.push('支給申請の締切が' + params._meta.fiscalYear + 'を過ぎます。支給申請日が翌年度になると、翌年度の制度・数字が適用されます(未確認)。');
+    } else if (startIso && startIso > fyEnd) {
+      out.push('訓練の開始日が' + params._meta.fiscalYear + 'を過ぎています。この数字は' + params._meta.fiscalYear + 'のものです。翌年度の制度は未確認です。');
+    }
+    return out;
+  }
+
   // 中小企業の判定(資本金か労働者数のどちらか一方が基準以下)。資本金がない法人・個人は、労働者数のみ
   function judgeSme(params, industryKey, capital, employees) {
     const d = params.common.smeDefinition[industryKey];
@@ -191,5 +204,5 @@
     return byCapital || byEmployees ? 'small' : 'large';
   }
 
-  return { calculate, validate, planWindow, claimDeadline, bonusClaimDeadline, judgeSme, val, yen };
+  return { calculate, validate, planWindow, claimDeadline, bonusClaimDeadline, dateWarnings, judgeSme, val, yen };
 });
