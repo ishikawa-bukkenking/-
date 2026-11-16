@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="ja" data-accent="a">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>助成金シミュレーター</title>
+<style>
+:root{
+  /* 色:ロゴのティールと濃いグレーが土台。アクセントは1色だけ(結果の数字にだけ使う) */
+  --teal:#05968C;       /* ロゴの色。面・線・大きな図形に使う */
+  --teal-d:#04746D;     /* 文字・ボタン用(白との差 5.64:1) */
+  --ink:#374141;        /* 文字(白との差 10.53:1)。純黒は使わない */
+  --muted:#5A6666;      /* 補足の文字(白との差 5.95:1) */
+  --line:#D9E0E0;       /* 区切りの細い線 */
+  --bg:#F4F7F7;         /* ごく薄いグレーの面 */
+  --surface:#FFFFFF;
+  --accent:#C2410C;     /* 案A オレンジ(白との差 5.18:1) */
+  /* 角丸:4段階を役割で固定 */
+  --r0:0;               /* ① 角なし:区切り・表 */
+  --r-s:6px;            /* ② 小:入力欄・ボタン */
+  --r-l:14px;           /* ③ 大:カード・パネル */
+  --r-p:999px;          /* ④ ピル:ラベル・バッジ */
+  /* 余白(8の倍数) */
+  --s1:8px; --s2:16px; --s3:24px; --s4:40px; --s5:64px;
+}
+:root[data-accent="b"]{--accent:#3949A8}   /* 案B インディゴ(白との差 7.80:1) */
+:root[data-accent="c"]{--accent:#B0245A}   /* 案C ベリー(白との差 6.47:1) */
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:400 16px/1.7 "Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",Meiryo,sans-serif;
+  letter-spacing:.02em}
+button,input,select{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+
+/* ヘッダー */
+.top{background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{max-width:1200px;margin:0 auto;padding:12px var(--s3);display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap}
+.top img{height:40px;width:auto;display:block}
+.top h1{margin:0;font-size:20px;font-weight:700;line-height:1.3}
+.top .tag{margin-left:auto;font-size:14px;color:var(--muted);border:1px solid var(--line);border-radius:var(--r-p);padding:2px 12px}
+
+/* 概算の帯(いつも見える位置) */
+.notice{background:var(--surface);border-bottom:1px solid var(--line)}
+.notice-in{max-width:1200px;margin:0 auto;padding:var(--s1) var(--s3);display:flex;gap:var(--s2);align-items:baseline;flex-wrap:wrap}
+.notice strong{color:var(--teal-d);white-space:nowrap}
+.notice span{font-size:15px}
+
+/* 全体の組み */
+.wrap{max-width:1200px;margin:0 auto;padding:var(--s3);display:grid;gap:var(--s3);grid-template-columns:minmax(0,400px) minmax(0,1fr);align-items:start}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr);padding:var(--s2)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-l);padding:var(--s3)}
+.eyebrow{font-size:12px;letter-spacing:.18em;color:var(--muted);font-weight:500;margin:0}
+h2{margin:0 0 var(--s2);font-size:22px;line-height:1.4;font-weight:700}
+h3{margin:0 0 var(--s1);font-size:18px;line-height:1.5;font-weight:700}
+
+/* 入力 */
+.field{margin:0 0 var(--s2)}
+.field>label,.field>legend{display:block;font-weight:700;margin:0 0 4px;padding:0}
+.field .hint{display:block;font-size:14px;color:var(--muted);margin-top:4px;line-height:1.5}
+fieldset.field{border:0;padding:0;min-inline-size:0}
+.inp{display:flex;align-items:center;gap:var(--s1)}
+.inp input{width:100%;height:48px;padding:0 12px;border:1px solid #9AA6A6;border-radius:var(--r-s);background:var(--surface);text-align:right}
+.inp input[type=text],.inp input[type=date]{text-align:left}
+.inp .unit{white-space:nowrap;color:var(--muted);min-width:2.2em}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--s2)}
+.two>*,.inp input{min-width:0}
+@media (max-width:420px){.two.dates{grid-template-columns:minmax(0,1fr)}}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid #9AA6A6;border-radius:var(--r-s);overflow:hidden}
+.seg label{position:relative;display:flex;align-items:center;justify-content:center;text-align:center;min-height:48px;padding:4px 8px;cursor:pointer;line-height:1.35;font-weight:500;background:var(--surface)}
+.seg label+label{border-left:1px solid #9AA6A6}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg label:has(input:checked){background:var(--teal-d);color:#fff;font-weight:700}
+.seg label:has(input:focus-visible){outline:3px solid var(--ink);outline-offset:-3px}
+input:focus-visible,button:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--teal-d);outline-offset:2px}
+.field.invalid .inp input{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.err{color:var(--accent);font-size:14px;margin-top:4px}
+.sep{border:0;border-top:1px solid var(--line);margin:var(--s3) 0}
+
+/* 結果 */
+.result{display:grid;gap:var(--s3);min-width:0}
+.hero{padding:var(--s4) var(--s3) var(--s3)}
+.hero .label{margin:0;font-size:18px;font-weight:700}
+.hero .big{margin:var(--s1) 0 0;text-align:right;color:var(--accent);font-weight:800;line-height:1.05;letter-spacing:-.01em;
+  font-size:clamp(56px,10vw,104px);overflow-wrap:anywhere}
+.hero .bonus{margin:var(--s2) 0 0;text-align:right;font-size:20px;font-weight:700;color:var(--teal-d)}
+.hero .bonus small{display:block;font-size:14px;font-weight:400;color:var(--muted)}
+.hero .cap{margin-top:var(--s2);padding:var(--s1) var(--s2);border:1px solid var(--accent);border-radius:var(--r-s);color:var(--accent);font-weight:700}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s2)}
+@media (max-width:560px){.kpis{grid-template-columns:1fr}}
+.kpi{border:1px solid var(--line);border-radius:var(--r-l);padding:var(--s2);background:var(--surface)}
+.kpi .k{font-size:15px;color:var(--muted);margin:0}
+.kpi .v{margin:4px 0 0;text-align:right;font-size:28px;font-weight:700;line-height:1.3}
+.kpi .s{margin:0;text-align:right;font-size:14px;color:var(--muted)}
+.btns{display:flex;gap:var(--s2);flex-wrap:wrap}
+.btn{height:48px;padding:0 var(--s3);border-radius:var(--r-s);border:1px solid var(--teal-d);background:var(--teal-d);color:#fff;font-weight:700;cursor:pointer}
+.btn.sub{background:var(--surface);color:var(--teal-d)}
+.btn:hover{filter:brightness(.95)}
+details{border:1px solid var(--line);border-radius:var(--r-l);background:var(--surface)}
+details>summary{cursor:pointer;list-style:none;padding:var(--s2) var(--s3);font-weight:700;display:flex;justify-content:space-between;align-items:center}
+details>summary::-webkit-details-marker{display:none}
+details>summary::after{content:"＋";color:var(--teal-d)}
+details[open]>summary::after{content:"－"}
+details .body{padding:0 var(--s3) var(--s3)}
+.step{margin:0 0 var(--s2);padding:0 0 var(--s2);border-bottom:1px solid var(--line)}
+.step:last-child{border:0;margin:0;padding:0}
+.step p{margin:2px 0}
+.step .eq{color:var(--muted);font-size:15px}
+table.cmp{width:100%;border-collapse:collapse}
+.cmp th,.cmp td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:right}
+.cmp th:first-child,.cmp td:first-child{text-align:left}
+.cmp thead th{font-size:15px;color:var(--muted);font-weight:700}
+.cmp tfoot td{font-weight:800;font-size:18px}
+.check{list-style:none;margin:0;padding:0;display:grid;gap:var(--s1)}
+.check li{display:grid;grid-template-columns:24px 1fr;gap:var(--s1);align-items:start}
+.check li::before{content:"";width:18px;height:18px;margin-top:5px;border:2px solid var(--teal-d);border-radius:var(--r-s)}
+.sharoshi{border-left:4px solid var(--teal);background:var(--bg);padding:var(--s2);border-radius:var(--r0)}
+.src{font-size:14px;color:var(--muted)}
+.msg{padding:var(--s2);border:1px solid var(--accent);border-radius:var(--r-s);color:var(--accent)}
+.hidden{display:none!important}
+
+/* 案の切り替え(モック専用。本番では出さない) */
+.mockbar{background:var(--ink);color:#fff}
+.mockbar-in{max-width:1200px;margin:0 auto;padding:var(--s1) var(--s3);display:flex;gap:var(--s2);align-items:center;flex-wrap:wrap}
+.mockbar .seg{border-color:#fff;max-width:520px;flex:1 1 320px}
+.mockbar .seg label{background:transparent;color:#fff;min-height:40px;border-color:#fff}
+.mockbar .seg label+label{border-left-color:#fff}
+.mockbar .seg label:has(input:checked){background:#fff;color:var(--ink)}
+.mockbar .dot{display:inline-block;width:14px;height:14px;border-radius:var(--r-p);margin-right:6px;vertical-align:-2px;border:1px solid #fff}
+</style>
+</head>
+<body>
+
+<div class="mockbar" role="region" aria-label="デザイン案の切り替え(モック専用)">
+  <div class="mockbar-in">
+    <span>デザイン案(アクセントの色だけ違います):</span>
+    <div class="seg" id="accentSeg">
+      <label><input type="radio" name="accent" value="a" checked><span><i class="dot" style="background:#C2410C"></i>案A オレンジ</span></label>
+      <label><input type="radio" name="accent" value="b"><span><i class="dot" style="background:#3949A8"></i>案B インディゴ</span></label>
+      <label><input type="radio" name="accent" value="c"><span><i class="dot" style="background:#B0245A"></i>案C ベリー</span></label>
+    </div>
+  </div>
+</div>
+
+<header class="top">
+  <div class="top-in">
+    <img src="{{LOGO}}" alt="物件王">
+    <h1>助成金シミュレーター</h1>
+    <span class="tag">社内専用</span>
+  </div>
+</header>
+
+<div class="notice" role="note">
+  <div class="notice-in">
+    <strong>これは概算です。</strong>
+    <span>支給を保証するものではありません。最終的な支給額は、労働局の審査で決まります。申請手続きは、社会保険労務士にご相談ください。</span>
+  </div>
+</div>
+
+<main class="wrap">
+  <!-- 入力 -->
+  <section class="card" aria-labelledby="h-in">
+    <p class="eyebrow" aria-hidden="true">INPUT</p>
+    <h2 id="h-in">条件を入れる</h2>
+
+    <div class="field">
+      <label for="title">研修名(任意)</label>
+      <div class="inp"><input id="title" type="text" placeholder="例:施工管理の基礎研修" autocomplete="off"></div>
+      <span class="hint">書類にだけ入ります。</span>
+    </div>
+
+    <fieldset class="field"><legend>コース</legend>
+      <div class="seg">
+        <label><input type="radio" name="course" value="jinzai" checked><span>人材育成訓練</span></label>
+        <label><input type="radio" name="course" value="reskilling"><span>事業展開等<br>リスキリング</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="field"><legend>企業規模</legend>
+      <div class="seg">
+        <label><input type="radio" name="size" value="small" checked><span>中小企業</span></label>
+        <label><input type="radio" name="size" value="large"><span>中小企業以外</span></label>
+      </div>
+    </fieldset>
+
+    <div class="two">
+      <div class="field" data-for="regular">
+        <label for="regular">正規雇用の受講者</label>
+        <div class="inp"><input id="regular" type="number" inputmode="numeric" min="0" step="1" value="5"><span class="unit">人</span></div>
+      </div>
+      <div class="field" data-for="fixedTerm">
+        <label for="fixedTerm">有期契約の受講者</label>
+        <div class="inp"><input id="fixedTerm" type="number" inputmode="numeric" min="0" step="1" value="0"><span class="unit">人</span></div>
+      </div>
+    </div>
+
+    <fieldset class="field"><legend>訓練の形式</legend>
+      <div class="seg">
+        <label><input type="radio" name="format" value="classroom" checked><span>通学・同時双方向</span></label>
+        <label><input type="radio" name="format" value="elearning"><span>eラーニング・通信制</span></label>
+      </div>
+    </fieldset>
+
+    <div class="field" data-for="hours">
+      <label for="hours">訓練時間(1人あたり)</label>
+      <div class="inp"><input id="hours" type="number" inputmode="decimal" min="0" step="1" value="30"><span class="unit">時間</span></div>
+      <span class="hint">OFF-JTの時間。10時間以上が対象です。</span>
+    </div>
+
+    <div class="two">
+      <div class="field" data-for="sched">
+        <label for="sched">所定労働時間内の割合</label>
+        <div class="inp"><input id="sched" type="number" inputmode="numeric" min="0" max="100" step="1" value="100"><span class="unit">%</span></div>
+        <span class="hint">賃金助成は所定内だけ。</span>
+      </div>
+      <div class="field" data-for="attend">
+        <label for="attend">実際に受講する割合</label>
+        <div class="inp"><input id="attend" type="number" inputmode="numeric" min="0" max="100" step="1" value="100"><span class="unit">%</span></div>
+        <span class="hint">通学型は80%以上が必要。</span>
+      </div>
+    </div>
+
+    <div class="field" data-for="expense">
+      <label for="expense">対象経費(1人あたり・税込)</label>
+      <div class="inp"><span class="unit" style="min-width:0">¥</span><input id="expense" type="number" inputmode="numeric" min="0" step="1000" value="100000"></div>
+      <span class="hint">受講料・教科書代など。消費税も対象経費に含まれます。</span>
+    </div>
+
+    <div class="field hidden" id="equipField" data-for="equip">
+      <label for="equip">設備投資の導入費用(任意)</label>
+      <div class="inp"><span class="unit" style="min-width:0">¥</span><input id="equip" type="number" inputmode="numeric" min="0" step="10000" value="0"></div>
+      <span class="hint">中小企業のみ。設備投資加算(50%)の計算に使います。</span>
+    </div>
+
+    <hr class="sep">
+    <div class="two dates">
+      <div class="field">
+        <label for="start">訓練の開始予定日(任意)</label>
+        <div class="inp"><input id="start" type="date"></div>
+      </div>
+      <div class="field">
+        <label for="end">訓練の終了予定日(任意)</label>
+        <div class="inp"><input id="end" type="date"></div>
+      </div>
+    </div>
+    <span class="hint" style="display:block;color:var(--muted);font-size:14px">日付を入れると、提出の締切日が出ます。</span>
+  </section>
+
+  <!-- 結果 -->
+  <div class="result" aria-live="polite">
+    <section class="card hero" aria-labelledby="h-res">
+      <p class="eyebrow" aria-hidden="true">ESTIMATE</p>
+      <h2 id="h-res" class="hidden">計算結果</h2>
+      <div id="errBox" class="msg hidden"></div>
+      <div id="okBox">
+        <p class="label">助成金の見込み合計(基本分・概算)</p>
+        <p class="big num" id="big">¥0</p>
+        <p class="bonus num" id="bonus">&nbsp;</p>
+        <div class="cap hidden" id="capBox"></div>
+        <p id="warn" class="src" style="margin:var(--s2) 0 0"></p>
+      </div>
+    </section>
+
+    <div class="kpis" id="kpis">
+      <div class="kpi"><p class="k">経費助成</p><p class="v num" id="kExp">¥0</p><p class="s">受講料などへの助成</p></div>
+      <div class="kpi"><p class="k">賃金助成</p><p class="v num" id="kWage">¥0</p><p class="s">受講中の人件費への助成</p></div>
+      <div class="kpi"><p class="k">1人あたり</p><p class="v num" id="kPer">¥0</p><p class="s" id="kPerS"></p></div>
+    </div>
+
+    <section class="card" aria-labelledby="h-burden">
+      <h3 id="h-burden">助成後の自己負担の目安</h3>
+      <p class="num" style="margin:0;text-align:right;font-size:32px;font-weight:700" id="burden">¥0</p>
+      <p class="src" style="margin:var(--s1) 0 0" id="burdenS"></p>
+      <p class="src" style="margin:var(--s1) 0 0">対象経費の合計から、経費助成を引いた額です。賃金助成は、会社が払った賃金への助成なので、ここには入れていません。訓練機関から返金などを受けた場合は、経費助成の対象外になります。</p>
+    </section>
+
+    <div class="btns">
+      <button class="btn sub" id="cmpBtn" type="button" aria-expanded="false" aria-controls="cmpBox">条件を変えて比べる</button>
+      <button class="btn" id="printBtn" type="button">1ページの書類にする</button>
+    </div>
+
+    <section class="card hidden" id="cmpBox" aria-label="加算なしと加算ありの比較">
+      <h3>加算なし と あり を並べる</h3>
+      <table class="cmp num">
+        <thead><tr><th></th><th>基本分のみ</th><th id="cmpHead">加算を満たす場合</th></tr></thead>
+        <tbody id="cmpBody"></tbody>
+        <tfoot id="cmpFoot"></tfoot>
+      </table>
+    </section>
+
+    <details>
+      <summary>計算の内訳を見る</summary>
+      <div class="body" id="steps"></div>
+    </details>
+
+    <section class="card" aria-labelledby="h-chk">
+      <p class="eyebrow" aria-hidden="true">CHECK</p>
+      <h3 id="h-chk">計算に出ない条件(商談前の確認)</h3>
+      <ul class="check" id="check"></ul>
+    </section>
+
+    <section class="sharoshi">
+      <strong>申請手続きは、社会保険労務士にご相談ください。</strong>
+      <p class="src" style="margin:4px 0 0">助成金の申請手続きは、社会保険労務士の業務です。物件王が、申請を代行・案内するものではありません。<span style="color:var(--accent)">(文言は下書き。既存スライドの文言に合わせて確定します)</span></p>
+    </section>
+
+    <p class="src" id="srcLine"></p>
+  </div>
+</main>
+
+<script type="application/json" id="params">{{PARAMS}}</script>
+<script>{{CALC}}</script>
+<script>
+(function(){
+  'use strict';
+  const P = JSON.parse(document.getElementById('params').textContent);
+  const C = window.SubsidyCalc, v = C.val;
+  const $ = (id) => document.getElementById(id);
+  const yen = (n) => '¥' + Math.round(n).toLocaleString('ja-JP');
+  const pct = (r) => (Math.round(r * 1000) / 10) + '%';
+  const radio = (name) => document.querySelector('input[name="' + name + '"]:checked').value;
+  const num = (id) => { const s = $(id).value; return s === '' ? NaN : Number(s); };
+
+  function read() {
+    return { course: radio('course'), size: radio('size'), format: radio('format'),
+      regular: num('regular'), fixedTerm: num('fixedTerm'), hours: num('hours'),
+      scheduledPercent: num('sched'), attendancePercent: num('attend'),
+      expensePerPerson: num('expense'), equipmentCost: num('equip') || 0 };
+  }
+  const jp = (iso) => { const [y, m, d] = iso.split('-').map(Number); return y + '年' + m + '月' + d + '日'; };
+
+  function stepsFor(r, t, bonus) {
+    const course = P.courses[r.input.course];
+    let h = '';
+    t.groups.forEach((g) => {
+      const p = g.perPerson;
+      h += '<div class="step"><p><strong>' + g.label + ' ' + g.count + '人</strong></p>';
+      h += '<p class="eq num">経費助成:対象経費 ' + yen(r.input.expensePerPerson) + ' × ' + pct(p.rate) + ' = ' + yen(p.expenseRaw) + '</p>';
+      if (r.input.format === 'elearning') {
+        h += '<p class="eq num">限度額(eラーニング・通信制) ' + yen(p.limit) + '</p>';
+      } else {
+        h += '<p class="eq num">限度額(訓練時間 ' + p.tier.minHours + '時間以上' + (p.tier.maxHours ? p.tier.maxHours + '時間未満' : '') + ') ' + yen(p.limit) + '</p>';
+      }
+      h += '<p class="num">→ ' + (p.limitHit ? '限度額で止まり、' : '限度額の範囲内で、') + '<strong>' + yen(p.expense) + '</strong></p>';
+      if (p.wageHours > 0) {
+        h += '<p class="eq num">賃金助成:' + yen(p.wageUnit) + ' × ' + (Math.round(p.wageHours * 100) / 100) + '時間(所定内の受講時間' + (p.wageHours >= v(P.common.wageHoursCap) ? '。上限' + v(P.common.wageHoursCap) + '時間' : '') + ') = <strong>' + yen(p.wage) + '</strong></p>';
+      } else {
+        h += '<p class="eq">賃金助成:対象外(eラーニング・通信制、または所定内の時間がありません)</p>';
+      }
+      h += '<p class="num">1人あたり ' + yen(p.total) + ' × ' + g.count + '人 = <strong>' + yen(g.total) + '</strong></p></div>';
+    });
+    if (t.equipment > 0) h += '<div class="step"><p class="num">設備投資加算:導入費用 ' + yen(r.input.equipmentCost) + ' × ' + pct(v(course.equipmentAddOn.rate)) + (t.equipmentCapHit ? '(限度額で止まる)' : '') + ' = <strong>' + yen(t.equipment) + '</strong></p></div>';
+    h += '<div class="step"><p class="num">合計 ' + yen(t.raw) + (t.capApplied ? '。1事業所1年度の上限 ' + yen(t.cap) + ' で止まり、' + yen(t.total) : '') + '</p></div>';
+    return h;
+  }
+
+  function render() {
+    const inp = read();
+    const isRk = inp.course === 'reskilling';
+    $('equipField').classList.toggle('hidden', !(isRk && inp.size === 'small'));
+    const r = C.calculate(P, inp);
+
+    ['regular','fixedTerm','hours','sched','attend','expense'].forEach((id) => {
+      const el = document.querySelector('[data-for="' + id + '"]'); if (!el) return;
+      const bad = Number.isNaN(inp[{regular:'regular',fixedTerm:'fixedTerm',hours:'hours',sched:'scheduledPercent',attend:'attendancePercent',expense:'expensePerPerson'}[id]]);
+      el.classList.toggle('invalid', bad);
+    });
+
+    const bonusWord = isRk ? '設備投資加算' : '賃金要件等を満たす場合';
+    $('cmpHead').textContent = isRk ? '設備投資加算を含む' : '賃金要件等を満たす場合';
+
+    if (!r.ok) {
+      $('errBox').classList.remove('hidden'); $('okBox').classList.add('hidden');
+      $('errBox').innerHTML = '入力をご確認ください:<br>' + r.errors.join('<br>');
+      return;
+    }
+    $('errBox').classList.add('hidden'); $('okBox').classList.remove('hidden');
+
+    const b = r.base, w = r.withBonus;
+    $('big').textContent = yen(b.total);
+    $('bonus').innerHTML = r.eligible
+      ? (isRk ? '設備投資加算を含める場合:' : '加算を満たす場合:') + '+' + yen(r.bonus) + '<small>' + (isRk ? '(別途申請。導入費用を入れると出ます)' : '(別途申請。賃金要件・資格等手当要件)') + '</small>'
+      : '&nbsp;';
+    const cap = $('capBox');
+    if (r.eligible && b.capReached) { cap.classList.remove('hidden'); cap.textContent = '1事業所1年度の上限(' + yen(b.cap) + ')に達しています。超えた分は支給されません。'; }
+    else cap.classList.add('hidden');
+    $('warn').innerHTML = r.warnings.filter((x) => !x.includes('上限')).join('<br>');
+
+    $('kExp').textContent = yen(b.expense);
+    $('kWage').textContent = yen(b.wage);
+    const per = b.people ? b.total / b.people : 0;
+    $('kPer').textContent = yen(per);
+    $('kPerS').textContent = b.people + '人の平均';
+    $('burden').textContent = yen(r.burden.base);
+    $('burdenS').textContent = '対象経費の合計 ' + yen(r.expenseTotal) + ' − 経費助成 ' + yen(r.expenseTotal - r.burden.base) + (r.eligible ? '(' + bonusWord + ':' + yen(r.burden.withBonus) + ')' : '');
+
+    // 比較
+    const rows = [['経費助成', b.expense, w.expense], ['賃金助成', b.wage, w.wage]];
+    if (isRk) rows.push(['設備投資加算', b.equipment, w.equipment]);
+    $('cmpBody').innerHTML = rows.map((x) => '<tr><td>' + x[0] + '</td><td>' + yen(x[1]) + '</td><td>' + yen(x[2]) + '</td></tr>').join('') +
+      '<tr><td>自己負担の目安</td><td>' + yen(r.burden.base) + '</td><td>' + yen(r.burden.withBonus) + '</td></tr>';
+    $('cmpFoot').innerHTML = '<tr><td>助成金の見込み合計</td><td>' + yen(b.total) + '</td><td>' + yen(w.total) + '</td></tr>';
+
+    // 内訳
+    $('steps').innerHTML = r.eligible
+      ? '<h3>基本分</h3>' + stepsFor(r, b, false) + '<h3 style="margin-top:var(--s3)">' + bonusWord + '</h3>' + stepsFor(r, w, true)
+      : '<p>この条件は、対象外です。</p>';
+
+    // チェックリスト
+    const c = P.common, items = [];
+    const sd = $('start').value, ed = $('end').value;
+    if (sd) { const pw = C.planWindow(P, sd); items.push('<strong>計画届:' + jp(pw.to) + 'まで</strong>(原則、開始の' + v(c.planWindowMonths.earliest) + 'か月前〜' + v(c.planWindowMonths.latest) + 'か月前。' + jp(pw.from) + 'から提出できます。休日の場合は翌開庁日)'); }
+    else items.push('<strong>計画届:</strong>訓練開始日の' + v(c.planWindowMonths.earliest) + 'か月前から' + v(c.planWindowMonths.latest) + 'か月前までに、管轄の労働局へ(開始予定日を入れると締切日が出ます)');
+    if (ed) items.push('<strong>支給申請:' + jp(C.claimDeadline(P, ed)) + 'まで</strong>(終了日の翌日から' + v(c.claimWithinMonthsAfterEnd) + 'か月以内。目安)');
+    else items.push('<strong>支給申請:</strong>訓練終了日の翌日から' + v(c.claimWithinMonthsAfterEnd) + 'か月以内(終了予定日を入れると締切日が出ます)');
+    items.push('通学・同時双方向型は、実訓練時間の' + v(c.attendanceMinPercent) + '%以上の受講が必要です');
+    items.push('事業主の要件:雇用保険適用事業主/職業能力開発推進者の選任/事業内職業能力開発計画の策定・周知/キャリアコンサルティングの機会を規程で定める/直近6か月に会社都合の解雇などがない');
+    items.push('加算分は<strong>別の申請</strong>です(要件を満たす賃金を' + v(c.bonusClaim.paidMonths) + 'か月継続して払った日の翌日から' + v(c.bonusClaim.withinMonthsAfter) + 'か月以内。対象者全員が要件を満たすこと)');
+    items.push('1人につき1年度' + v(c.timesPerWorkerPerYear) + '回まで/1事業所1年度の上限 ' + yen(v(P.courses[inp.course].annualCap)));
+    items.push('訓練経費は事業主が全額負担すること(返金などを受けると経費助成は対象外)。受講料の価格設定に関する疎明書(様式第28号)が必要です');
+    items.push('最終の支給額は、労働局の審査で決まります');
+    $('check').innerHTML = items.map((x) => '<li><span>' + x + '</span></li>').join('');
+
+    $('srcLine').textContent = '数字は' + P._meta.fiscalYear + 'のもの(' + P._meta.verifiedOn + ' 確認)。出典:厚生労働省「人材開発支援助成金」令和8年度版パンフレット・支給要領(令和8年8月3日版)。端数は円未満切り捨て(仮)。';
+  }
+
+  document.addEventListener('input', render);
+  document.addEventListener('change', render);
+  $('cmpBtn').addEventListener('click', function () {
+    const box = $('cmpBox'); const open = box.classList.toggle('hidden') === false;
+    this.setAttribute('aria-expanded', String(open));
+  });
+  $('printBtn').addEventListener('click', () => window.print());
+  document.querySelectorAll('input[name="accent"]').forEach((el) => el.addEventListener('change', () => {
+    document.documentElement.dataset.accent = document.querySelector('input[name="accent"]:checked').value;
+  }));
+  render();
+})();
+</script>
+</body>
+</html>
