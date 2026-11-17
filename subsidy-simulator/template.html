@@ -131,6 +131,8 @@ table.cmp{width:100%;border-collapse:collapse}
 .doc{display:none}
 .pay{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s2)}
 @media (max-width:560px){.pay{grid-template-columns:1fr}}
+.chk{display:flex;gap:var(--s1);align-items:flex-start;font-weight:700;cursor:pointer}
+.chk input{width:24px;height:24px;margin:2px 0 0;flex:none;accent-color:var(--teal-d)}
 .sel{width:100%;height:48px;padding:0 8px;border:1px solid #9AA6A6;border-radius:var(--r-s);background:var(--surface)}
 @media print{
   @page{size:A4;margin:10mm 12mm}
@@ -329,6 +331,10 @@ table.cmp{width:100%;border-collapse:collapse}
     <div class="field">
       <label for="qNote">備考(任意・見積書にだけ入ります)</label>
       <div class="inp"><input id="qNote" type="text" autocomplete="off"></div>
+    </div>
+    <div class="field">
+      <label class="chk" for="qBonus"><input id="qBonus" type="checkbox"><span id="qBonusLabel">見積書に「加算を含む(別途申請)」の欄を載せる</span></label>
+      <span class="hint">ふだんは、載せません。チェックすると、見積書の助成金の表に、加算の欄が出ます。</span>
     </div>
     <div class="field" data-for="validDays">
       <label for="validDays">見積の有効期限</label>
@@ -633,24 +639,27 @@ table.cmp{width:100%;border-collapse:collapse}
     $('qPay').innerHTML = '<tr><td>総支払額(税込)</td><td class="num">' + yen(r.expenseTotal) + '</td></tr>' +
       (ins ? '<tr><td>月々のお支払い(' + ins.n + '回)</td><td class="num">' + yen(ins.monthly) + (ins.last !== ins.monthly ? '(最終回 ' + yen(ins.last) + ')' : '') + '</td></tr>' : '');
     const b = r.base, w = r.withBonus, bn = (isRk ? '設備投資加算を含む' : '賃金要件等を満たす場合') + '(別途申請)';
-    $('qRefH2').textContent = bn;
+    const showB = $('qBonus').checked;
+    $('qBonusLabel').textContent = isRk ? '見積書に「設備投資加算を含む(別途申請)」の欄を載せる' : '見積書に「賃金要件等を満たす場合(別途申請)」の欄を載せる';
+    $('qRefH2').textContent = showB ? bn : '';
+    $('qRefH2').style.display = showB ? '' : 'none';
     if (!r.eligible) {
       $('qRef').innerHTML = '<tr><td colspan="3">この条件は、助成金の対象外です</td></tr>'; $('qCalc').innerHTML = '';
     } else {
-      const row = (l, x, y) => '<tr><td>' + l + '</td><td class="num">' + yen(x) + '</td><td class="num">' + yen(y) + '</td></tr>';
+      const row = (l, x, y) => '<tr><td>' + l + '</td><td class="num">' + yen(x) + '</td>' + (showB ? '<td class="num">' + yen(y) + '</td>' : '') + '</tr>';
       const rows = [row('経費助成(研修費用への助成)', b.expense, w.expense), row('賃金助成(受講中の人件費への助成)', b.wage, w.wage)];
-      if (isRk) rows.push(row('設備投資加算', b.equipment, w.equipment));
-      rows.push('<tr><td><strong>助成金の見込み合計</strong></td><td class="num"><strong>' + yen(b.total) + '</strong></td><td class="num"><strong>' + yen(w.total) + '</strong></td></tr>');
+      if (isRk && showB) rows.push(row('設備投資加算', b.equipment, w.equipment));
+      rows.push('<tr><td><strong>助成金の見込み合計</strong></td><td class="num"><strong>' + yen(b.total) + '</strong></td>' + (showB ? '<td class="num"><strong>' + yen(w.total) + '</strong></td>' : '') + '</tr>');
       rows.push(row('助成後の自己負担の目安(研修費用 − 経費助成)', r.burden.base, r.burden.withBonus));
       $('qRef').innerHTML = rows.join('');
       const g = b.groups.map((x) => x.perPerson), gw = w.groups.map((x) => x.perPerson);
       const uniq = (a) => [...new Set(a)].join('・');
       const calc = [];
-      calc.push('経費助成:1人あたりの研修費用 ' + yen(inp.expensePerPerson) + ' × 助成率 ' + uniq(g.map((x) => pct(x.rate))) + '(加算込み ' + uniq(gw.map((x) => pct(x.rate))) + ')。1人あたりの上限は ' + yen(g[0].limit) + (g.some((x) => x.limitHit) || gw.some((x) => x.limitHit) ? '(上限で止まる場合があります)' : '') + '。');
+      calc.push('経費助成:1人あたりの研修費用 ' + yen(inp.expensePerPerson) + ' × 助成率 ' + uniq(g.map((x) => pct(x.rate))) + (showB && uniq(gw.map((x) => pct(x.rate))) !== uniq(g.map((x) => pct(x.rate))) ? '(加算込み ' + uniq(gw.map((x) => pct(x.rate))) + ')' : '') + '。1人あたりの上限は ' + yen(g[0].limit) + (g.some((x) => x.limitHit) || (showB && gw.some((x) => x.limitHit)) ? '(上限で止まる場合があります)' : '') + '。');
       calc.push(g[0].wageHours > 0
-        ? '賃金助成:1時間あたり ' + yen(g[0].wageUnit) + '(加算込み ' + yen(gw[0].wageUnit) + ') × 所定労働時間内の受講 ' + (Math.round(g[0].wageHours * 100) / 100) + '時間 × ' + people + '人。'
+        ? '賃金助成:1時間あたり ' + yen(g[0].wageUnit) + (showB && gw[0].wageUnit !== g[0].wageUnit ? '(加算込み ' + yen(gw[0].wageUnit) + ')' : '') + ' × 所定労働時間内の受講 ' + (Math.round(g[0].wageHours * 100) / 100) + '時間 × ' + people + '人。'
         : '賃金助成:eラーニング・通信制のため、対象外です。');
-      if (b.capApplied || w.capApplied) calc.push('1事業所1年度の上限 ' + yen(b.cap) + ' で止まっています。');
+      if (b.capApplied || (showB && w.capApplied)) calc.push('1事業所1年度の上限 ' + yen(b.cap) + ' で止まっています。');
       $('qCalc').innerHTML = calc.map((t) => '<li>' + t + '</li>').join('');
     }
     $('qFoot2').textContent = '株式会社物件王 / 助成金の数字は' + P._meta.fiscalYear + 'のもの(' + P._meta.verifiedOn + ' 確認)。出典:厚生労働省「人材開発支援助成金」パンフレット・支給要領(令和8年8月3日版)。';
