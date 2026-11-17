@@ -129,13 +129,27 @@ table.cmp{width:100%;border-collapse:collapse}
 
 /* 印刷用の書類(画面には出さない) */
 .doc{display:none}
+.pay{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s2)}
+@media (max-width:560px){.pay{grid-template-columns:1fr}}
+.sel{width:100%;height:48px;padding:0 8px;border:1px solid #9AA6A6;border-radius:var(--r-s);background:var(--surface)}
 @media print{
   @page{size:A4;margin:10mm 12mm}
   html,body{background:#fff}
   body{font-size:9.5pt;line-height:1.45;color:var(--ink)}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .top,.notice,.wrap{display:none!important}
-  .doc{display:block}
+  body[data-doc="estimate"] #doc{display:block}
+  body[data-doc="quote"] #docq{display:block}
+  .q-title{margin:0;font-size:20pt;letter-spacing:.3em}
+  .q-sub{margin:2pt 0 0;font-size:10pt}
+  .q-meta{margin:0;font-size:9.5pt;text-align:right;line-height:1.6}
+  .q-amount{display:flex;justify-content:space-between;align-items:baseline;margin:8pt 0 6pt;padding:6pt 12pt;border:1pt solid var(--line);border-radius:var(--r-l)}
+  .q-amount span{font-weight:700;font-size:11pt}
+  .q-amount strong{font-size:24pt;font-weight:800}
+  .doc th.c,.doc td.c{text-align:center}
+  .doc .q-note{margin:4pt 0 0;font-size:9pt}
+  .q-ref{margin-top:6pt;padding:6pt 10pt;border:1pt solid var(--line);border-radius:var(--r-l)}
+  .q-ref h2{margin-top:0}
   .doc-head{display:flex;align-items:center;gap:12pt;border-bottom:1.5pt solid var(--teal);padding-bottom:8pt}
   .doc-head img{height:28pt;width:auto}
   .doc-head h1{margin:0;font-size:15pt;line-height:1.3}
@@ -162,7 +176,7 @@ table.cmp{width:100%;border-collapse:collapse}
 }
 </style>
 </head>
-<body>
+<body data-doc="quote">
 
 <header class="top">
   <div class="top-in">
@@ -290,6 +304,35 @@ table.cmp{width:100%;border-collapse:collapse}
       </div>
     </div>
     <span class="hint" style="display:block;color:var(--muted);font-size:14px">日付を入れると、提出の締切日が出ます。</span>
+
+    <hr class="sep">
+    <p class="eyebrow" aria-hidden="true">QUOTE</p>
+    <h2 style="font-size:20px">お見積もり・お支払い</h2>
+    <div class="field" data-for="payMonths">
+      <label for="payMonths">お支払いの回数(月々)</label>
+      <div class="inp"><input id="payMonths" type="number" inputmode="numeric" min="1" step="1" value="3"><span class="unit">回</span></div>
+      <span class="hint">研修費用を、何か月に分けて払うか。助成金の経費助成は、<strong>支給申請までに、全額を払い終えている</strong>ことが必要です。</span>
+    </div>
+    <div class="field">
+      <label for="formSel">研修の実施形態(見積書に入れる文言)</label>
+      <select id="formSel" class="sel">
+        <option value="flex">オンライン・対面・組み合わせのいずれも可能(打合せで決定)</option>
+        <option value="online">オンライン(同時双方向)で実施</option>
+        <option value="offline">会場での対面(オフライン)で実施</option>
+        <option value="hybrid">オンラインと対面の組み合わせで実施</option>
+        <option value="none">記載しない</option>
+      </select>
+      <span class="hint" id="formPreview"></span>
+    </div>
+    <div class="field">
+      <label for="qNote">備考(任意・見積書にだけ入ります)</label>
+      <div class="inp"><input id="qNote" type="text" autocomplete="off"></div>
+    </div>
+    <div class="field" data-for="validDays">
+      <label for="validDays">見積の有効期限</label>
+      <div class="inp"><input id="validDays" type="number" inputmode="numeric" min="1" step="1" value="30"><span class="unit">日間</span></div>
+      <span class="hint">発行日(今日)から数えます。</span>
+    </div>
   </section>
 
   <!-- 結果 -->
@@ -314,6 +357,17 @@ table.cmp{width:100%;border-collapse:collapse}
       <div class="kpi"><p class="k">1人あたり</p><p class="v num" id="kPer">¥0</p><p class="s" id="kPerS"></p></div>
     </div>
 
+    <section class="card" aria-labelledby="h-pay">
+      <p class="eyebrow" aria-hidden="true">PAYMENT</p>
+      <h3 id="h-pay">研修費用のお支払い(税込)</h3>
+      <div class="pay">
+        <div class="kpi"><p class="k">総支払額</p><p class="v num" id="pTotal">¥0</p><p class="s" id="pTotalS"></p></div>
+        <div class="kpi"><p class="k">1か月あたり</p><p class="v num" id="pMonthly">¥0</p><p class="s" id="pMonthlyS"></p></div>
+        <div class="kpi"><p class="k">お支払い回数</p><p class="v num" id="pN">0回</p><p class="s">月々</p></div>
+      </div>
+      <p class="src" style="margin:var(--s2) 0 0">研修費用は、先に会社が払います。助成金は、訓練が終わり、申請・審査を経たあとに、後から支給されます。</p>
+    </section>
+
     <section class="card" aria-labelledby="h-burden">
       <h3 id="h-burden">助成後の自己負担の目安</h3>
       <p class="num burden-v" id="burden">¥0</p>
@@ -321,6 +375,12 @@ table.cmp{width:100%;border-collapse:collapse}
       <p class="src" style="margin:var(--s1) 0 0">対象経費の合計から、経費助成を引いた額です。賃金助成は、会社が払った賃金への助成なので、ここには入れていません。訓練機関から返金などを受けた場合は、経費助成の対象外になります。</p>
     </section>
 
+    <fieldset class="field" style="margin:0"><legend>書類の種類</legend>
+      <div class="seg" style="max-width:420px">
+        <label><input type="radio" name="doctype" value="quote" checked><span>見積書</span></label>
+        <label><input type="radio" name="doctype" value="estimate"><span>助成金の概算</span></label>
+      </div>
+    </fieldset>
     <div class="btns">
       <button class="btn sub" id="cmpBtn" type="button" aria-expanded="false" aria-controls="cmpBox">条件を変えて比べる</button>
       <button class="btn" id="printBtn" type="button">1ページの書類にする</button>
@@ -355,6 +415,33 @@ table.cmp{width:100%;border-collapse:collapse}
   </div>
 </main>
 
+
+<!-- 見積書(A4・1ページ)。画面には出ません -->
+<section class="doc" id="docq" aria-hidden="true">
+  <header class="doc-head">
+    <img src="{{LOGO}}" alt="">
+    <div class="who"><p id="qCompany"></p><h1 class="q-title">御見積書</h1><p class="q-sub" id="qSubject"></p></div>
+    <p class="q-meta"><span id="qDate"></span><br><span id="qValid"></span></p>
+  </header>
+  <div class="q-amount"><span>御見積金額(税込)</span><strong class="num" id="qTotal"></strong></div>
+  <table>
+    <thead><tr><th>品名</th><th class="c">数量</th><th>単価(税込)</th><th>金額(税込)</th></tr></thead>
+    <tbody id="qItems"></tbody>
+    <tfoot id="qFoot"></tfoot>
+  </table>
+  <h2>お支払い</h2>
+  <table><tbody id="qPay"></tbody></table>
+  <h2>研修の実施形態</h2>
+  <p class="q-note" id="qForm"></p>
+  <p class="q-note" id="qMemo"></p>
+  <div class="q-ref">
+    <h2>参考:助成金の見込み(概算)</h2>
+    <table><tbody id="qRef"></tbody></table>
+    <p class="q-note">これは概算です。支給を保証するものではなく、最終的な支給額は、労働局の審査で決まります。助成金は、訓練が終わり、申請・審査を経たあとに、後から支給されます。受講者の条件・訓練の内容によっては、対象外になることがあります。</p>
+  </div>
+  <div class="doc-sr"><strong>申請手続きは、社会保険労務士にご相談ください。</strong>助成金の申請手続きは、社会保険労務士の業務です。</div>
+  <p class="doc-foot" id="qFoot2"></p>
+</section>
 
 <!-- 印刷・PDF用の書類(A4・1ページ)。画面には出ません -->
 <section class="doc" id="doc" aria-hidden="true">
@@ -447,7 +534,9 @@ table.cmp{width:100%;border-collapse:collapse}
       items.push('加算分は<strong>別の申請</strong>です(要件を満たす賃金を' + v(c.bonusClaim.paidMonths) + 'か月継続して払った日の翌日から' + v(c.bonusClaim.withinMonthsAfter) + 'か月以内。対象者全員が要件を満たすこと)');
       items.push('1人につき1年度' + v(c.timesPerWorkerPerYear) + '回まで/1事業所1年度の上限 ' + yen(v(P.courses.jinzai.annualCap)));
     }
-    items.push('訓練経費は事業主が全額負担すること(返金などを受けると経費助成は対象外)。受講料の価格設定に関する疎明書(様式第28号)が必要です');
+    items.push('訓練経費は、事業主が、<strong>支給申請までに全額</strong>負担すること(分割払いも、最終回まで払い終えてから申請)。返金などを受けると経費助成は対象外。受講料の価格設定に関する疎明書(様式第28号)が必要です');
+    const fs = $('formSel') ? $('formSel').value : 'none';
+    if (fs === 'online' || fs === 'hybrid' || fs === 'flex') items.push('オンラインは、講師とリアルタイムで双方向に行う形式(同時双方向型)なら、通学制と同じ扱いです。録画の視聴だけの場合は、eラーニング扱いで、賃金助成は対象外、限度額も変わります。オンラインと対面を組み合わせる場合は、実施方法ごとの取扱いがあるため、労働局や社会保険労務士に確認してください');
     items.push('最終の支給額は、労働局の審査で決まります');
     return items;
   }
@@ -489,7 +578,7 @@ table.cmp{width:100%;border-collapse:collapse}
 
   // 大きな数字が欄からはみ出すときは、折り返さず、文字を小さくして収める
   function fit() {
-    ['big', 'kExp', 'kWage', 'kPer', 'burden'].forEach((id) => {
+    ['big', 'kExp', 'kWage', 'kPer', 'burden', 'pTotal', 'pMonthly', 'pN'].forEach((id) => {
       const el = $(id); if (!el || !el.offsetParent) return;
       el.style.fontSize = '';
       let size = parseFloat(getComputedStyle(el).fontSize);
@@ -498,11 +587,66 @@ table.cmp{width:100%;border-collapse:collapse}
     });
   }
 
+  const FORMS = {
+    flex: '研修の実施形態(オンライン・会場での対面・その組み合わせ)は、いずれも可能です。ご希望やご事情をうかがい、打合せのうえ決定します。',
+    online: 'オンライン(講師とリアルタイムで双方向にやりとりする形式)での実施を想定しています。詳細は、打合せのうえ決定します。',
+    offline: '会場での対面(オフライン)での実施を想定しています。会場・日程は、打合せのうえ決定します。',
+    hybrid: 'オンラインと会場での対面を組み合わせて実施します。組み合わせの配分は、打合せのうえ決定します。',
+    none: '',
+  };
+  const todayIso = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+
+  // 研修費用の支払い(総額・月々)
+  function renderPay(r, inp) {
+    const n = num('payMonths');
+    const badN = Number.isNaN(n) || n < 1;
+    const el = document.querySelector('[data-for="payMonths"]'); if (el) el.classList.toggle('invalid', badN);
+    const ins = r.ok && !badN ? C.installments(r.expenseTotal, n) : null;
+    const people = (inp.regular || 0) + (inp.fixedTerm || 0);
+    $('pTotal').textContent = r.ok ? yen(r.expenseTotal) : '—';
+    $('pTotalS').textContent = r.ok ? yen(inp.expensePerPerson) + ' × ' + people + '人' : '';
+    $('pMonthly').textContent = ins ? yen(ins.monthly) : '—';
+    $('pMonthlyS').textContent = ins && ins.last !== ins.monthly ? '最終回 ' + yen(ins.last) : '';
+    $('pN').textContent = ins ? ins.n + '回' : '—';
+    return ins;
+  }
+
+  // 見積書(印刷用)
+  function renderQuote(r, inp, ins) {
+    const company = $('company').value, title = $('title').value;
+    const isRk = inp.course === 'reskilling';
+    const issue = todayIso(), vd = num('validDays');
+    $('qCompany').textContent = company ? company + ' 御中' : '';
+    $('qSubject').textContent = '件名:' + (title || '研修のご提案');
+    $('qDate').textContent = '発行日:' + jp(issue);
+    $('qValid').textContent = vd >= 1 ? '有効期限:' + jp(C.addDaysIso(issue, Math.floor(vd))) + 'まで' : '';
+    $('qForm').textContent = FORMS[$('formSel').value];
+    $('qMemo').textContent = $('qNote').value ? '備考:' + $('qNote').value : '';
+    if (!r.ok) { $('qTotal').textContent = '—'; $('qItems').innerHTML = ''; $('qFoot').innerHTML = ''; $('qPay').innerHTML = ''; $('qRef').innerHTML = ''; return; }
+    const people = (inp.regular || 0) + (inp.fixedTerm || 0);
+    $('qTotal').textContent = yen(r.expenseTotal);
+    $('qItems').innerHTML = '<tr><td>' + (title || '研修費用(受講料)') + '</td><td class="c">' + people + '名</td><td class="num">' + yen(inp.expensePerPerson) + '</td><td class="num">' + yen(r.expenseTotal) + '</td></tr>';
+    $('qFoot').innerHTML = '<tr><td colspan="3">合計(税込)</td><td class="num">' + yen(r.expenseTotal) + '</td></tr>';
+    $('qPay').innerHTML = '<tr><td>総支払額(税込)</td><td class="num">' + yen(r.expenseTotal) + '</td></tr>' +
+      (ins ? '<tr><td>月々のお支払い(' + ins.n + '回)</td><td class="num">' + yen(ins.monthly) + (ins.last !== ins.monthly ? '(最終回 ' + yen(ins.last) + ')' : '') + '</td></tr>' : '');
+    const rows = r.eligible
+      ? ['<tr><td>助成金の見込み合計(基本分)</td><td class="num">' + yen(r.base.total) + '</td></tr>']
+      : ['<tr><td colspan="2">この条件は、助成金の対象外です</td></tr>'];
+    if (r.eligible && r.bonus > 0) rows.push('<tr><td>' + (isRk ? '設備投資加算' : '賃金要件等を満たす場合の上乗せ') + '(別途申請)</td><td class="num">+' + yen(r.bonus) + '</td></tr>');
+    if (r.eligible) rows.push('<tr><td>助成後の自己負担の目安(研修費用 − 経費助成)</td><td class="num">' + yen(r.burden.base) + '</td></tr>');
+    $('qRef').innerHTML = rows.join('');
+    $('qFoot2').textContent = '株式会社物件王 / 助成金の数字は' + P._meta.fiscalYear + 'のもの(' + P._meta.verifiedOn + ' 確認)。出典:厚生労働省「人材開発支援助成金」パンフレット・支給要領(令和8年8月3日版)。';
+  }
+
   function render() {
     const inp = read();
     const isRk = inp.course === 'reskilling';
     $('equipField').classList.toggle('hidden', !(isRk && inp.size === 'small'));
     const r = C.calculate(P, inp);
+    document.body.dataset.doc = radio('doctype');
+    $('formPreview').textContent = FORMS[$('formSel').value] || '見積書には、実施形態の記載を入れません。';
+    const ins = renderPay(r, inp);
+    renderQuote(r, inp, ins);
 
     ['regular','fixedTerm','hours','sched','attend','expense'].forEach((id) => {
       const el = document.querySelector('[data-for="' + id + '"]'); if (!el) return;

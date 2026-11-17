@@ -182,6 +182,16 @@
     return iso(addDays(addMonths(first, val(params.common.bonusClaim.withinMonthsAfter)), -1));
   }
 
+  // 研修費用の分割払い。月々は円未満を切り捨て、端数は最終回に足す
+  function installments(total, months) {
+    const n = Math.floor(months);
+    if (!(n >= 1) || !(total >= 0)) return null;
+    const monthly = Math.floor(total / n);
+    return { n, monthly, last: total - monthly * (n - 1), total };
+  }
+  // 日付に日数を足す(見積書の有効期限など)
+  function addDaysIso(isoDate, days) { return iso(addDays(parse(isoDate), days)); }
+
   // 年度をまたぐ場合などの注意(年度は支給申請日を基準に、4月1日〜翌年3月31日)
   function dateWarnings(params, startIso, endIso) {
     const out = [];
@@ -204,5 +214,5 @@
     return byCapital || byEmployees ? 'small' : 'large';
   }
 
-  return { calculate, validate, planWindow, claimDeadline, bonusClaimDeadline, dateWarnings, judgeSme, val, yen };
+  return { calculate, validate, planWindow, claimDeadline, bonusClaimDeadline, installments, addDaysIso, dateWarnings, judgeSme, val, yen };
 });

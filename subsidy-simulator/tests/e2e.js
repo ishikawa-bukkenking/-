@@ -78,11 +78,40 @@ const ok = (n, c, extra='') => { if (!c) { fails++; console.log('NG ', n, extra)
   ok('フォーカスが見える', outline !== 'none');
   // 書類(PDF)
   async function pdfPages(label) {
-    const pdf = await p.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
-    const n = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
-    ok('書類 ' + label + ' → ' + n + 'ページ', n === 1);
-    return pdf;
+    let last;
+    for (const type of ['estimate', 'quote']) {
+      await p.emulateMedia({ media: 'screen' });
+      await p.check('input[name=doctype][value=' + type + ']');
+      await p.emulateMedia({ media: 'print' });
+      const pdf = await p.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
+      const n = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) || []).length;
+      ok('書類(' + (type === 'quote' ? '見積書' : '概算') + ') ' + label + ' → ' + n + 'ページ', n === 1);
+      last = pdf;
+    }
+    await p.emulateMedia({ media: 'screen' });
+    return last;
   }
+  // お支払い(総額・月々)と見積書の文言
+  await p.fill('#regular', '5'); await p.fill('#fixedTerm', '0'); await p.fill('#hours', '30'); await p.fill('#expense', '200000'); await p.fill('#payMonths', '3');
+  ok('総支払額 1,000,000', (await txt('#pTotal')) === '¥1,000,000', await txt('#pTotal'));
+  ok('月々 333,333', (await txt('#pMonthly')) === '¥333,333', await txt('#pMonthly'));
+  ok('最終回 333,334', (await txt('#pMonthlyS')).includes('333,334'), await txt('#pMonthlyS'));
+  ok('回数 3回', (await txt('#pN')) === '3回');
+  await p.fill('#payMonths', '0'); ok('回数0は月々を出さない', (await txt('#pMonthly')) === '—');
+  await p.fill('#payMonths', '3');
+  const qt = async () => p.evaluate(() => document.getElementById('docq').innerText);
+  let q = await qt();
+  ok('見積書: 御見積書・総支払額・月々・概算・保証・社労士', ['御見積書','総支払額','月々のお支払い','概算','保証しない','社会保険労務士にご相談ください'].every(w => q.includes(w) || (w==='保証しない' && q.includes('保証するものではなく'))), q.slice(0, 120));
+  for (const [v, w] of [['flex', 'いずれも可能'], ['online', 'オンライン(講師'], ['offline', '対面(オフライン)'], ['hybrid', '組み合わせて実施'], ['none', null]]) {
+    await p.selectOption('#formSel', v); q = await qt();
+    ok('実施形態の文言 ' + v, w ? q.includes(w) && q.includes('打合せ') : !q.includes('打合せ'), v);
+  }
+  await p.selectOption('#formSel', 'flex');
+  ok('チェックリストにオンラインの注意', (await txt('#check')).includes('同時双方向'));
+  await p.selectOption('#formSel', 'offline'); ok('対面ならオンラインの注意は出ない', !(await txt('#check')).includes('録画の視聴'));
+  await p.selectOption('#formSel', 'flex');
+  await p.fill('#qNote', '分割払いは、月末締めです'); ok('備考が見積書に入る', (await qt()).includes('分割払いは、月末締め'));
+  await p.fill('#qNote', '');
   await p.fill('#company', '株式会社テスト工務店サンプルホールディングス九州支社'); await p.fill('#title', '施工管理の基礎研修と現場安全衛生マネジメント実践講座(全10回)');
   await p.emulateMedia({ media: 'print' });
   await pdfPages('通常(日付あり・正規のみ)');

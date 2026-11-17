@@ -111,5 +111,19 @@ eq('年度内の終了は注意なし', C.dateWarnings(params, '2027-01-10', '20
 eq('支給申請が翌年度にかかる', C.dateWarnings(params, '2027-02-01', '2027-03-31').length, 1);
 eq('開始日が翌年度', C.dateWarnings(params, '2027-04-10', '').length, 1);
 
+// ---- 分割払い・有効期限 ----
+{
+  const i3 = C.installments(500000, 3);
+  eq('分割 50万円÷3 月額', i3.monthly, 166666);
+  eq('分割 最終回に端数', i3.last, 166668);
+  eq('分割 合計が総額に一致', i3.monthly * (i3.n - 1) + i3.last, 500000);
+  eq('分割 1回', C.installments(500000, 1).monthly, 500000);
+  eq('分割 割り切れる', C.installments(600000, 6).last, 100000);
+  eq('分割 0回は不可', C.installments(500000, 0), null);
+  eq('分割 小数は切り捨て', C.installments(100000, 2.9).n, 2);
+  eq('有効期限 30日後', C.addDaysIso('2026-11-17', 30), '2026-12-17');
+  eq('有効期限 年またぎ', C.addDaysIso('2026-12-20', 30), '2027-01-19');
+}
+
 console.log(`\n${pass} 件成功 / ${fail} 件失敗`);
 process.exit(fail ? 1 : 0);
