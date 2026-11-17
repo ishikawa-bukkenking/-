@@ -90,6 +90,7 @@ input:focus-visible,button:focus-visible,summary:focus-visible,a:focus-visible{o
 @media (max-width:560px){.kpis{grid-template-columns:1fr}}
 .kpi{border:1px solid var(--line);border-radius:var(--r-l);padding:var(--s2);background:var(--surface)}
 .kpi .k{font-size:15px;color:var(--muted);margin:0}
+.burden-v{margin:0;text-align:right;font-size:32px;font-weight:700;line-height:1.3;white-space:nowrap}
 .kpi .v{margin:4px 0 0;text-align:right;font-size:28px;font-weight:700;line-height:1.3;white-space:nowrap}
 .kpi .s{margin:0;text-align:right;font-size:14px;color:var(--muted)}
 .btns{display:flex;gap:var(--s2);flex-wrap:wrap}
@@ -315,7 +316,7 @@ table.cmp{width:100%;border-collapse:collapse}
 
     <section class="card" aria-labelledby="h-burden">
       <h3 id="h-burden">助成後の自己負担の目安</h3>
-      <p class="num" style="margin:0;text-align:right;font-size:32px;font-weight:700" id="burden">¥0</p>
+      <p class="num burden-v" id="burden">¥0</p>
       <p class="src" style="margin:var(--s1) 0 0" id="burdenS"></p>
       <p class="src" style="margin:var(--s1) 0 0">対象経費の合計から、経費助成を引いた額です。賃金助成は、会社が払った賃金への助成なので、ここには入れていません。訓練機関から返金などを受けた場合は、経費助成の対象外になります。</p>
     </section>

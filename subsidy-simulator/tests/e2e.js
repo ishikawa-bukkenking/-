@@ -61,6 +61,7 @@ const ok = (n, c, extra='') => { if (!c) { fails++; console.log('NG ', n, extra)
   }
   await p.setViewportSize({ width: 1280, height: 900 });
   await p.fill('#regular', '1'); await p.fill('#hours', '30'); await p.fill('#expense', '100000'); await p.check('input[name=course][value=jinzai]');
+  ok('自己負担の数字が小さくなりすぎない', await p.$eval('#burden', e => parseFloat(getComputedStyle(e).fontSize) >= 24));
   // 文言
   const body = await p.evaluate(() => document.body.innerText);
   ok('画面に「概算」', body.includes('概算')); ok('画面に「保証」', body.includes('保証'));
