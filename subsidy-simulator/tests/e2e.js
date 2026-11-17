@@ -42,6 +42,12 @@ const ok = (n, c, extra='') => { if (!c) { fails++; console.log('NG ', n, extra)
   await p.check('input[name=size][value=large]'); ok('中小以外 20,000+... ', (await txt('#big')) === '¥' + (30000 + 12000).toLocaleString('en-US'), await txt('#big'));
   await p.click('#smeHelp summary'); await p.fill('#emps', '250'); await p.click('#judgeBtn');
   ok('判定: 建設業250人→中小', await p.isChecked('input[name=size][value=small]'));
+  // 限度額で止まるとき、画面に理由が出る
+  await p.check('input[name=course][value=reskilling]'); await p.fill('#expense', '1000000');
+  ok('リスキリング 経費100万: 限度額の説明', (await p.isVisible('#limNote')) && (await txt('#limNote')).includes('限度額') && (await txt('#limNote')).includes('75%'), await txt('#limNote'));
+  ok('経費助成の下に助成率75%', (await txt('#kExpS')).includes('75%'), await txt('#kExpS'));
+  await p.fill('#expense', '100000'); ok('限度額内は説明なし', !(await p.isVisible('#limNote')));
+  await p.check('input[name=course][value=jinzai]'); await p.fill('#expense', '100000');
   // 文言
   const body = await p.evaluate(() => document.body.innerText);
   ok('画面に「概算」', body.includes('概算')); ok('画面に「保証」', body.includes('保証'));

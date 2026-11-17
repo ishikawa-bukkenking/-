@@ -84,6 +84,7 @@ input:focus-visible,button:focus-visible,summary:focus-visible,a:focus-visible{o
   font-size:clamp(56px,10vw,104px);overflow-wrap:anywhere}
 .hero .bonus{margin:var(--s2) 0 0;text-align:right;font-size:20px;font-weight:700;color:var(--teal-d)}
 .hero .bonus small{display:block;font-size:14px;font-weight:400;color:var(--muted)}
+.note{margin:var(--s2) 0 0;padding:var(--s1) var(--s2);border-left:4px solid var(--teal);background:var(--bg);font-size:15px;line-height:1.6}
 .hero .cap{margin-top:var(--s2);padding:var(--s1) var(--s2);border:1px solid var(--accent);border-radius:var(--r-s);color:var(--accent);font-weight:700}
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s2)}
 @media (max-width:560px){.kpis{grid-template-columns:1fr}}
@@ -301,12 +302,13 @@ table.cmp{width:100%;border-collapse:collapse}
         <p class="big num" id="big">¥0</p>
         <p class="bonus num" id="bonus">&nbsp;</p>
         <div class="cap hidden" id="capBox"></div>
+        <p class="note hidden" id="limNote"></p>
         <p id="warn" class="src" style="margin:var(--s2) 0 0"></p>
       </div>
     </section>
 
     <div class="kpis" id="kpis">
-      <div class="kpi"><p class="k">経費助成</p><p class="v num" id="kExp">¥0</p><p class="s">受講料などへの助成</p></div>
+      <div class="kpi"><p class="k">経費助成</p><p class="v num" id="kExp">¥0</p><p class="s" id="kExpS">受講料などへの助成</p></div>
       <div class="kpi"><p class="k">賃金助成</p><p class="v num" id="kWage">¥0</p><p class="s">受講中の人件費への助成</p></div>
       <div class="kpi"><p class="k">1人あたり</p><p class="v num" id="kPer">¥0</p><p class="s" id="kPerS"></p></div>
     </div>
@@ -725,6 +727,23 @@ table.cmp{width:100%;border-collapse:collapse}
     $('warn').innerHTML = r.warnings.filter((x) => !x.includes('上限')).join('<br>');
 
     $('kExp').textContent = yen(b.expense);
+    // 助成率と限度額(限度額で止まっているときは、はっきり出す)
+    const g0 = b.groups[0], w0 = w.groups[0], note = $('limNote');
+    if (r.eligible && g0) {
+      const hitBase = b.groups.find((g) => g.perPerson.limitHit);
+      const hitBonus = w.groups.find((g) => g.perPerson.limitHit);
+      const rates = [...new Set(b.groups.map((g) => pct(g.perPerson.rate)))].join('・');
+      $('kExpS').textContent = '助成率 ' + rates + (hitBase ? '・限度額で止まる' : '');
+      if (hitBase) {
+        const q = hitBase.perPerson;
+        note.innerHTML = '<strong>経費助成は、1人あたりの限度額で止まっています。</strong>対象経費 ' + yen(inp.expensePerPerson) + ' × 助成率 ' + pct(q.rate) + ' = ' + yen(q.expenseRaw) + ' ですが、限度額 ' + yen(q.limit) + '(' + (q.tier ? '訓練時間 ' + q.tier.minHours + '時間以上' + (q.tier.maxHours ? q.tier.maxHours + '時間未満' : '') : 'eラーニング・通信制') + ')までしか出ません。限度額は、訓練時間が長いほど上がります。';
+        note.classList.remove('hidden');
+      } else if (hitBonus) {
+        const q = hitBonus.perPerson;
+        note.innerHTML = '加算を含めると、経費助成は、1人あたりの限度額 ' + yen(q.limit) + ' で止まります(' + pct(q.rate) + ' × ' + yen(inp.expensePerPerson) + ' = ' + yen(q.expenseRaw) + ')。';
+        note.classList.remove('hidden');
+      } else note.classList.add('hidden');
+    } else { note.classList.add('hidden'); $('kExpS').textContent = '受講料などへの助成'; }
     $('kWage').textContent = yen(b.wage);
     const per = b.people ? b.total / b.people : 0;
     $('kPer').textContent = yen(per);
