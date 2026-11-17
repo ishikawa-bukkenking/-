@@ -81,7 +81,7 @@ input:focus-visible,button:focus-visible,summary:focus-visible,a:focus-visible{o
 .hero{padding:var(--s4) var(--s3) var(--s3)}
 .hero .label{margin:0;font-size:18px;font-weight:700}
 .hero .big{margin:var(--s1) 0 0;text-align:right;color:var(--accent);font-weight:800;line-height:1.05;letter-spacing:-.01em;
-  font-size:clamp(56px,10vw,104px);overflow-wrap:anywhere}
+  font-size:clamp(56px,10vw,104px);white-space:nowrap}
 .hero .bonus{margin:var(--s2) 0 0;text-align:right;font-size:20px;font-weight:700;color:var(--teal-d)}
 .hero .bonus small{display:block;font-size:14px;font-weight:400;color:var(--muted)}
 .note{margin:var(--s2) 0 0;padding:var(--s1) var(--s2);border-left:4px solid var(--teal);background:var(--bg);font-size:15px;line-height:1.6}
@@ -90,7 +90,7 @@ input:focus-visible,button:focus-visible,summary:focus-visible,a:focus-visible{o
 @media (max-width:560px){.kpis{grid-template-columns:1fr}}
 .kpi{border:1px solid var(--line);border-radius:var(--r-l);padding:var(--s2);background:var(--surface)}
 .kpi .k{font-size:15px;color:var(--muted);margin:0}
-.kpi .v{margin:4px 0 0;text-align:right;font-size:28px;font-weight:700;line-height:1.3}
+.kpi .v{margin:4px 0 0;text-align:right;font-size:28px;font-weight:700;line-height:1.3;white-space:nowrap}
 .kpi .s{margin:0;text-align:right;font-size:14px;color:var(--muted)}
 .btns{display:flex;gap:var(--s2);flex-wrap:wrap}
 .btn{height:48px;padding:0 var(--s3);border-radius:var(--r-s);border:1px solid var(--teal-d);background:var(--teal-d);color:#fff;font-weight:700;cursor:pointer}
@@ -486,6 +486,17 @@ table.cmp{width:100%;border-collapse:collapse}
     $('dSrc').innerHTML = '<strong>出典:</strong>厚生労働省「人材開発支援助成金」' + P._meta.fiscalYear + '版パンフレット・支給要領(令和8年8月3日版)。数字は' + P._meta.verifiedOn + 'に確認したもの。端数は円未満切り捨て(仮)。株式会社物件王';
   }
 
+  // 大きな数字が欄からはみ出すときは、折り返さず、文字を小さくして収める
+  function fit() {
+    ['big', 'kExp', 'kWage', 'kPer', 'burden'].forEach((id) => {
+      const el = $(id); if (!el || !el.offsetParent) return;
+      el.style.fontSize = '';
+      let size = parseFloat(getComputedStyle(el).fontSize);
+      const min = id === 'big' ? 28 : 14;
+      while (el.scrollWidth > el.clientWidth + 0.5 && size > min) { size -= 1; el.style.fontSize = size + 'px'; }
+    });
+  }
+
   function render() {
     const inp = read();
     const isRk = inp.course === 'reskilling';
@@ -510,9 +521,10 @@ table.cmp{width:100%;border-collapse:collapse}
 
     const b = r.base, w = r.withBonus;
     $('big').textContent = yen(b.total);
-    $('bonus').innerHTML = r.eligible
-      ? (isRk ? '設備投資加算を含める場合:' : '加算を満たす場合:') + '+' + yen(r.bonus) + '<small>' + (isRk ? '(別途申請。導入費用を入れると出ます)' : '(別途申請。賃金要件・資格等手当要件)') + '</small>'
-      : '&nbsp;';
+    $('bonus').innerHTML = !r.eligible ? '&nbsp;'
+      : (isRk && r.bonus === 0)
+        ? '<small>設備投資加算は、導入費用を入れると出ます(中小企業・通学型のみ)</small>'
+        : (isRk ? '設備投資加算を含める場合:' : '加算を満たす場合:') + '+' + yen(r.bonus) + '<small>' + (isRk ? '(別途申請)' : '(別途申請。賃金要件・資格等手当要件)') + '</small>';
     const cap = $('capBox');
     if (r.eligible && b.capReached) { cap.classList.remove('hidden'); cap.textContent = '1事業所1年度の上限(' + yen(b.cap) + ')に達しています。超えた分は支給されません。'; }
     else cap.classList.add('hidden');
@@ -541,7 +553,7 @@ table.cmp{width:100%;border-collapse:collapse}
     $('kPer').textContent = yen(per);
     $('kPerS').textContent = b.people + '人の平均';
     $('burden').textContent = yen(r.burden.base);
-    $('burdenS').textContent = '対象経費の合計 ' + yen(r.expenseTotal) + ' − 経費助成 ' + yen(r.expenseTotal - r.burden.base) + (r.eligible ? '(' + bonusWord + ':' + yen(r.burden.withBonus) + ')' : '');
+    $('burdenS').textContent = '対象経費の合計 ' + yen(r.expenseTotal) + ' − 経費助成 ' + yen(r.expenseTotal - r.burden.base) + (r.eligible && r.bonus > 0 ? '(' + bonusWord + ':' + yen(r.burden.withBonus) + ')' : '');
 
     // 比較
     const rows = [['経費助成', b.expense, w.expense], ['賃金助成', b.wage, w.wage]];
@@ -562,9 +574,11 @@ table.cmp{width:100%;border-collapse:collapse}
     if (dw.length) $('warn').innerHTML += (r.warnings.length ? '<br>' : '') + dw.join('<br>');
     renderDoc(r, inp, items);
 
+    fit();
     $('srcLine').textContent = '数字は' + P._meta.fiscalYear + 'のもの(' + P._meta.verifiedOn + ' 確認)。出典:厚生労働省「人材開発支援助成金」令和8年度版パンフレット・支給要領(令和8年8月3日版)。端数は円未満切り捨て(仮)。';
   }
 
+  window.addEventListener('resize', fit);
   document.addEventListener('input', render);
   document.addEventListener('change', render);
   $('cmpBtn').addEventListener('click', function () {

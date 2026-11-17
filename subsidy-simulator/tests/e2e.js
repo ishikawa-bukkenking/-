@@ -48,6 +48,19 @@ const ok = (n, c, extra='') => { if (!c) { fails++; console.log('NG ', n, extra)
   ok('経費助成の下に助成率75%', (await txt('#kExpS')).includes('75%'), await txt('#kExpS'));
   await p.fill('#expense', '100000'); ok('限度額内は説明なし', !(await p.isVisible('#limNote')));
   await p.check('input[name=course][value=jinzai]'); await p.fill('#expense', '100000');
+  // 大きな数字が折り返さない(画面共有の幅・スマホ幅・最大の12桁)
+  for (const [w, big] of [[1000, 0], [1280, 0], [375, 0], [1000, 1], [375, 1]]) {
+    await p.setViewportSize({ width: w, height: 900 });
+    await p.check('input[name=course][value=reskilling]');
+    if (big) { await p.fill('#regular', '400'); await p.fill('#hours', '250'); await p.fill('#expense', '900000'); }
+    else { await p.fill('#regular', '7'); await p.fill('#hours', '12'); await p.fill('#expense', '400000'); }
+    const m = await p.evaluate(() => { const e = document.getElementById('big'); const fs = parseFloat(getComputedStyle(e).fontSize); return { t: e.textContent, h: e.offsetHeight, fs, over: e.scrollWidth - e.clientWidth }; });
+    ok('金額が1行に収まる ' + w + 'px ' + m.t, m.h <= m.fs * 1.5 && m.over <= 1, JSON.stringify(m));
+    const kv = await p.evaluate(() => ['kExp','kWage','kPer','burden'].map(id => { const e = document.getElementById(id); return e.scrollWidth - e.clientWidth; }));
+    ok('内訳の金額がはみ出さない ' + w + 'px', kv.every(x => x <= 1), kv.join(','));
+  }
+  await p.setViewportSize({ width: 1280, height: 900 });
+  await p.fill('#regular', '1'); await p.fill('#hours', '30'); await p.fill('#expense', '100000'); await p.check('input[name=course][value=jinzai]');
   // 文言
   const body = await p.evaluate(() => document.body.innerText);
   ok('画面に「概算」', body.includes('概算')); ok('画面に「保証」', body.includes('保証'));
