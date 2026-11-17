@@ -150,6 +150,8 @@ table.cmp{width:100%;border-collapse:collapse}
   .doc .q-note{margin:4pt 0 0;font-size:9pt}
   .q-ref{margin-top:6pt;padding:6pt 10pt;border:1pt solid var(--line);border-radius:var(--r-l)}
   .q-ref h2{margin-top:0}
+  .q-calc{margin:3pt 0 0;padding-left:12pt;font-size:8.5pt;color:var(--muted)}
+  .q-calc li{margin:0}
   .doc-head{display:flex;align-items:center;gap:12pt;border-bottom:1.5pt solid var(--teal);padding-bottom:8pt}
   .doc-head img{height:28pt;width:auto}
   .doc-head h1{margin:0;font-size:15pt;line-height:1.3}
@@ -436,7 +438,8 @@ table.cmp{width:100%;border-collapse:collapse}
   <p class="q-note" id="qMemo"></p>
   <div class="q-ref">
     <h2>参考:助成金の見込み(概算)</h2>
-    <table><tbody id="qRef"></tbody></table>
+    <table><thead><tr><th></th><th>基本分</th><th id="qRefH2"></th></tr></thead><tbody id="qRef"></tbody></table>
+    <ul class="q-calc" id="qCalc"></ul>
     <p class="q-note">これは概算です。支給を保証するものではなく、最終的な支給額は、労働局の審査で決まります。助成金は、訓練が終わり、申請・審査を経たあとに、後から支給されます。受講者の条件・訓練の内容によっては、対象外になることがあります。</p>
   </div>
   <div class="doc-sr"><strong>申請手続きは、社会保険労務士にご相談ください。</strong>助成金の申請手続きは、社会保険労務士の業務です。</div>
@@ -847,12 +850,27 @@ table.cmp{width:100%;border-collapse:collapse}
     $('qFoot').innerHTML = '<tr><td colspan="3">合計(税込)</td><td class="num">' + yen(r.expenseTotal) + '</td></tr>';
     $('qPay').innerHTML = '<tr><td>総支払額(税込)</td><td class="num">' + yen(r.expenseTotal) + '</td></tr>' +
       (ins ? '<tr><td>月々のお支払い(' + ins.n + '回)</td><td class="num">' + yen(ins.monthly) + (ins.last !== ins.monthly ? '(最終回 ' + yen(ins.last) + ')' : '') + '</td></tr>' : '');
-    const rows = r.eligible
-      ? ['<tr><td>助成金の見込み合計(基本分)</td><td class="num">' + yen(r.base.total) + '</td></tr>']
-      : ['<tr><td colspan="2">この条件は、助成金の対象外です</td></tr>'];
-    if (r.eligible && r.bonus > 0) rows.push('<tr><td>' + (isRk ? '設備投資加算' : '賃金要件等を満たす場合の上乗せ') + '(別途申請)</td><td class="num">+' + yen(r.bonus) + '</td></tr>');
-    if (r.eligible) rows.push('<tr><td>助成後の自己負担の目安(研修費用 − 経費助成)</td><td class="num">' + yen(r.burden.base) + '</td></tr>');
-    $('qRef').innerHTML = rows.join('');
+    const b = r.base, w = r.withBonus, bn = (isRk ? '設備投資加算を含む' : '賃金要件等を満たす場合') + '(別途申請)';
+    $('qRefH2').textContent = bn;
+    if (!r.eligible) {
+      $('qRef').innerHTML = '<tr><td colspan="3">この条件は、助成金の対象外です</td></tr>'; $('qCalc').innerHTML = '';
+    } else {
+      const row = (l, x, y) => '<tr><td>' + l + '</td><td class="num">' + yen(x) + '</td><td class="num">' + yen(y) + '</td></tr>';
+      const rows = [row('経費助成(研修費用への助成)', b.expense, w.expense), row('賃金助成(受講中の人件費への助成)', b.wage, w.wage)];
+      if (isRk) rows.push(row('設備投資加算', b.equipment, w.equipment));
+      rows.push('<tr><td><strong>助成金の見込み合計</strong></td><td class="num"><strong>' + yen(b.total) + '</strong></td><td class="num"><strong>' + yen(w.total) + '</strong></td></tr>');
+      rows.push(row('助成後の自己負担の目安(研修費用 − 経費助成)', r.burden.base, r.burden.withBonus));
+      $('qRef').innerHTML = rows.join('');
+      const g = b.groups.map((x) => x.perPerson), gw = w.groups.map((x) => x.perPerson);
+      const uniq = (a) => [...new Set(a)].join('・');
+      const calc = [];
+      calc.push('経費助成:1人あたりの研修費用 ' + yen(inp.expensePerPerson) + ' × 助成率 ' + uniq(g.map((x) => pct(x.rate))) + '(加算込み ' + uniq(gw.map((x) => pct(x.rate))) + ')。1人あたりの上限は ' + yen(g[0].limit) + (g.some((x) => x.limitHit) || gw.some((x) => x.limitHit) ? '(上限で止まる場合があります)' : '') + '。');
+      calc.push(g[0].wageHours > 0
+        ? '賃金助成:1時間あたり ' + yen(g[0].wageUnit) + '(加算込み ' + yen(gw[0].wageUnit) + ') × 所定労働時間内の受講 ' + (Math.round(g[0].wageHours * 100) / 100) + '時間 × ' + people + '人。'
+        : '賃金助成:eラーニング・通信制のため、対象外です。');
+      if (b.capApplied || w.capApplied) calc.push('1事業所1年度の上限 ' + yen(b.cap) + ' で止まっています。');
+      $('qCalc').innerHTML = calc.map((t) => '<li>' + t + '</li>').join('');
+    }
     $('qFoot2').textContent = '株式会社物件王 / 助成金の数字は' + P._meta.fiscalYear + 'のもの(' + P._meta.verifiedOn + ' 確認)。出典:厚生労働省「人材開発支援助成金」パンフレット・支給要領(令和8年8月3日版)。';
   }
 

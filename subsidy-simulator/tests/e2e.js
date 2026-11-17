@@ -112,6 +112,9 @@ const ok = (n, c, extra='') => { if (!c) { fails++; console.log('NG ', n, extra)
   await p.selectOption('#formSel', 'flex');
   await p.fill('#qNote', '分割払いは、月末締めです'); ok('備考が見積書に入る', (await qt()).includes('分割払いは、月末締め'));
   await p.fill('#qNote', '');
+  q = await qt();
+  ok('見積書に助成金の内訳(経費・賃金・合計・上限)', ['経費助成','賃金助成','助成金の見込み合計','1人あたりの上限','賃金要件等を満たす場合'].every(w => q.includes(w)), q.slice(q.indexOf('参考'), q.indexOf('参考') + 200));
+  ok('見積書の内訳に数字(経費助成 90,000×5=450,000)', q.includes('¥450,000') && q.includes('¥120,000') && q.includes('¥570,000'), '');
   await p.fill('#company', '株式会社テスト工務店サンプルホールディングス九州支社'); await p.fill('#title', '施工管理の基礎研修と現場安全衛生マネジメント実践講座(全10回)');
   await p.emulateMedia({ media: 'print' });
   await pdfPages('通常(日付あり・正規のみ)');
