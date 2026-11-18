@@ -19,8 +19,15 @@ function checkWatch_(w, today) {
     if (w['種別'] === 'pdf') {
       var bytes = res.getBlob().getBytes();
       var sig = bytes.length + 'B/' + (res.getHeaders()['Last-Modified'] || '') + '/' + sha256Hex_(bytes.join(',')).slice(0, 12);
-      if (w['本文のハッシュ'] && w['本文のハッシュ'] !== sig) { out.changed = true; out.pdf = 'サイズ・更新日時・ハッシュが変わりました'; }
+      if (w['本文のハッシュ'] && w['本文のハッシュ'] !== sig) { out.changed = true; out.pdf = 'PDFが変わりました(サイズ・更新日時・ハッシュ)'; }
       w['本文のハッシュ'] = sig;
+    } else if (w['種別'] === 'html_hash') {
+      // 抜粋を一切出さない・残さないモード(規約上、引用を避けたいページ用)。本文のハッシュだけを持つ
+      var only = htmlToLines_(res.getContentText(), { start: w['範囲の開始目印'], end: w['範囲の終了目印'], drop: String(w['除外パターン'] || '').split('\n').filter(Boolean) });
+      if (only.length < 5) throw new Error('本文を取り出せません(目印の見直しが必要)');
+      var h2 = sha256Hex_(only.join('\n'));
+      if (w['本文のハッシュ'] && w['本文のハッシュ'] !== h2) { out.changed = true; out.pdf = 'ページが更新されました(抜粋なし。リンク先で確認)'; }
+      w['本文のハッシュ'] = h2; w['行の指紋'] = '';
     } else {
       var drop = String(w['除外パターン'] || '').split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
       var lines = htmlToLines_(res.getContentText(), { start: w['範囲の開始目印'], end: w['範囲の終了目印'], drop: drop });

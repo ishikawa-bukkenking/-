@@ -266,7 +266,7 @@ function buildMorningMessage_(ctx) {
       L.push('■ 制度の更新(' + ctx.watch.length + '件)');
       ctx.watch.forEach(function (w) {
         var line = '・' + w.name;
-        if (w.pdf) line += '\n  PDFが変わりました(' + w.pdf + ')';
+        if (w.pdf) line += '\n  ' + w.pdf;
         (w.added || []).slice(0, 3).forEach(function (t) { line += '\n  + ' + t; });
         (w.removed || []).slice(0, 3).forEach(function (t) { line += '\n  - ' + t; });
         var more = ((w.added || []).length - 3 > 0 ? (w.added.length - 3) : 0) + ((w.removed || []).length - 3 > 0 ? (w.removed.length - 3) : 0);

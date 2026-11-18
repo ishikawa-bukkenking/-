@@ -103,3 +103,24 @@ test('Chatwork: dry は送らない。test で部屋が未設定なら失敗と�
   assert.equal(r.result, '失敗'); assert.match(r.note, /未設定/);
   assert.equal(c.calls.filter(u => u.includes('chatwork')).length, 0);
 });
+
+test('ウォッチ(抜粋なしモード): 変化は知らせるが、抜粋も指紋も残さない', () => {
+  const st = newState(), c = boot(st);
+  run(c, 'setup()');
+  run(c, `(function(){var ss=openDb_(),t=readTab_(ss,'ウォッチ');t.forEach(function(w){w['種別']='html_hash';});writeTab_(ss,'ウォッチ',t);})()`);
+  run(c, 'collectDaily()');
+  c.TEST_TODAY = '2026-11-19';
+  st.page = st.page.split('業務改善助成金について').join('業務改善助成金について(変更)');
+  run(c, 'collectDaily()'); run(c, 'sendMorning()');
+  const msg = tab(c, '通知の履歴')[0]['メモ'];
+  assert.match(msg, /ページが更新されました/); assert.doesNotMatch(msg, /変更\)/);
+  assert.ok(tab(c, 'ウォッチ').every(w => !w['行の指紋']));
+});
+test('weeklyHealth: 日ごとの収集・エラー・通知を集計', () => {
+  const st = newState(), c = boot(st);
+  run(c, 'setup()'); run(c, 'collectDaily()'); run(c, 'sendMorning()');
+  c.TEST_TODAY = '2026-11-19'; st.listFail = true; run(c, 'collectDaily()'); run(c, 'sendMorning()');
+  const h = JSON.parse(JSON.stringify(run(c, 'weeklyHealth(3)')));
+  assert.equal(h.days.length, 3); assert.equal(h.okDays, 1);
+  assert.match(h.days[2].errors[0], /Jグランツ: HTTP 500/);
+});

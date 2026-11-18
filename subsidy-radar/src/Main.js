@@ -170,3 +170,34 @@ function sendTestPing() {
   Logger.log(r.result + ' ' + r.note);
   return r;
 }
+
+/**
+ * テスト期間の確認用: 直近N日(既定7日)について、収集のエラー、通知の成功/失敗、件数を集計して、ログに出す。
+ * 戻り値の days[] を見て、「取れなかった日」「送れなかった日」「誤検知らしい更新」を振り返る。
+ */
+function weeklyHealth(n) {
+  n = n || 7;
+  var ss = openDb_(), today = today_(), runs = readTab_(ss, TAB.RUNS), notices = readTab_(ss, TAB.NOTICE), hist = readTab_(ss, TAB.HISTORY);
+  var days = [];
+  for (var i = n - 1; i >= 0; i--) {
+    var d = shiftDate_(today, -i);
+    var rs = runs.filter(function (r) { return r['日付'] === d; });
+    var ns = notices.filter(function (r) { return r['日付'] === d; });
+    days.push({
+      date: d,
+      collected: rs.length > 0,
+      errors: rs.filter(function (r) { return r['エラー']; }).map(function (r) { return r['情報源'] + ': ' + r['エラー']; }),
+      notices: ns.map(function (r) { return r['モード'] + '/' + r['結果']; }),
+      updates: hist.filter(function (r) { return r['検知した日'] === d; }).length
+    });
+  }
+  var ok = days.filter(function (x) { return x.collected && !x.errors.length && x.notices.some(function (t) { return /成功|ドライ/.test(t); }); }).length;
+  var res = { days: days, okDays: ok, total: n };
+  Logger.log(JSON.stringify(res));
+  return res;
+}
+
+function shiftDate_(ymd, delta) {
+  var p = ymd.split('-'), t = new Date(Date.UTC(+p[0], p[1] - 1, +p[2]) + delta * 86400000);
+  return t.getUTCFullYear() + '-' + pad2_(t.getUTCMonth() + 1) + '-' + pad2_(t.getUTCDate());
+}
