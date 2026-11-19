@@ -33,6 +33,8 @@ function companyById_(id) {
   listCompanies_().forEach(function (c) { if (c.id === id) found = c; });
   return found;
 }
+/** 1エリアの入力データ(JSON)の上限(文字数)。スプレッドシートの1セルは5万文字までなので、GAS版は4.5万。Railway版は保存先(PostgreSQL)が大きいので、起動時に引き上げる */
+var AREA_JSON_MAX_ = 45000;
 function createCompany_(name) {
   name = String(name || '').trim();
   if (!name) throw new Error('会社名を入力してください。');
@@ -80,7 +82,7 @@ function createArea_(companyId, pref, city, initialValues) {
   if (!city) throw new Error('市区町村を入力してください。');
   var id = newId_(), values = Object.assign({}, initialValues ? omitKey_(initialValues, '_missing') : {}, { prefecture: pref, city: city, 'auto.created': todayIso_() }), sh = sheetOrThrow_(SHEET_AREA_);
   var json = JSON.stringify(values);
-  if (json.length > 45000) throw new Error('入力データが大きすぎます。');
+  if (json.length > AREA_JSON_MAX_) throw new Error('入力データが大きすぎます(' + json.length + '文字。上限 ' + AREA_JSON_MAX_ + '文字)。分布表の列を減らすなど、データを小さくしてください。');
   sh.getRange(Math.max(sh.getLastRow(), 1) + 1, 1, 1, 10).setValues([[id, c.id, c.name, pref, city, todayIso_(), nowIso_(), initialValues && initialValues._missing != null ? initialValues._missing : '', json, currentEmail_()]]);
   syncIndex_(function () { upsertIndexRow_(id); });
   return id;
@@ -92,7 +94,7 @@ function writeAreaValues_(areaId, mutate) {
     if (!a) throw new Error('エリアが見つかりません。');
     var res = mutate(a.values);
     var json = JSON.stringify(a.values);
-    if (json.length > 45000) throw new Error('入力データが大きすぎます。');
+    if (json.length > AREA_JSON_MAX_) throw new Error('入力データが大きすぎます(' + json.length + '文字。上限 ' + AREA_JSON_MAX_ + '文字)。分布表の列を減らすなど、データを小さくしてください。');
     var sh = sheetOrThrow_(SHEET_AREA_);
     sh.getRange(a.row, 4, 1, 2).setValues([[a.values.prefecture || a.pref, a.values.city || a.city]]);
     sh.getRange(a.row, 7).setValue(nowIso_());

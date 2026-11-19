@@ -113,6 +113,7 @@ function makeRuntime(bundleSrc, state, opts) {
   });
   ctx.__email = '';
   vm.runInContext(bundleSrc, ctx, { filename: 'Bundle.gs' });
+  vm.runInContext('AREA_JSON_MAX_ = ' + (opts.areaJsonMax || 8000000), ctx);   // 1セル5万文字の制限があるGAS版と違い、PostgreSQLには大きく保存できる
   ctx.__ss = ss;
   /** 変更されたデータを取り出す(保存用)。{ sheets?, props?, files: {id: rec} } */
   function takeDirty() {

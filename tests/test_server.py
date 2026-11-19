@@ -98,3 +98,24 @@ def test_favicon(tmp_path):
         assert 'rel="icon" type="image/png" href="data:image/png;base64,' in s.req(f"/?id={c['areaId']}")[2]   # LP
     finally:
         s.stop()
+
+
+@pytest.mark.skipif(not (ROOT / "node_modules" / "pg").exists(), reason="npm install が必要")
+def test_server_large_area_data(tmp_path):
+    """Railway版は、GAS版の1セル5万文字の制限を受けない(入力データが大きくても保存でき、再起動後も残る)"""
+    s = Srv(tmp_path, DEV)
+    try:
+        c = s.rpc("api_create_company", "株式会社大きい", "長野県", "上田市", "station")[1]["result"]
+        big = {"lines": [(f"路線{i}あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめも")[:30] for i in range(150)], "rows": [(f"始点駅{i}さしすせそたちつてと〜終点駅{i}なにぬねのはひふへほまみむめもやゆよらりるれろわをんあいうえおかきくけこ")[:58] for i in range(150)], "cells": [[str(i)] for i in range(150)]}
+        for k in ("land", "used_house", "used_mansion", "new_house"):
+            r = s.rpc("api_saveTable", c["areaId"], f"inputs.{k}.station_image", big)[1]
+            assert r["ok"], r
+        assert s.rpc("api_save", c["areaId"], {"inputs.used_house.price_man": "3550"})[1]["result"]["saved"] == 1   # 大きくなっても、他の入力が保存できる
+    finally:
+        s.stop()
+    s = Srv(tmp_path, DEV)
+    try:
+        t = s.rpc("api_get", c["areaId"])[1]["result"]
+        assert len(t["tables"]["inputs.new_house.station_image"]["rows"]) == 150 and t["values"]["inputs.used_house.price_man"] == "3550"
+    finally:
+        s.stop()

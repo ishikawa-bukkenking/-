@@ -183,7 +183,7 @@ function flush() {
     bad.forEach(function (k) { var f = document.querySelector('[data-k="' + k + '"]'); if (f) { f.classList.add('bad'); f.appendChild(el('div', { class: 'err', text: r.errors[k] + '(この項目は保存されていません)' })); } });
     setSaved(bad.length ? '保存できない項目があります' : '保存しました ' + new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }), bad.length > 0);
     loadStatus();
-  }).withFailureHandler(function (e) { saving = false; setSaved('保存に失敗: ' + (e.message || e), true); Object.keys(ch).forEach(function (k) { dirty[k] = ch[k]; }); })
+  }).withFailureHandler(function (e) { saving = false; setSaved('保存に失敗: ' + (e.message || e), true); show('保存に失敗しました: ' + (e.message || e) + '(入力した内容は保存されていません)', true); Object.keys(ch).forEach(function (k) { dirty[k] = ch[k]; }); })
     .api_save(cur, ch);
 }
 function refreshNeed() {

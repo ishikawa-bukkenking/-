@@ -83,6 +83,12 @@ const r = vm.runInContext(`(function () {
   api_saveTable(c6, 'inputs.land.station_image', { lines: ['東急池上', '東急多摩川', '東急大井', '東急東横'], rows: ['長原〜蒲田', '多摩川〜矢口渡', '北千束〜大岡山', '田園調布'], cells: [['63'], ['20'], [''], ['']] });
   var al = api_get(c6).tables['inputs.used_house.station_image'];
   r.mirror = [al.lines.join('/'), al.rows.join('/'), al.cells.map(function (c) { return c[0]; }).join(',')];
+  // 入力データが大きいとき(GAS版は1セル5万文字の制限): 保存できないときは、理由と大きさをエラーで知らせる
+  var c7 = api_create_company('株式会社大きい', '長野県', '上田市', 'station').areaId, big = { lines: [], rows: [], cells: [] };
+  for (var bi = 0; bi < 150; bi++) { big.lines.push(('路線' + bi + 'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめも').slice(0, 30)); big.rows.push(('始点駅' + bi + 'さしすせそたちつてと〜終点駅' + bi + 'なにぬねのはひふへほまみむめもやゆよらりるれろわをんあいうえおかきくけこ').slice(0, 58)); big.cells.push([String(bi)]); }
+  var bigErr = '';
+  try { ['land', 'used_house', 'used_mansion', 'new_house'].forEach(function (k) { api_saveTable(c7, 'inputs.' + k + '.station_image', big); }); } catch (e) { bigErr = e.message; }
+  r.bigGas = [bigErr.indexOf('大きすぎます') >= 0, bigErr.indexOf('文字。上限') > 0, AREA_JSON_MAX_];
   // 路線・駅版の会社に追加したエリアも同じパターン/会社の複製も引き継ぐ
   var a2 = api_add_area(stn.companyId, '長野県', '東御市').areaId, dup = api_duplicate_company(stn.companyId, '複製');
   r.inherit = [api_get(a2).pattern, api_get(dup.areaIds[0]).pattern, !!api_get(dup.areaIds[0]).tables['inputs.used_house.station_image']];

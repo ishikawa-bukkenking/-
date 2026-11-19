@@ -380,4 +380,5 @@ def test_station_pattern():
     assert r["namesOnly"] == [3, ["JR中央線/大糸線|上田駅〜屋代駅/松本駅|,"] * 3] and r["noCounts"] == [3, True]   # 路線・駅名だけ保存→他の種別に反映。件数は反映しない
     assert r["cleanup"] == [True, 5, ["多摩川〜蒲田"], None]   # 路線名が空の行は保存できず、まとめて削除できる
     assert r["mirror"] == ["東急池上/東急多摩川/東急大井/東急東横", "長原〜蒲田/多摩川〜矢口渡/北千束〜大岡山/田園調布", "7,,,"]   # 保存した路線・駅にそろう(件数が空の余分な行は消える)
+    assert r["bigGas"] == [True, True, 45000]   # GAS版は上限を超えると、理由つきのエラーで知らせる
     assert r["std"] == 300 and r["denied"]

@@ -77,7 +77,7 @@ function syncStationTables_(values, srcKey, src) {
 /** 路線・駅の表を保存する。書き換える前の表は1つ前の版として残す(「ひとつ前に戻す」用) */
 function putStationTable_(values, key, t) {
   var old = values[tableValueKey_(key)], nw = JSON.stringify({ caption: t.caption, cols: t.cols, lines: t.lines, rows: t.rows, cells: t.cells });
-  if (old && old !== nw && old.length < 6000) values['tblprev.' + key] = old;
+  if (old && old !== nw && old.length < 2500) values['tblprev.' + key] = old;   // 1つ前の版は小さい表だけ残す(入力データの大きさの上限に近づけないため)
   values[tableValueKey_(key)] = nw;
 }
 
@@ -233,7 +233,7 @@ function api_stationUndo(areaId, key) {
     if (!prev) throw new Error('戻せる内容がありません。');
     var now = values[tableValueKey_(key)];
     values[tableValueKey_(key)] = prev;
-    if (now && now.length < 6000) values['tblprev.' + key] = now; else delete values['tblprev.' + key];
+    if (now && now.length < 2500) values['tblprev.' + key] = now; else delete values['tblprev.' + key];
     var t = savedTable_(values, key); res = { table: t, total: t ? tableTotal_(t) : 0 };
   });
   return res;
