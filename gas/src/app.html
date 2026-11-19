@@ -269,20 +269,22 @@ function tableEditor(f, t) {
   return { node: tb, get: get };
 }
 /* 路線・駅別の物件数: 路線・駅・件数の行を、手入力・追加・削除できる(画像を貼ればAIが入れる) */
-function stationEditor(t) {
+function stationEditor(t, onChange) {
+  onChange = onChange || function () {};
   var tb = el('table', { class: 'stn-ed' }), rows = [];
   tb.appendChild(el('tr', {}, [el('th', { text: '路線' }), el('th', { text: '駅(から)' }), el('th', { text: '駅(まで)' }), el('th', { text: '物件数' }), el('th')]));
   function addRow(line, st, n) {
     var rg = String(st || '').split(/[〜~～]/), a = el('input', { type: 'text', value: line || '', placeholder: '例: JR中央線', 'aria-label': '路線' }), b = el('input', { type: 'text', value: (rg[0] || '').trim(), placeholder: '例: 上田駅', 'aria-label': '駅(から)' }), b2 = el('input', { type: 'text', value: (rg[1] || '').trim(), placeholder: '1駅だけなら空', 'aria-label': '駅(まで)' }),
       c = el('input', { type: 'text', inputmode: 'numeric', value: n === null || n === undefined ? '' : String(n), 'aria-label': '物件数' }), x = el('button', { type: 'button', class: 'ghost', text: '×', 'aria-label': 'この行を削除', style: 'padding:2px 10px;min-height:32px' });
     var tr = el('tr', {}, [el('td', {}, [a]), el('td', {}, [b]), el('td', {}, [b2]), el('td', {}, [c]), el('td', {}, [x])]), o = { tr: tr, a: a, b: b, b2: b2, c: c };
-    x.onclick = function () { tr.remove(); rows.splice(rows.indexOf(o), 1); };
+    x.onclick = function () { tr.remove(); rows.splice(rows.indexOf(o), 1); onChange(); };
+    [a, b, b2, c].forEach(function (i) { i.oninput = onChange; });
     rows.push(o); tb.appendChild(tr);
   }
   (t.rows || []).forEach(function (r, i) { addRow(t.lines[i], r, t.cells[i][0]); });
   if (!rows.length) { addRow('', '', null); addRow('', '', null); addRow('', '', null); }
   var add = el('button', { type: 'button', class: 'ghost', text: '行を追加' });
-  add.onclick = function () { addRow('', '', null); rows[rows.length - 1].b.focus(); };   // 同じ路線の続きを入力しやすいよう、路線名を引き継ぐ
+  add.onclick = function () { addRow('', '', null); rows[rows.length - 1].a.focus(); };   // 同じ路線の続きを入力しやすいよう、路線名を引き継ぐ
   var get = function () { return { caption: t.caption || '', lines: rows.map(function (o) { return o.a.value; }), rows: rows.map(function (o) { var f1 = o.b.value.trim(), f2 = o.b2.value.trim(); return f2 ? (f1 ? f1 + '〜' + f2 : f2) : f1; }), cells: rows.map(function (o) { return [o.c.value]; }) }; };
   return { node: tb, add: add, get: get };
 }
@@ -290,14 +292,27 @@ var stnFields = {}, prevs = {};
 /** 保存した路線・駅を反映した、他の種別の表を画面にも出す */
 function syncStn(synced) {
   var n = 0;
-  Object.keys(synced || {}).forEach(function (k) { tables[k] = synced[k]; n++; if (stnFields[k] && stnFields[k].tb) { stnFields[k].fresh = false; renderStation(stnFields[k]); } });
+  Object.keys(synced || {}).forEach(function (k) { tables[k] = synced[k]; n++; if (stnFields[k] && stnFields[k].tb && !stnFields[k].stDirty) { stnFields[k].fresh = false; renderStation(stnFields[k]); } });   // 入力中(未保存)の表は、書き換えない
   return n;
 }
 function renderStation(f, errMsg) {
   var box = f.tb; box.replaceChildren();
   if (errMsg) box.appendChild(el('p', { class: 'warn', text: errMsg }));
   var t = tables[f.k] || { lines: [], rows: [], cells: [] };
-  var ed = stationEditor(t), msg = el('span', { class: 'note' });
+  var msg = el('span', { class: 'note' }), ed = stationEditor(t, function () {   // 入力すると、少し待って自動で保存する(「保存」を押し忘れて消えないように)
+    f.stDirty = true; f.stVer = (f.stVer || 0) + 1; msg.textContent = '入力中…'; msg.className = 'note';
+    clearTimeout(f.stTimer); f.stTimer = setTimeout(function () { f.stSave(true); }, 900);
+  });
+  f.stDirty = false; clearTimeout(f.stTimer);
+  f.stSave = function (auto) {
+    clearTimeout(f.stTimer); var ver = f.stVer || 0; msg.textContent = '保存中…'; msg.className = 'note';
+    google.script.run.withSuccessHandler(function (r) {
+      tables[f.k] = r.table; prevs[f.k] = true; var n = syncStn(r.synced);
+      if ((f.stVer || 0) === ver) f.stDirty = false;   // 保存中にさらに入力していたら、その分は次の保存で
+      msg.textContent = '保存しました'; setSaved('保存しました(合計 ' + r.total.toLocaleString('ja-JP') + '件)' + (n ? '。路線・駅を他の' + n + '種別にも反映しました' : ''));
+      if (!auto) { f.fresh = false; renderStation(f); } loadStatus();
+    }).withFailureHandler(function (e) { msg.textContent = (e.message || e) + '(この行は保存されていません)'; msg.className = 'msg'; }).api_saveTable(cur, f.k, ed.get());
+  };
   box.appendChild(el('p', { class: 'note', text: '路線ごとに、駅の区間(○○駅〜○○駅。1駅だけなら「から」だけ)と、その路線の物件数を入力します。物件数は、ここに入れた件数の合計になります。保存すると、路線・駅が他の物件種別にも反映されます(件数は種別ごとに入力)。' + (tables[f.k] ? '' : '(未保存)') }));
   var blank = (t.lines || []).filter(function (l) { return !l; }).length;
   if (blank) {   // 路線名が空の行(余分な行)が混ざっているとき、まとめて削除できる
@@ -312,11 +327,7 @@ function renderStation(f, errMsg) {
   var sv = el('button', { type: 'button', text: '保存' }), rm = el('button', { type: 'button', class: 'ghost', text: '表を削除' }),
     fo = el('button', { type: 'button', class: 'ghost', text: '他の種別の路線・駅を取り込む' }), un = el('button', { type: 'button', class: 'ghost', text: 'ひとつ前に戻す' });
   rm.hidden = !tables[f.k]; un.hidden = !prevs[f.k];
-  sv.onclick = function () {
-    msg.textContent = '保存中…';
-    google.script.run.withSuccessHandler(function (r) { tables[f.k] = r.table; prevs[f.k] = true; f.fresh = false; var n = syncStn(r.synced); setSaved('保存しました(合計 ' + r.total.toLocaleString('ja-JP') + '件)' + (n ? '。路線・駅を他の' + n + '種別にも反映しました' : '')); renderStation(f); loadStatus(); })
-      .withFailureHandler(function (e) { msg.textContent = e.message || e; msg.className = 'msg'; }).api_saveTable(cur, f.k, ed.get());
-  };
+  sv.onclick = function () { f.stSave(false); };
   fo.onclick = function () {
     google.script.run.withSuccessHandler(function (r) { tables[f.k] = r.table; prevs[f.k] = true; f.fresh = false; setSaved('他の種別から' + r.added + '行を取り込みました'); renderStation(f); loadStatus(); })
       .withFailureHandler(function (e) { msg.textContent = e.message || e; msg.className = 'msg'; }).api_stationFromOthers(cur, f.k);
@@ -716,11 +727,12 @@ function route() {
   var h = location.hash || '', m = /id=([A-Za-z0-9]+)/.exec(h);
   if (m) viewEdit(m[1]); else if (h === '#fr') viewFranchises(); else if (h === '#set') viewSettings(); else viewList();
 }
-function flushNow(next) { clearTimeout(timer); if (Object.keys(dirty).length || saving) { flush(); setTimeout(next, 900); } else next(); }
+function flushStn() { var any = false; Object.keys(stnFields).forEach(function (k) { var f = stnFields[k]; if (f.stDirty && f.stSave) { any = true; f.stSave(true); } }); return any; }
+function flushNow(next) { clearTimeout(timer); var st = flushStn(); if (Object.keys(dirty).length || saving) { flush(); setTimeout(next, 900); } else if (st) setTimeout(next, 900); else next(); }
 $('navlist').onclick = function () { flushNow(function () { location.hash = ''; route(); }); };
 $('navfr').onclick = function () { flushNow(function () { location.hash = 'fr'; route(); }); };
 $('navset').onclick = function () { flushNow(function () { location.hash = 'set'; route(); }); };
-window.addEventListener('beforeunload', function (e) { if (Object.keys(dirty).length) { flush(); e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', function (e) { var st = flushStn(); if (Object.keys(dirty).length || st) { flush(); e.preventDefault(); e.returnValue = ''; } });
 window.addEventListener('hashchange', function () { if ($('who').textContent) route(); });
 PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県','埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県','岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県','鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県','佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
 google.script.run.withSuccessHandler(function (r) {

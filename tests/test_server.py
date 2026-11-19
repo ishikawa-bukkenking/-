@@ -119,3 +119,22 @@ def test_server_large_area_data(tmp_path):
         assert len(t["tables"]["inputs.new_house.station_image"]["rows"]) == 150 and t["values"]["inputs.used_house.price_man"] == "3550"
     finally:
         s.stop()
+
+
+def _chrome():
+    import glob
+    c = os.environ.get("CHROME") or next(iter(sorted(glob.glob("/opt/pw-browsers/chromium-*/chrome-linux*/chrome"))), "")
+    return c if c and Path(c).exists() else ""
+
+
+@pytest.mark.skipif(not (ROOT / "node_modules" / "pg").exists() or not (ROOT / "node_modules" / "playwright-core").exists() or not _chrome(), reason="ブラウザまたは playwright-core が無い")
+def test_station_table_autosave_in_browser(tmp_path):
+    """路線・駅の表は、入力すると自動で保存され、他の種別の保存で入力中の内容が消えない"""
+    s = Srv(tmp_path, DEV)
+    try:
+        r = subprocess.run(["node", str(ROOT / "tests" / "ui_station.mjs"), _chrome(), f"http://127.0.0.1:{s.port}"], capture_output=True, text=True, timeout=120)
+        assert r.returncode == 0, r.stderr
+        j = json.loads(r.stdout.strip().splitlines()[-1])
+        assert j["autosaved"] == [93, "上田駅〜屋代駅"] and j["kept"] == [True, 7, "7"] and j["reload"] == ["93", "7"] and j["errs"] == []
+    finally:
+        s.stop()
