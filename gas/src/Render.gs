@@ -57,11 +57,18 @@ function stationBlock_(sec, label) {
     }).join('') + '</div><p class="stn-all">合計 <b>' + num_(total) + '件</b></p></div>';
 }
 
-function houseSection_(id, no, sec, label, sfx) {   // no: 表示用の連番(文字列)
+/** 面積・築年数などの中央値(入力した値を、各物件種別のセクションにも出す)。rows: [[ラベル, 値, 単位, 小数桁]] */
+function medianKpis_(rows) {
+  if (!rows || !rows.length) return '';
+  return '<div class="grid g' + Math.min(rows.length, 3) + ' medians" style="margin-top:16px">' +
+    rows.map(function (r) { return kpi_(r[1], r[2], r[0], 'flat', r[3]); }).join('') + '</div>';
+}
+
+function houseSection_(id, no, sec, label, sfx, medians) {   // no: 表示用の連番(文字列)
   var ok = sec.price_man != null && sec.listings != null;   // 相場だけ入っていても、見出しに出す(物件数は入っていれば添える)
   var h2 = sec.price_man != null ? esc_(label) + 'の相場は<span class="em">' + num_(sec.price_man) + '万円</span>' + (sec.listings != null ? '、物件数は<span class="em">' + num_(sec.listings) + '件</span>' : '') : esc_(label) + 'の価格相場・物件数';
   var s = '<section class="sec' + (Number(no) % 2 === 0 ? ' alt' : '') + '" id="' + id + '"><div class="wrap rv"><p class="sec-no">' + no + '　' + esc_(label) + (sfx || '') + '</p><h2>' + h2 + '</h2>';
-  s += '<div class="grid g2" style="max-width:640px">' + kpi_(sec.price_man, '万円', '売却価格相場') + kpi_(sec.listings, '件', '物件数') + '</div>';
+  s += '<div class="grid g2" style="max-width:640px">' + kpi_(sec.price_man, '万円', '売却価格相場') + kpi_(sec.listings, '件', '物件数') + '</div>' + medianKpis_(medians);
   if (!ok) s += '<div style="margin-top:16px">' + slot_(label + 'の相場・物件数', [label + 'の相場・物件数']) + '</div>';
   s += '<div style="margin-top:28px">';
   if (sec.table) {
@@ -227,11 +234,17 @@ function renderPage_(models, report, assets, styleCss, multi) {
     '</h2><div class="grid g4">' + kpi_(land.tsubo_price_man, '万円/坪', '坪単価', 'accent') + kpi_(land.tsubo_price_low_rise_residential_man, '万円/坪', '低層住居専用地域相場', 'flat') +
     kpi_(land.tsubo_price_other_residential_man, '万円/坪', 'それ以外の住居専用地域', 'flat') + kpi_(land.listings, '件', '物件数', 'flat') + '</div>' +
     (land.tsubo_note ? '<p class="note" style="margin-top:12px">※「坪単価」は用途地域を問わず全物件を対象とした中央値のため、用途地域別の相場より低くなる場合があります。</p>' : '') +
+    medianKpis_([['平米単価相場(中央値)', land.price_per_m2_man, '万円/㎡', 1], ['土地面積(中央値)', land.land_area_median_m2, '㎡']]) +
     ((land.tsubo_price_man == null || land.listings == null) ? '<div style="margin-top:14px">' + slot_('土地の坪単価・物件数', ['土地の坪単価・物件数']) + '</div>' : '') +
     '<div class="card" style="margin-top:24px"><p class="sub">' + esc_(m.city) + 'と近隣・県内主要市の比較（坪単価）</p>' +
     (landOk ? '<div class="chart-d">' + landBarsSvg_(items, false) + '</div><div class="chart-c">' + landBarsSvg_(items, true) + '</div>' :
       slot_('近隣・県内主要市の坪単価', ['比較市(市名,坪単価)'].concat(land.compare.suggested.length ? ['候補(隣接市): ' + land.compare.suggested.join('、')] : []))) + '</div>' + srcline_(land) + stationBlock_(land, '土地') + '</div></section>');
-  [['used_house', uh, '中古戸建て'], ['used_mansion', um, '中古マンション'], ['new_house', nh, '新築戸建て']].forEach(function (x) { if (vis[x[0]]) h.push(houseSection_(ID(x[0]), N(), x[1], x[2], SFX)); });
+  var MED = {
+    used_house: [['建物面積(中央値)', uh.building_area_median_m2, '㎡'], ['土地面積(中央値)', uh.land_area_median_m2, '㎡'], ['築年数(中央値)', uh.age_median_years, '年']],
+    used_mansion: [['専有面積(中央値)', um.exclusive_area_median_m2, '㎡'], ['築年数(中央値)', um.age_median_years, '年']],
+    new_house: [['建物面積(中央値)', nh.building_area_median_m2, '㎡'], ['土地面積(中央値)', nh.land_area_median_m2, '㎡']]
+  };
+  [['used_house', uh, '中古戸建て'], ['used_mansion', um, '中古マンション'], ['new_house', nh, '新築戸建て']].forEach(function (x) { if (vis[x[0]]) h.push(houseSection_(ID(x[0]), N(), x[1], x[2], SFX, MED[x[0]])); });
   // 08 search(見出しの文章は出さない。セクション名と表だけ)
   h.push('<section class="sec' + alt() + '" id="' + ID('search') + '"><div class="wrap rv"><p class="sec-no">' + N() + '　検索ボリューム' + SFX + '</p>' +
     '<div class="card"><table class="kw"><thead><tr><th scope="col">検索キーワード</th><th scope="col">月間平均検索ボリューム</th><th scope="col">予想クリック単価</th></tr></thead><tbody>' +
