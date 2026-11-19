@@ -27,10 +27,11 @@ const r = vm.runInContext(`(function () {
   r.html = [b.html.indexOf('class="stn-blk"') > 0, b.html.indexOf('JR中央線') > 0, b.html.indexOf('上田駅') > 0, b.html.indexOf('合計 <b>155件</b>') > 0, b.html.indexOf('中古戸建ての相場は<span class="em">3,550万円</span>、物件数は<span class="em">155件</span>') > 0];
   r.stdHtml = buildArea_(std.areaId).html.indexOf('stn-blk"') < 0 && buildArea_(std.areaId).html.indexOf('class="stn-blk"') < 0;
   r.missing = buildArea_(stn.areaId).report.missing().map(function (i) { return i.key; }).filter(function (k) { return /stations|listings/.test(k); }).sort();
-  // 画像を貼る → AIが路線・駅の表にする
-  api_uploadImage(stn.areaId, 'inputs.land.station_image', __png);
-  var t = api_readTable(stn.areaId, 'inputs.land.station_image', true);
-  r.ai = [t.rows, t.lines, t.cells, t.total, t.warnings.length];
+  // 画像の入力はない(アップロードも、AIの読み取りも使えない)
+  var noImg; try { api_uploadImage(stn.areaId, 'inputs.land.station_image', __png); noImg = ''; } catch (e) { noImg = e.message; }
+  var noAi; try { api_readTable(stn.areaId, 'inputs.land.station_image', true); noAi = ''; } catch (e) { noAi = e.message; }
+  r.noImage = [noImg.indexOf('登録できない') >= 0, noAi.indexOf('手入力') >= 0, api_get(stn.areaId).fields.filter(function (f) { return /station_image/.test(f.k || ''); }).every(function (f) { return f.t === 'stations'; })];
+  api_saveTable(stn.areaId, 'inputs.land.station_image', { lines: ['JR中央線', 'JR中央線', 'しなの鉄道'], rows: ['上田駅', '西上田駅', '大屋駅'], cells: [['120'], ['35'], ['']] });
   var m2 = buildArea_(stn.areaId).model;
   r.land = [m2.land.listings, !!m2.land.stations, JSON.stringify(m2).indexOf('station_image') < 0];
   // 保存した路線・駅は、他の種別にも反映される(件数は種別ごと・件数が入っている行は残る)
@@ -46,15 +47,8 @@ const r = vm.runInContext(`(function () {
   var sy2 = api_saveTable(stn.areaId, 'inputs.used_house.station_image', { lines: ['JR中央線'], rows: ['上田駅'], cells: [['120']] });
   r.syncHidden = Object.keys(sy2.synced).indexOf('inputs.new_house.station_image') < 0;
   api_save(stn.areaId, { 'show.new_house': '' });
-  // 画像を貼っても、入力済みの路線・駅は消えない(読み取った件数を重ねる)。差し替え・削除でも残る
   api_saveTable(stn.areaId, 'inputs.used_house.station_image', { lines: ['JR中央線', 'JR中央線', 'しなの鉄道', 'JR篠ノ井線'], rows: ['上田駅', '西上田駅', '大屋駅', '篠ノ井駅'], cells: [['1'], [''], [''], ['44']] });
-  api_uploadImage(stn.areaId, 'inputs.used_house.station_image', __png);
-  var held = api_get(stn.areaId).tables['inputs.used_house.station_image'];
-  r.keepOnUpload = [held.rows.length, held.cells[0][0]];
-  var rd = api_readTable(stn.areaId, 'inputs.used_house.station_image', true), after = api_get(stn.areaId).tables['inputs.used_house.station_image'];
-  r.merged = [after.rows, after.cells.map(function (c) { return c[0]; })];   // AI: 上田駅120・西上田駅35・大屋駅(null)。篠ノ井駅は残る
-  api_save(stn.areaId, { 'inputs.used_house.station_image': '' });
-  r.keepOnDelete = api_get(stn.areaId).tables['inputs.used_house.station_image'].rows.length;
+  api_saveTable(stn.areaId, 'inputs.used_house.station_image', { lines: ['JR中央線', 'JR中央線', 'しなの鉄道', 'JR篠ノ井線'], rows: ['上田駅', '西上田駅', '大屋駅', '篠ノ井駅'], cells: [['120'], ['35'], [''], ['44']] });
   // ひとつ前に戻す/他の種別から取り込む
   var un = api_stationUndo(stn.areaId, 'inputs.used_house.station_image');
   r.undo = [un.table.cells.map(function (c) { return c[0]; }), api_get(stn.areaId).prevs['inputs.used_house.station_image']];

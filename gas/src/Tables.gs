@@ -73,19 +73,6 @@ function syncStationTables_(values, srcKey, src) {
   return out;
 }
 
-/** 画像から読み取った表を、いま入っている表に重ねる。入力済みの路線・駅は消さず、読み取った件数で更新し、新しい行は末尾に足す(読み取れなかった件数は、いまの値を残す) */
-function mergeStationTables_(cur, add) {
-  if (!cur || !cur.rows.length) return add;
-  var pos = {}, lines = cur.lines.slice(), rows = cur.rows.slice(), cells = cur.cells.map(function (c) { return [c[0]]; });
-  rows.forEach(function (r, i) { pos[stnId_(lines[i], r)] = i; });
-  add.rows.forEach(function (r, i) {
-    var id = stnId_(add.lines[i], r), n = add.cells[i][0];
-    if (pos[id] !== undefined) { if (n !== null) cells[pos[id]][0] = n; }
-    else { pos[id] = rows.length; lines.push(add.lines[i] || ''); rows.push(r); cells.push([n]); }
-  });
-  return { caption: cur.caption || add.caption, cols: ['物件数'], lines: lines, rows: rows, cells: cells, warnings: add.warnings };
-}
-
 /** 路線・駅の表を保存する。書き換える前の表は1つ前の版として残す(「ひとつ前に戻す」用) */
 function putStationTable_(values, key, t) {
   var old = values[tableValueKey_(key)], nw = JSON.stringify({ caption: t.caption, cols: t.cols, lines: t.lines, rows: t.rows, cells: t.cells });
@@ -113,18 +100,6 @@ var TREND_PROMPT_ = [
   'cells は rows と同じ行数、cols と同じ列数にしてください。'
 ].join('\n');
 
-var STATION_PROMPT_ = [
-  'この画像は、不動産の「路線・駅ごとの物件数」の表(またはグラフ)です。内容を、一切変えずに正確に読み取ってください。',
-  '- 路線ごとに1行にします。路線名(lines)、その路線の駅の区間(rows)、その路線の物件数(cells の数値)を書き写します。',
-  '- 駅の区間(rows)は、「始点駅〜終点駅」の形(例: 上田駅〜大屋駅)にします。1つの駅だけの路線は、駅名だけ(例: 上田駅)にします。駅の記載が無い路線は空文字にします。',
-  '- 路線の中で駅ごとに物件数が分かれて載っている場合は、駅ごとの数を足した路線の合計を cells に入れます(足せないときは null にして warnings に書く)。',
-  '- 物件数が読み取れない・自信がない行は推測せず null にし、warnings にその位置を日本語で書きます。',
-  '- caption には、表のタイトルや単位の説明が画像にあれば書き写します(無ければ空文字)。',
-  '次のJSONだけを返してください(説明文やコードブロックは付けない)。',
-  '{"caption":"","lines":["路線名",...],"rows":["駅名",...],"cells":[[数値またはnull],...],"warnings":["..."]}',
-  'lines・rows・cells は同じ行数にしてください。'
-].join('\n');
-
 var TABLE_PROMPT_ = [
   'この画像は、不動産の「面積×価格」の分布表(ヒートマップ)です。表の内容を、一切変えずに正確に読み取ってください。',
   '- 行見出し(面積の区分など)、列見出し(価格の区分など)、各セルの数値を、画像に書かれているとおり書き写します。',
@@ -149,7 +124,7 @@ function aiReadTable_(base64, mediaType, key, fetch, kind) {
     model: AI_MODEL_, max_tokens: 8000, output_config: { effort: 'low' },
     messages: [{ role: 'user', content: [
       { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-      { type: 'text', text: kind === 'trend' ? TREND_PROMPT_ : kind === 'station' ? STATION_PROMPT_ : TABLE_PROMPT_ }] }]
+      { type: 'text', text: kind === 'trend' ? TREND_PROMPT_ : TABLE_PROMPT_ }] }]
   };
   var res = fetch('https://api.anthropic.com/v1/messages', {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true,
@@ -164,7 +139,7 @@ function aiReadTable_(base64, mediaType, key, fetch, kind) {
   if (r.stop_reason === 'max_tokens') throw new Error('表が大きすぎて読み取りきれませんでした。');
   var text = (r.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('');
   var raw = extractJson_(text);
-  var t = kind === 'station' ? normalizeStationTable_(raw) : normalizeTable_(raw, kind === 'trend');
+  var t = normalizeTable_(raw, kind === 'trend');
   t.warnings = (raw.warnings || []).map(String).slice(0, 10);
   return t;
 }
@@ -178,25 +153,20 @@ function savedTable_(values, key) {
 /** 保存済みの画像をAIで読み取る。save=true なら表として自動保存(貼り付け時)。false は候補を返すだけ */
 function api_readTable(areaId, key, save) {
   requireUser_();
-  if (!isTableKey_(key)) throw new Error('この項目は表に作り直せません。');
+  if (!isTableKey_(key) || isStationKey_(key)) throw new Error('この項目は表に作り直せません(路線・駅別の物件数は手入力です)。');
   var a = areaById_(areaId);
   if (!a) throw new Error('エリアが見つかりません。');
   var ref = String(a.values[key] || '').match(/^drive:([A-Za-z0-9_-]+)$/);
   if (!ref) throw new Error('先に画像を登録してください。');
   var blob = DriveApp.getFileById(ref[1]).getBlob();
-  var t = aiReadTable_(Utilities.base64Encode(blob.getBytes()), blob.getContentType(), aiKey_(), function (u, o) { return UrlFetchApp.fetch(u, o); }, key === TREND_KEY_ ? 'trend' : isStationKey_(key) ? 'station' : 'table');
+  var t = aiReadTable_(Utilities.base64Encode(blob.getBytes()), blob.getContentType(), aiKey_(), function (u, o) { return UrlFetchApp.fetch(u, o); }, key === TREND_KEY_ ? 'trend' : 'table');
   t.total = tableTotal_(t);
   if (save) {   // 貼り付けたら自動で表にして保存する(あとから画面で直せる)
-    var merged = t;
     writeAreaValues_(areaId, function (values) {
       if (values[key] !== a.values[key]) throw new Error('画像が差し替えられました。もう一度やり直してください。');
+      values[tableValueKey_(key)] = JSON.stringify(t);
       var dk = dateKeyFor_(key); if (dk) values[dk] = todayStr_();
-      if (isStationKey_(key)) {   // 入力済みの路線・駅は消さずに、読み取った内容を重ねる
-        merged = mergeStationTables_(savedTable_(values, key), t); merged.total = tableTotal_(merged);
-        putStationTable_(values, key, merged); merged.synced = syncStationTables_(values, key, merged);
-      } else values[tableValueKey_(key)] = JSON.stringify(t);
     });
-    t = merged;
   }
   return t;
 }
