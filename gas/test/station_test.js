@@ -24,7 +24,7 @@ const r = vm.runInContext(`(function () {
   var bad2; try { api_saveTable(stn.areaId, 'inputs.used_house.station_image', { lines: [''], rows: [''], cells: [['5']] }); bad2 = ''; } catch (e) { bad2 = e.message; } r.bad2 = bad2.indexOf('路線名か駅名') >= 0;
   var b = buildArea_(stn.areaId), m = b.model;
   r.listings = [m.used_house.listings, m.pattern, m.totals.listings_total];
-  r.html = [b.html.indexOf('class="stn-blk"') > 0, b.html.indexOf('JR中央線') > 0, b.html.indexOf('上田駅') > 0, b.html.indexOf('合計 <b>155件</b>') > 0, b.html.indexOf('中古戸建ての相場は<span class="em">3,550万円</span>、物件数は<span class="em">155件</span>') > 0];
+  r.html = [b.html.indexOf('class="stn-blk"') > 0, b.html.indexOf('JR中央線') > 0, b.html.indexOf('上田駅') > 0, b.html.indexOf('<th scope="row">合計</th><td>155<small>件</small>') > 0, b.html.indexOf('中古戸建ての相場は<span class="em">3,550万円</span>、物件数は<span class="em">155件</span>') > 0];
   r.stdHtml = buildArea_(std.areaId).html.indexOf('stn-blk"') < 0 && buildArea_(std.areaId).html.indexOf('class="stn-blk"') < 0;
   r.missing = buildArea_(stn.areaId).report.missing().map(function (i) { return i.key; }).filter(function (k) { return /stations|listings/.test(k); }).sort();
   // 画像を貼る → AIが路線・駅の表にする
