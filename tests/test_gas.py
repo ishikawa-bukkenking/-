@@ -378,4 +378,5 @@ def test_station_pattern():
     assert r["undo"] == [[1, None, None, 44], True] and r["noPrev"] and r["fromOthers"] == [True, True]
     assert r["range"] == [["上田駅〜屋代駅", "上田駅〜別所温泉駅", "松本駅"], True, True, 35]   # 路線ごとに駅の区間(または1駅)
     assert r["namesOnly"] == [3, ["JR中央線/大糸線|上田駅〜屋代駅/松本駅|,"] * 3] and r["noCounts"] == [3, True]   # 路線・駅名だけ保存→他の種別に反映。件数は反映しない
+    assert r["cleanup"] == [True, 5, ["多摩川〜蒲田"], None]   # 路線名が空の行は保存できず、まとめて削除できる
     assert r["std"] == 300 and r["denied"]

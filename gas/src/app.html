@@ -299,6 +299,15 @@ function renderStation(f, errMsg) {
   var t = tables[f.k] || { lines: [], rows: [], cells: [] };
   var ed = stationEditor(t), msg = el('span', { class: 'note' });
   box.appendChild(el('p', { class: 'note', text: '路線ごとに、駅の区間(○○駅〜○○駅。1駅だけなら「から」だけ)と、その路線の物件数を入力します。物件数は、ここに入れた件数の合計になります。保存すると、路線・駅が他の物件種別にも反映されます(件数は種別ごとに入力)。' + (tables[f.k] ? '' : '(未保存)') }));
+  var blank = (t.lines || []).filter(function (l) { return !l; }).length;
+  if (blank) {   // 路線名が空の行(余分な行)が混ざっているとき、まとめて削除できる
+    var cb = el('button', { type: 'button', class: 'ghost', text: '路線名が空の' + blank + '行を削除' });
+    cb.onclick = function () {
+      google.script.run.withSuccessHandler(function (r) { Object.keys(r.tables).forEach(function (k) { tables[k] = r.tables[k]; if (stnFields[k]) { stnFields[k].fresh = false; renderStation(stnFields[k]); } }); setSaved('路線名が空の' + r.removed + '行を削除しました'); loadStatus(); })
+        .withFailureHandler(function (e) { msg.textContent = e.message || e; msg.className = 'msg'; }).api_stationCleanup(cur);
+    };
+    box.appendChild(el('p', { class: 'warn' }, [document.createTextNode('路線名が空の行が' + blank + '行あります(面積の区分など、別の表の内容が混ざった行です)。'), cb]));
+  }
   box.appendChild(el('div', { class: 'tbl' }, [ed.node]));
   var sv = el('button', { type: 'button', text: '保存' }), rm = el('button', { type: 'button', class: 'ghost', text: '表を削除' }),
     fo = el('button', { type: 'button', class: 'ghost', text: '他の種別の路線・駅を取り込む' }), un = el('button', { type: 'button', class: 'ghost', text: 'ひとつ前に戻す' });

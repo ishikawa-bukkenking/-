@@ -175,6 +175,7 @@ function api_saveTable(areaId, key, table) {
   requireUser_();
   if (!isTableKey_(key)) throw new Error('この項目は表に作り直せません。');
   var t = isStationKey_(key) ? normalizeStationTable_(table) : normalizeTable_(table, key === TREND_KEY_);
+  if (isStationKey_(key)) t.lines.forEach(function (ln, i) { if (!ln) throw new Error('路線名を入力してください(' + (i + 1) + '行目: ' + (t.rows[i] || '') + ')。不要な行は「×」で削除するか、「路線名が空の行を削除」を押してください。'); });
   var synced = {};
   writeAreaValues_(areaId, function (values) {
     var dk = dateKeyFor_(key); if (dk) values[dk] = todayStr_();
@@ -200,6 +201,25 @@ function api_stationFromOthers(areaId, key) {
     putStationTable_(values, key, cur); res = { table: cur, added: add, total: tableTotal_(cur) };
   });
   return res;
+}
+
+/** 路線名が空の行(路線・駅の表に混ざった余分な行)を、このエリアの全種別の表から削除する */
+function api_stationCleanup(areaId) {
+  requireUser_();
+  var removed = 0, tables = {};
+  writeAreaValues_(areaId, function (values) {
+    STATION_KEYS_.forEach(function (k) {
+      var t = savedTable_(values, k);
+      if (!t) return;
+      var lines = [], rows = [], cells = [];
+      t.rows.forEach(function (r, i) { if (t.lines[i]) { lines.push(t.lines[i]); rows.push(r); cells.push(t.cells[i]); } else removed++; });
+      if (rows.length === t.rows.length) { tables[k] = t; return; }
+      var nt = { caption: t.caption, cols: ['物件数'], lines: lines, rows: rows, cells: cells };
+      if (rows.length) putStationTable_(values, k, nt); else { values['tblprev.' + k] = values[tableValueKey_(k)]; delete values[tableValueKey_(k)]; nt = null; }
+      tables[k] = nt;
+    });
+  });
+  return { removed: removed, tables: tables };
 }
 
 /** 路線・駅の表を、ひとつ前の版に戻す(いまの表は入れ替わりで「ひとつ前」になる) */

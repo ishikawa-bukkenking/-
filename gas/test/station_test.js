@@ -68,6 +68,15 @@ const r = vm.runInContext(`(function () {
   api_saveTable(c3, 'inputs.land.station_image', { lines: ['JR中央線', '大糸線', '篠ノ井線'], rows: ['上田駅〜屋代駅', '松本駅', '篠ノ井駅'], cells: [['100'], ['50'], ['']] });
   var g4 = api_get(c3).tables['inputs.used_house.station_image'];
   r.noCounts = [g4.rows.length, g4.cells.every(function (c) { return c[0] === null; })];
+  // 路線名が空の行(混ざった余分な行)は、まとめて削除できる。保存時は路線名を必須にする
+  var c5 = api_create_company('株式会社掃除', '長野県', '上田市', 'station').areaId;
+  writeAreaValues_(c5, function (v) {
+    v['tbl.inputs.land.station_image'] = JSON.stringify({ caption: '', cols: ['物件数'], lines: ['東急多摩川線', '', '', ''], rows: ['多摩川〜蒲田', '〜450m²', '400〜450m²', '350〜400m²'], cells: [[5], [null], [null], [null]] });
+    v['tbl.inputs.used_house.station_image'] = JSON.stringify({ caption: '', cols: ['物件数'], lines: ['', ''], rows: ['〜50m²', '50〜100m²'], cells: [[null], [null]] });
+  });
+  var bs; try { api_saveTable(c5, 'inputs.land.station_image', { lines: ['東急多摩川線', '', ''], rows: ['多摩川〜蒲田', '〜450m²', '400〜450m²'], cells: [['5'], [''], ['']] }); bs = ''; } catch (e) { bs = e.message; }
+  var cl = api_stationCleanup(c5), tt = api_get(c5).tables;
+  r.cleanup = [bs.indexOf('路線名を入力') >= 0, cl.removed, tt['inputs.land.station_image'].rows, tt['inputs.used_house.station_image']];
   // 路線・駅版の会社に追加したエリアも同じパターン/会社の複製も引き継ぐ
   var a2 = api_add_area(stn.companyId, '長野県', '東御市').areaId, dup = api_duplicate_company(stn.companyId, '複製');
   r.inherit = [api_get(a2).pattern, api_get(dup.areaIds[0]).pattern, !!api_get(dup.areaIds[0]).tables['inputs.used_house.station_image']];
