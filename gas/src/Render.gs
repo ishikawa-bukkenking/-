@@ -38,24 +38,23 @@ function mapLegend_(pins) {
   return '<p class="map-legend">' + parts.join('') + '</p>';
 }
 
-/** 路線・駅別の物件数(路線ごとのカードに、駅ごとの件数を棒つきで並べる)。標準版のLPでは出さない */
+/** 路線・駅別の物件数(シンプルな表: 路線の行の下に、駅と物件数の行を並べる)。標準版のLPでは出さない */
 function stationBlock_(sec, label) {
   var t = sec.stations;
   if (!t || !t.rows || !t.rows.length) return '';
-  var groups = [], idx = {}, max = 1, total = 0;
+  var groups = [], idx = {}, total = 0;
   t.rows.forEach(function (st, i) {
     var ln = t.lines[i] || '', n = t.cells[i][0];
     if (idx[ln] === undefined) { idx[ln] = groups.length; groups.push({ line: ln, items: [], sum: 0 }); }
-    var g = groups[idx[ln]]; g.items.push({ st: st, n: n }); g.sum += n || 0; total += n || 0; if ((n || 0) > max) max = n;
+    var g = groups[idx[ln]]; g.items.push({ st: st, n: n }); g.sum += n || 0; total += n || 0;
   });
-  var many = t.rows.length > 14;
-  return '<div class="stn-blk"><p class="sub">' + esc_(label) + 'の路線・駅別の物件数<span class="stn-total">合計 ' + num_(total) + '件</span></p><div class="stn-grid' + (many ? ' many' : '') + '">' +
+  var many = t.rows.length + groups.length > 22;
+  return '<div class="stn-blk"><p class="sub">' + esc_(label) + 'の路線・駅別の物件数</p><div class="stn-cols' + (many ? ' many' : '') + '">' +
     groups.map(function (g) {
-      return '<div class="stn-line"><h4>' + esc_(g.line || 'その他') + (g.items.length > 1 || g.items[0].st ? '<span class="stn-sum">' + num_(g.sum) + '件</span>' : '') + '</h4><ul>' +
-        g.items.map(function (it) {
-          return '<li><span class="stn-name">' + (it.st ? esc_(it.st) : '路線全体') + '</span><span class="stn-bar"><i style="width:' + roundHalfUp_(100 * (it.n || 0) / max, 1) + '%"></i></span><span class="stn-n">' + (it.n != null ? num_(it.n) + '<small>件</small>' : '<small>—</small>') + '</span></li>';
-        }).join('') + '</ul></div>';
-    }).join('') + '</div></div>';
+      var only = g.items.length === 1 && !g.items[0].st;   // 駅名なし: 路線全体の1行
+      return '<table class="stn"><tbody><tr class="stn-l"><th scope="col">' + esc_(g.line || 'その他') + '</th><td>' + (only ? (g.items[0].n != null ? num_(g.items[0].n) + '件' : '—') : '計 ' + num_(g.sum) + '件') + '</td></tr>' +
+        (only ? '' : g.items.map(function (it) { return '<tr><th scope="row">' + esc_(it.st || '路線全体') + '</th><td>' + (it.n != null ? num_(it.n) + '件' : '—') + '</td></tr>'; }).join('')) + '</tbody></table>';
+    }).join('') + '</div><p class="stn-all">合計 <b>' + num_(total) + '件</b></p></div>';
 }
 
 function houseSection_(id, no, sec, label, sfx) {   // no: 表示用の連番(文字列)
