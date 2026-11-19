@@ -74,7 +74,7 @@ function api_get(areaId) {
   var siblings = listAreas_().filter(function (x) { return x.companyId === a.companyId; }).map(function (x) { return { id: x.id, label: x.pref + ' ' + x.city }; });
   var pattern = a.values.pattern === 'station' ? 'station' : 'standard';
   return { id: a.id, company: c ? { id: c.id, name: c.name } : { id: '', name: '' }, pattern: pattern, fields: fieldsMeta_(pattern), values: a.values, images: images,
-    tables: TABLE_KEYS_.reduce(function (o, k) { o[k] = savedTable_(a.values, k); return o; }, {}), aiReady: !!aiKey_(),
+    tables: TABLE_KEYS_.reduce(function (o, k) { o[k] = savedTable_(a.values, k); return o; }, {}), prevs: STATION_KEYS_.reduce(function (o, k) { o[k] = !!a.values['tblprev.' + k]; return o; }, {}), aiReady: !!aiKey_(),
     autoHouseholds: a.values['auto.households'] ? Number(a.values['auto.households']) : null, hasEstat: !!st.estat,
     url: lpUrl_(st, primaryAreaId_(a)), primary: primaryAreaId_(a) === a.id, provisional: !st.url, prefectures: PREFECTURES, siblings: siblings };
 }
@@ -90,7 +90,7 @@ function api_save(areaId, changes) {
       var isImg = isImageKey_(k);
       var err = isImg ? (v.trim() === '' ? '' : '画像はアップロードで登録してください') : validateValue_(k, v);
       if (err) { errors[k] = err; return; }
-      if (isImg && values[k]) { trashImage_(values[k]); delete values[tableValueKey_(k)]; }
+      if (isImg && values[k]) { trashImage_(values[k]); if (!isStationKey_(k)) delete values[tableValueKey_(k)]; }   // 路線・駅の表は、手入力した内容を残す
       if (v.trim() === '') delete values[k]; else values[k] = v.trim();
       var dk = dateKeyFor_(k); if (dk) touched[dk] = 1;
       saved++;
@@ -126,7 +126,7 @@ function api_uploadImage(areaId, key, dataUrl) {
   var file = imageFolder_().createFile(Utilities.newBlob(bytes, 'image/' + m[1], areaId + '_' + key.replace(/[^A-Za-z0-9_]/g, '_') + (m[1] === 'png' ? '.png' : '.jpg')));
   writeAreaValues_(areaId, function (values) {
     if (values[key]) trashImage_(values[key]);
-    delete values[tableValueKey_(key)];
+    if (!isStationKey_(key)) delete values[tableValueKey_(key)];   // 路線・駅の表は、手入力した内容を残す(画像の読み取りは重ねて反映)
     values[key] = 'drive:' + file.getId();
     var dk = dateKeyFor_(key); if (dk) values[dk] = todayStr_();
   });

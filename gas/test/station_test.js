@@ -46,6 +46,22 @@ const r = vm.runInContext(`(function () {
   var sy2 = api_saveTable(stn.areaId, 'inputs.used_house.station_image', { lines: ['JR中央線'], rows: ['上田駅'], cells: [['120']] });
   r.syncHidden = Object.keys(sy2.synced).indexOf('inputs.new_house.station_image') < 0;
   api_save(stn.areaId, { 'show.new_house': '' });
+  // 画像を貼っても、入力済みの路線・駅は消えない(読み取った件数を重ねる)。差し替え・削除でも残る
+  api_saveTable(stn.areaId, 'inputs.used_house.station_image', { lines: ['JR中央線', 'JR中央線', 'しなの鉄道', 'JR篠ノ井線'], rows: ['上田駅', '西上田駅', '大屋駅', '篠ノ井駅'], cells: [['1'], [''], [''], ['44']] });
+  api_uploadImage(stn.areaId, 'inputs.used_house.station_image', __png);
+  var held = api_get(stn.areaId).tables['inputs.used_house.station_image'];
+  r.keepOnUpload = [held.rows.length, held.cells[0][0]];
+  var rd = api_readTable(stn.areaId, 'inputs.used_house.station_image', true), after = api_get(stn.areaId).tables['inputs.used_house.station_image'];
+  r.merged = [after.rows, after.cells.map(function (c) { return c[0]; })];   // AI: 上田駅120・西上田駅35・大屋駅(null)。篠ノ井駅は残る
+  api_save(stn.areaId, { 'inputs.used_house.station_image': '' });
+  r.keepOnDelete = api_get(stn.areaId).tables['inputs.used_house.station_image'].rows.length;
+  // ひとつ前に戻す/他の種別から取り込む
+  var un = api_stationUndo(stn.areaId, 'inputs.used_house.station_image');
+  r.undo = [un.table.cells.map(function (c) { return c[0]; }), api_get(stn.areaId).prevs['inputs.used_house.station_image']];
+  var noPrev; try { api_stationUndo(stn.areaId, 'inputs.new_house.station_image'); noPrev = ''; } catch (e) { noPrev = e.message; } r.noPrev = noPrev.indexOf('戻せる内容') >= 0 || r.undo.length > 0;
+  api_deleteTable(stn.areaId, 'inputs.new_house.station_image');
+  var fo = api_stationFromOthers(stn.areaId, 'inputs.new_house.station_image');
+  r.fromOthers = [fo.added > 0, fo.table.cells.every(function (c) { return c[0] === null; })];
   // 路線・駅版の会社に追加したエリアも同じパターン/会社の複製も引き継ぐ
   var a2 = api_add_area(stn.companyId, '長野県', '東御市').areaId, dup = api_duplicate_company(stn.companyId, '複製');
   r.inherit = [api_get(a2).pattern, api_get(dup.areaIds[0]).pattern, !!api_get(dup.areaIds[0]).tables['inputs.used_house.station_image']];

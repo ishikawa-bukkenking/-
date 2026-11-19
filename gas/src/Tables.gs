@@ -49,33 +49,48 @@ function normalizeStationTable_(t) {
   return out;
 }
 
+function stnId_(line, st) { return (line || '') + '\u0001' + st; }
 /**
- * 路線・駅の並びを、他の物件種別の表にも反映する(件数は種別ごとなので、そのまま残す)。
- * - 保存した表の路線・駅が、他の表に無ければ、件数を空にして追加する(並びは保存した表に合わせる)
- * - 他の表にだけある行は、件数が入っていれば残し(末尾に回す)、件数が空なら消す
+ * 路線・駅を、他の物件種別の表にも反映する(件数は種別ごとなので、そのまま残す)。行は消さない。
+ * - 保存した表の路線・駅が、他の表に無ければ、件数を空にして追加する(並びは保存した表に合わせ、他の表にだけある行は末尾に残す)
  * values を書き換え、{ キー: 表 } を返す。表示しない種別(show.*=0)は対象外
  */
 function syncStationTables_(values, srcKey, src) {
   var out = {};
   STATION_KEYS_.forEach(function (k) {
     if (k === srcKey) return;
-    var type = k.split('.')[1];
-    if (values['show.' + type] === '0') return;
-    var cur = savedTable_(values, k), have = {}, rows = [], lines = [], cells = [];
-    if (cur) cur.rows.forEach(function (r, i) { have[(cur.lines[i] || '') + '\u0001' + r] = cur.cells[i][0]; });
-    var used = {};
+    if (values['show.' + k.split('.')[1]] === '0') return;
+    var cur = savedTable_(values, k), have = {}, used = {}, lines = [], rows = [], cells = [];
+    if (cur) cur.rows.forEach(function (r, i) { have[stnId_(cur.lines[i], r)] = cur.cells[i][0]; });
     src.rows.forEach(function (r, i) {
-      var id = (src.lines[i] || '') + '\u0001' + r;
+      var id = stnId_(src.lines[i], r);
       lines.push(src.lines[i] || ''); rows.push(r); cells.push([have[id] === undefined ? null : have[id]]); used[id] = 1;
     });
-    if (cur) cur.rows.forEach(function (r, i) {
-      var id = (cur.lines[i] || '') + '\u0001' + r;
-      if (!used[id] && cur.cells[i][0] !== null) { lines.push(cur.lines[i] || ''); rows.push(r); cells.push([cur.cells[i][0]]); }
-    });
+    if (cur) cur.rows.forEach(function (r, i) { if (!used[stnId_(cur.lines[i], r)]) { lines.push(cur.lines[i] || ''); rows.push(r); cells.push([cur.cells[i][0]]); } });
     var t = { caption: cur ? cur.caption : '', cols: ['物件数'], lines: lines, rows: rows, cells: cells };
-    values[tableValueKey_(k)] = JSON.stringify(t); out[k] = t;
+    putStationTable_(values, k, t); out[k] = t;
   });
   return out;
+}
+
+/** 画像から読み取った表を、いま入っている表に重ねる。入力済みの路線・駅は消さず、読み取った件数で更新し、新しい行は末尾に足す(読み取れなかった件数は、いまの値を残す) */
+function mergeStationTables_(cur, add) {
+  if (!cur || !cur.rows.length) return add;
+  var pos = {}, lines = cur.lines.slice(), rows = cur.rows.slice(), cells = cur.cells.map(function (c) { return [c[0]]; });
+  rows.forEach(function (r, i) { pos[stnId_(lines[i], r)] = i; });
+  add.rows.forEach(function (r, i) {
+    var id = stnId_(add.lines[i], r), n = add.cells[i][0];
+    if (pos[id] !== undefined) { if (n !== null) cells[pos[id]][0] = n; }
+    else { pos[id] = rows.length; lines.push(add.lines[i] || ''); rows.push(r); cells.push([n]); }
+  });
+  return { caption: cur.caption || add.caption, cols: ['物件数'], lines: lines, rows: rows, cells: cells, warnings: add.warnings };
+}
+
+/** 路線・駅の表を保存する。書き換える前の表は1つ前の版として残す(「ひとつ前に戻す」用) */
+function putStationTable_(values, key, t) {
+  var old = values[tableValueKey_(key)], nw = JSON.stringify({ caption: t.caption, cols: t.cols, lines: t.lines, rows: t.rows, cells: t.cells });
+  if (old && old !== nw && old.length < 6000) values['tblprev.' + key] = old;
+  values[tableValueKey_(key)] = nw;
 }
 
 /** 表 → 描画用(heat_html_ の入力) */
@@ -171,12 +186,16 @@ function api_readTable(areaId, key, save) {
   var t = aiReadTable_(Utilities.base64Encode(blob.getBytes()), blob.getContentType(), aiKey_(), function (u, o) { return UrlFetchApp.fetch(u, o); }, key === TREND_KEY_ ? 'trend' : isStationKey_(key) ? 'station' : 'table');
   t.total = tableTotal_(t);
   if (save) {   // 貼り付けたら自動で表にして保存する(あとから画面で直せる)
+    var merged = t;
     writeAreaValues_(areaId, function (values) {
       if (values[key] !== a.values[key]) throw new Error('画像が差し替えられました。もう一度やり直してください。');
-      values[tableValueKey_(key)] = JSON.stringify(t);
       var dk = dateKeyFor_(key); if (dk) values[dk] = todayStr_();
-      if (isStationKey_(key)) t.synced = syncStationTables_(values, key, t);
+      if (isStationKey_(key)) {   // 入力済みの路線・駅は消さずに、読み取った内容を重ねる
+        merged = mergeStationTables_(savedTable_(values, key), t); merged.total = tableTotal_(merged);
+        putStationTable_(values, key, merged); merged.synced = syncStationTables_(values, key, merged);
+      } else values[tableValueKey_(key)] = JSON.stringify(t);
     });
+    t = merged;
   }
   return t;
 }
@@ -187,11 +206,45 @@ function api_saveTable(areaId, key, table) {
   var t = isStationKey_(key) ? normalizeStationTable_(table) : normalizeTable_(table, key === TREND_KEY_);
   var synced = {};
   writeAreaValues_(areaId, function (values) {
-    values[tableValueKey_(key)] = JSON.stringify(t);
     var dk = dateKeyFor_(key); if (dk) values[dk] = todayStr_();
-    if (isStationKey_(key)) synced = syncStationTables_(values, key, t);   // 路線・駅は他の種別にも反映
+    if (isStationKey_(key)) { putStationTable_(values, key, t); synced = syncStationTables_(values, key, t); }   // 路線・駅は他の種別にも反映
+    else values[tableValueKey_(key)] = JSON.stringify(t);
   });
   return { ok: true, total: tableTotal_(t), table: t, synced: synced };
+}
+
+/** 他の物件種別の表にある路線・駅を、この表に取り込む(いまの行と件数は残し、無い行を件数を空で足す) */
+function api_stationFromOthers(areaId, key) {
+  requireUser_();
+  if (!isStationKey_(key)) throw new Error('この項目は路線・駅の表ではありません。');
+  var res = null;
+  writeAreaValues_(areaId, function (values) {
+    var cur = savedTable_(values, key) || { caption: '', cols: ['物件数'], lines: [], rows: [], cells: [] }, add = 0, seen = {};
+    cur.rows.forEach(function (r, i) { seen[stnId_(cur.lines[i], r)] = 1; });
+    STATION_KEYS_.forEach(function (k) {
+      var o = k === key ? null : savedTable_(values, k);
+      if (o) o.rows.forEach(function (r, i) { var id = stnId_(o.lines[i], r); if (!seen[id]) { seen[id] = 1; cur.lines.push(o.lines[i] || ''); cur.rows.push(r); cur.cells.push([null]); add++; } });
+    });
+    if (!add) throw new Error('取り込める路線・駅が、他の物件種別にありません。');
+    putStationTable_(values, key, cur); res = { table: cur, added: add, total: tableTotal_(cur) };
+  });
+  return res;
+}
+
+/** 路線・駅の表を、ひとつ前の版に戻す(いまの表は入れ替わりで「ひとつ前」になる) */
+function api_stationUndo(areaId, key) {
+  requireUser_();
+  if (!isStationKey_(key)) throw new Error('この項目は路線・駅の表ではありません。');
+  var res = null;
+  writeAreaValues_(areaId, function (values) {
+    var prev = values['tblprev.' + key];
+    if (!prev) throw new Error('戻せる内容がありません。');
+    var now = values[tableValueKey_(key)];
+    values[tableValueKey_(key)] = prev;
+    if (now && now.length < 6000) values['tblprev.' + key] = now; else delete values['tblprev.' + key];
+    var t = savedTable_(values, key); res = { table: t, total: t ? tableTotal_(t) : 0 };
+  });
+  return res;
 }
 
 function api_deleteTable(areaId, key) {
