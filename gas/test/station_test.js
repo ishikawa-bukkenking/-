@@ -77,6 +77,12 @@ const r = vm.runInContext(`(function () {
   var bs; try { api_saveTable(c5, 'inputs.land.station_image', { lines: ['東急多摩川線', '', ''], rows: ['多摩川〜蒲田', '〜450m²', '400〜450m²'], cells: [['5'], [''], ['']] }); bs = ''; } catch (e) { bs = e.message; }
   var cl = api_stationCleanup(c5), tt = api_get(c5).tables;
   r.cleanup = [bs.indexOf('路線名を入力') >= 0, cl.removed, tt['inputs.land.station_image'].rows, tt['inputs.used_house.station_image']];
+  // 保存した路線・駅と同じにそろう: 他の種別にだけある、件数が空の行は消え、件数が入っている行は残る
+  var c6 = api_create_company('株式会社そろえる', '長野県', '上田市', 'station').areaId;
+  api_saveTable(c6, 'inputs.used_house.station_image', { lines: ['東急東横', '東急東横', '東急多摩川', '東急池上'], rows: ['田園調布〜多摩川', '田園調布', '多摩川〜蒲田', '長原〜蒲田'], cells: [[''], [''], [''], ['7']] });
+  api_saveTable(c6, 'inputs.land.station_image', { lines: ['東急池上', '東急多摩川', '東急大井', '東急東横'], rows: ['長原〜蒲田', '多摩川〜矢口渡', '北千束〜大岡山', '田園調布'], cells: [['63'], ['20'], [''], ['']] });
+  var al = api_get(c6).tables['inputs.used_house.station_image'];
+  r.mirror = [al.lines.join('/'), al.rows.join('/'), al.cells.map(function (c) { return c[0]; }).join(',')];
   // 路線・駅版の会社に追加したエリアも同じパターン/会社の複製も引き継ぐ
   var a2 = api_add_area(stn.companyId, '長野県', '東御市').areaId, dup = api_duplicate_company(stn.companyId, '複製');
   r.inherit = [api_get(a2).pattern, api_get(dup.areaIds[0]).pattern, !!api_get(dup.areaIds[0]).tables['inputs.used_house.station_image']];

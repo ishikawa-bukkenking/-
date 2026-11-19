@@ -51,8 +51,9 @@ function normalizeStationTable_(t) {
 
 function stnId_(line, st) { return (line || '') + '\u0001' + st; }
 /**
- * 路線・駅を、他の物件種別の表にも反映する(件数は種別ごとなので、そのまま残す)。行は消さない。
- * - 保存した表の路線・駅が、他の表に無ければ、件数を空にして追加する(並びは保存した表に合わせ、他の表にだけある行は末尾に残す)
+ * 路線・駅を、他の物件種別の表にも反映する(件数は種別ごとなので、反映しない。入力済みの件数は残す)。
+ * - 保存した表の路線・駅が、他の表に無ければ、件数を空にして追加する(並びは保存した表に合わせる)
+ * - 他の表にだけある行は、件数が入っていれば残し(末尾)、件数が空なら消す(保存した表と同じ路線・駅にそろえる)。消す前の表は「ひとつ前に戻す」で戻せる
  * values を書き換え、{ キー: 表 } を返す。表示しない種別(show.*=0)は対象外
  */
 function syncStationTables_(values, srcKey, src) {
@@ -66,7 +67,7 @@ function syncStationTables_(values, srcKey, src) {
       var id = stnId_(src.lines[i], r);
       lines.push(src.lines[i] || ''); rows.push(r); cells.push([have[id] === undefined ? null : have[id]]); used[id] = 1;
     });
-    if (cur) cur.rows.forEach(function (r, i) { if (!used[stnId_(cur.lines[i], r)]) { lines.push(cur.lines[i] || ''); rows.push(r); cells.push([cur.cells[i][0]]); } });
+    if (cur) cur.rows.forEach(function (r, i) { if (!used[stnId_(cur.lines[i], r)] && cur.cells[i][0] !== null) { lines.push(cur.lines[i] || ''); rows.push(r); cells.push([cur.cells[i][0]]); } });
     var t = { caption: cur ? cur.caption : '', cols: ['物件数'], lines: lines, rows: rows, cells: cells };
     putStationTable_(values, k, t); out[k] = t;
   });

@@ -373,10 +373,11 @@ def test_station_pattern():
     assert "land.stations" in r["missing"] and "used_house.stations" not in r["missing"]
     assert r["noImage"] == [True, True, True]   # 画像の入力・AIの読み取りは使わない
     assert r["land"] == [155, True, True] and r["inherit"] == ["station", "station", True] and all(r["multi"])
-    assert r["sync"] == [3, ["上田駅", "西上田駅", "上田駅", "大屋駅"], ["JR中央線", "JR中央線", "しなの鉄道", "しなの鉄道"], [None, None, None, 7], ["上田駅", "西上田駅", "上田駅", "大屋駅"], [None, None, None, None]]
-    assert r["syncList"] == [7, None] and r["syncLand"] == ["上田駅", "西上田駅", "上田駅", "大屋駅"] and r["syncHidden"]   # 他の種別へ反映(行は消さない/空なら0件にしない/表示しない種別は対象外)
+    assert r["sync"] == [3, ["上田駅", "西上田駅", "上田駅", "大屋駅"], ["JR中央線", "JR中央線", "しなの鉄道", "しなの鉄道"], [None, None, None, 7], ["上田駅", "西上田駅", "上田駅"], [None, None, None]]
+    assert r["syncList"] == [7, None] and r["syncLand"] == ["上田駅", "西上田駅", "上田駅"] and r["syncHidden"]   # 他の種別へ反映(行は消さない/空なら0件にしない/表示しない種別は対象外)
     assert r["undo"] == [[1, None, None, 44], True] and r["noPrev"] and r["fromOthers"] == [True, True]
     assert r["range"] == [["上田駅〜屋代駅", "上田駅〜別所温泉駅", "松本駅"], True, True, 35]   # 路線ごとに駅の区間(または1駅)
     assert r["namesOnly"] == [3, ["JR中央線/大糸線|上田駅〜屋代駅/松本駅|,"] * 3] and r["noCounts"] == [3, True]   # 路線・駅名だけ保存→他の種別に反映。件数は反映しない
     assert r["cleanup"] == [True, 5, ["多摩川〜蒲田"], None]   # 路線名が空の行は保存できず、まとめて削除できる
+    assert r["mirror"] == ["東急池上/東急多摩川/東急大井/東急東横", "長原〜蒲田/多摩川〜矢口渡/北千束〜大岡山/田園調布", "7,,,"]   # 保存した路線・駅にそろう(件数が空の余分な行は消える)
     assert r["std"] == 300 and r["denied"]
