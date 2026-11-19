@@ -151,9 +151,9 @@ function buildModel_(cfg, services, data) {
     model[key] = sec;
     status_(rep, key + '.price_man', label + ' 売却価格相場', sec.price_man, label + 'の入力');
     if (cfg.pattern === 'station') {   // 路線・駅版: 物件数は路線・駅別の件数の合計
-      var stn = sec.stations && sec.stations.rows && sec.stations.rows.length ? sec.stations : null, stotal = stn ? tableTotal_(stn) : null;
-      sec.stations = stn; sec.listings = stn ? stotal : null;
-      status_(rep, key + '.stations', label + ' 路線・駅別の物件数', stn, label + 'の路線・駅別の物件数(画像を貼るか、手入力)');
+      var stn = sec.stations && sec.stations.rows && sec.stations.rows.length ? sec.stations : null, anyN = stn && stn.cells.some(function (c) { return c[0] !== null; }), stotal = anyN ? tableTotal_(stn) : null;   // 件数が1つも入っていなければ物件数は未入力
+      sec.stations = stn; sec.listings = stotal;
+      status_(rep, key + '.stations', label + ' 路線・駅別の物件数', anyN ? stn : null, label + 'の路線・駅別の物件数(画像を貼るか、手入力)');
     } else status_(rep, key + '.listings', label + ' 物件数', sec.listings, label + 'の入力');
     if (key !== 'land') status_(rep, key + '.heatmap', label + ' 面積×価格の分布', sec.heatmaps || sec.table || sec.heatmap_image, '分布表の画像');
   });

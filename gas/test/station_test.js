@@ -24,7 +24,7 @@ const r = vm.runInContext(`(function () {
   var bad2; try { api_saveTable(stn.areaId, 'inputs.used_house.station_image', { lines: [''], rows: [''], cells: [['5']] }); bad2 = ''; } catch (e) { bad2 = e.message; } r.bad2 = bad2.indexOf('路線名か駅名') >= 0;
   var b = buildArea_(stn.areaId), m = b.model;
   r.listings = [m.used_house.listings, m.pattern, m.totals.listings_total];
-  r.html = [b.html.indexOf('class="stn-blk"') > 0, b.html.indexOf('JR中央線') > 0, b.html.indexOf('上田駅') > 0, b.html.indexOf('<th scope="row">合計</th><td>155<small>件</small>') > 0, b.html.indexOf('中古戸建ての相場は<span class="em">3,550万円</span>、物件数は<span class="em">155件</span>') > 0];
+  r.html = [b.html.indexOf('class="stn-blk"') > 0, b.html.indexOf('JR中央線') > 0, b.html.indexOf('上田駅') > 0, b.html.indexOf('合計 <b>155件</b>') > 0, b.html.indexOf('中古戸建ての相場は<span class="em">3,550万円</span>、物件数は<span class="em">155件</span>') > 0];
   r.stdHtml = buildArea_(std.areaId).html.indexOf('stn-blk"') < 0 && buildArea_(std.areaId).html.indexOf('class="stn-blk"') < 0;
   r.missing = buildArea_(stn.areaId).report.missing().map(function (i) { return i.key; }).filter(function (k) { return /stations|listings/.test(k); }).sort();
   // 画像を貼る → AIが路線・駅の表にする
@@ -33,6 +33,19 @@ const r = vm.runInContext(`(function () {
   r.ai = [t.rows, t.lines, t.cells, t.total, t.warnings.length];
   var m2 = buildArea_(stn.areaId).model;
   r.land = [m2.land.listings, !!m2.land.stations, JSON.stringify(m2).indexOf('station_image') < 0];
+  // 保存した路線・駅は、他の種別にも反映される(件数は種別ごと・件数が入っている行は残る)
+  api_saveTable(stn.areaId, 'inputs.used_mansion.station_image', { lines: ['しなの鉄道', 'JR中央線'], rows: ['大屋駅', '上田駅'], cells: [['7'], ['']] });
+  var sy = api_saveTable(stn.areaId, 'inputs.used_house.station_image', { lines: ['JR中央線', 'JR中央線', 'しなの鉄道'], rows: ['上田駅', '西上田駅', '上田駅'], cells: [['120'], ['35'], ['']] });
+  var tm = api_get(stn.areaId).tables['inputs.used_mansion.station_image'], tn = api_get(stn.areaId).tables['inputs.new_house.station_image'];
+  r.sync = [Object.keys(sy.synced).sort().length, tm.rows, tm.lines, tm.cells.map(function (c) { return c[0]; }), tn.rows, tn.cells.map(function (c) { return c[0]; })];
+  var mm = buildArea_(stn.areaId).model;
+  r.syncList = [mm.used_mansion.listings, mm.new_house.listings];   // 件数が空なら物件数は未入力(0件にしない)
+  var tl = api_get(stn.areaId).tables['inputs.land.station_image'];
+  r.syncLand = tl.rows;   // AIで読んだ土地の表(上田駅・西上田駅・大屋駅)に、保存した駅が加わり、件数が入っている行は残る
+  api_save(stn.areaId, { 'show.new_house': '0' });
+  var sy2 = api_saveTable(stn.areaId, 'inputs.used_house.station_image', { lines: ['JR中央線'], rows: ['上田駅'], cells: [['120']] });
+  r.syncHidden = Object.keys(sy2.synced).indexOf('inputs.new_house.station_image') < 0;
+  api_save(stn.areaId, { 'show.new_house': '' });
   // 路線・駅版の会社に追加したエリアも同じパターン/会社の複製も引き継ぐ
   var a2 = api_add_area(stn.companyId, '長野県', '東御市').areaId, dup = api_duplicate_company(stn.companyId, '複製');
   r.inherit = [api_get(a2).pattern, api_get(dup.areaIds[0]).pattern, !!api_get(dup.areaIds[0]).tables['inputs.used_house.station_image']];

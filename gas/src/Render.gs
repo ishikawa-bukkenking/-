@@ -48,13 +48,13 @@ function stationBlock_(sec, label) {
     if (idx[ln] === undefined) { idx[ln] = groups.length; groups.push({ line: ln, items: [], sum: 0 }); }
     var g = groups[idx[ln]]; g.items.push({ st: st, n: n }); g.sum += n || 0; total += n || 0;
   });
-  var many = t.rows.length + groups.length > 18;
-  return '<div class="stn-blk"><p class="sub">' + esc_(label) + 'の路線・駅別の物件数</p><div class="card stn-card' + (many ? ' many' : '') + '"><table class="stn"><thead><tr><th scope="col">路線・駅</th><th scope="col">物件数</th></tr></thead><tbody>' +
+  var many = t.rows.length + groups.length > 22;
+  return '<div class="stn-blk"><p class="sub">' + esc_(label) + 'の路線・駅別の物件数</p><div class="stn-cols' + (many ? ' many' : '') + '">' +
     groups.map(function (g) {
       var only = g.items.length === 1 && !g.items[0].st;   // 駅名なし: 路線全体の1行
-      return '<tr class="stn-l"><th scope="row">' + esc_(g.line || 'その他') + '</th><td>' + (only ? (g.items[0].n != null ? num_(g.items[0].n) + '<small>件</small>' : '—') : num_(g.sum) + '<small>件</small>') + '</td></tr>' +
-        (only ? '' : g.items.map(function (it) { return '<tr class="stn-s"><th scope="row">' + esc_(it.st || '路線全体') + '</th><td>' + (it.n != null ? num_(it.n) + '<small>件</small>' : '—') + '</td></tr>'; }).join(''));
-    }).join('') + '<tr class="stn-t"><th scope="row">合計</th><td>' + num_(total) + '<small>件</small></td></tr></tbody></table></div></div>';
+      return '<table class="stn"><tbody><tr class="stn-l"><th scope="col">' + esc_(g.line || 'その他') + '</th><td>' + (only ? (g.items[0].n != null ? num_(g.items[0].n) + '件' : '—') : '計 ' + num_(g.sum) + '件') + '</td></tr>' +
+        (only ? '' : g.items.map(function (it) { return '<tr><th scope="row">' + esc_(it.st || '路線全体') + '</th><td>' + (it.n != null ? num_(it.n) + '件' : '—') + '</td></tr>'; }).join('')) + '</tbody></table>';
+    }).join('') + '</div><p class="stn-all">合計 <b>' + num_(total) + '件</b></p></div>';
 }
 
 function houseSection_(id, no, sec, label, sfx) {   // no: 表示用の連番(文字列)

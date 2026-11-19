@@ -267,29 +267,22 @@ a{color:var(--c-ink)}
 .sec-no-p{display:none}
 .grouped>.wrap>.sec-no{margin-bottom:8px}
 
-/* 路線・駅別の物件数(路線・駅版のLP): 縦1列の表。路線の行の下に、駅と物件数の行が並ぶ */
+/* 路線・駅別の物件数(路線・駅版のLP): 路線の行の下に駅と件数を並べるシンプルな表 */
 .stn-blk{margin-top:28px}
-.stn-card{max-width:640px;padding:8px 20px 12px;margin-top:10px}
-.stn{width:100%;border-collapse:collapse}
-.stn thead th{font-size:.875rem;color:var(--c-sub);font-weight:500;text-align:left;padding:8px 12px;border-bottom:2px solid var(--c-line)}
-.stn thead th:last-child{text-align:right}
-.stn th,.stn td{padding:10px 12px;border-bottom:1px solid var(--c-line);vertical-align:middle;text-align:left}
-.stn td{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--c-ink)}
-.stn td small{font-weight:400;font-size:.75em;margin-left:2px;color:var(--c-sub)}
-.stn .stn-l th,.stn .stn-l td{background:#E6F4F6;color:var(--c-ink);font-weight:700;border-bottom-color:var(--c-teal-300)}
-.stn .stn-l th{border-left:4px solid var(--c-teal)}
-.stn .stn-s th{font-weight:400;padding-left:28px;color:var(--c-text)}
-.stn .stn-t th,.stn .stn-t td{border-bottom:0;border-top:2px solid var(--c-line);font-weight:700;font-size:1.0625rem}
-.stn .stn-t td{color:var(--c-teal-700)}
-.stn tr{break-inside:avoid;page-break-inside:avoid}
+.stn-cols{column-count:2;column-gap:20px;margin-top:10px}
+.stn{width:100%;border-collapse:collapse;margin:0 0 14px;break-inside:avoid;page-break-inside:avoid;background:#fff;border:1px solid var(--line,#d9e5e8)}
+.stn th,.stn td{padding:7px 12px;border-bottom:1px solid var(--line,#d9e5e8);text-align:left;font-size:.9375rem}
+.stn td{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stn tr:not(.stn-l) th{font-weight:400;padding-left:26px}
+.stn-l th,.stn-l td{background:var(--teal-l,#E0F2F4);font-weight:700}
+.stn-all{margin:2px 0 0;text-align:right}.stn-all b{font-size:1.25rem}
+@media (max-width:640px){.stn-cols{column-count:1}}
 @media print{
   .sec:has(.stn-blk){break-inside:auto;page-break-inside:auto;min-height:0;display:block}
   .stn-blk{break-before:page;page-break-before:always;margin-top:0;padding-top:4mm}
   .stn-blk .sub{font-size:1.25rem;margin-bottom:8px}
-  .stn-card{max-width:none;padding:4px 24px 8px;break-inside:auto;page-break-inside:auto}
-  .stn thead{display:table-header-group}
-  .stn th,.stn td{font-size:1rem;padding:5px 14px}
-  .stn-card.many .stn th,.stn-card.many .stn td{font-size:.875rem;padding:2px 12px}
-  .stn-card.many .stn .stn-s th{padding-left:26px}
-}
+  .stn-cols{column-count:2}
+  .stn th,.stn td{font-size:1.0625rem;padding:6px 12px}
+  .stn-cols.many{column-count:3;column-gap:14px}
+  .stn-cols.many .stn th,.stn-cols.many .stn td{font-size:.9375rem;padding:4px 10px}
 }

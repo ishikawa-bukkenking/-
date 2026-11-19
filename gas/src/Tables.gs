@@ -49,6 +49,35 @@ function normalizeStationTable_(t) {
   return out;
 }
 
+/**
+ * 路線・駅の並びを、他の物件種別の表にも反映する(件数は種別ごとなので、そのまま残す)。
+ * - 保存した表の路線・駅が、他の表に無ければ、件数を空にして追加する(並びは保存した表に合わせる)
+ * - 他の表にだけある行は、件数が入っていれば残し(末尾に回す)、件数が空なら消す
+ * values を書き換え、{ キー: 表 } を返す。表示しない種別(show.*=0)は対象外
+ */
+function syncStationTables_(values, srcKey, src) {
+  var out = {};
+  STATION_KEYS_.forEach(function (k) {
+    if (k === srcKey) return;
+    var type = k.split('.')[1];
+    if (values['show.' + type] === '0') return;
+    var cur = savedTable_(values, k), have = {}, rows = [], lines = [], cells = [];
+    if (cur) cur.rows.forEach(function (r, i) { have[(cur.lines[i] || '') + '\u0001' + r] = cur.cells[i][0]; });
+    var used = {};
+    src.rows.forEach(function (r, i) {
+      var id = (src.lines[i] || '') + '\u0001' + r;
+      lines.push(src.lines[i] || ''); rows.push(r); cells.push([have[id] === undefined ? null : have[id]]); used[id] = 1;
+    });
+    if (cur) cur.rows.forEach(function (r, i) {
+      var id = (cur.lines[i] || '') + '\u0001' + r;
+      if (!used[id] && cur.cells[i][0] !== null) { lines.push(cur.lines[i] || ''); rows.push(r); cells.push([cur.cells[i][0]]); }
+    });
+    var t = { caption: cur ? cur.caption : '', cols: ['物件数'], lines: lines, rows: rows, cells: cells };
+    values[tableValueKey_(k)] = JSON.stringify(t); out[k] = t;
+  });
+  return out;
+}
+
 /** 表 → 描画用(heat_html_ の入力) */
 function tableToHeat_(t) {
   var max = 0;
@@ -146,6 +175,7 @@ function api_readTable(areaId, key, save) {
       if (values[key] !== a.values[key]) throw new Error('画像が差し替えられました。もう一度やり直してください。');
       values[tableValueKey_(key)] = JSON.stringify(t);
       var dk = dateKeyFor_(key); if (dk) values[dk] = todayStr_();
+      if (isStationKey_(key)) t.synced = syncStationTables_(values, key, t);
     });
   }
   return t;
@@ -155,11 +185,13 @@ function api_saveTable(areaId, key, table) {
   requireUser_();
   if (!isTableKey_(key)) throw new Error('この項目は表に作り直せません。');
   var t = isStationKey_(key) ? normalizeStationTable_(table) : normalizeTable_(table, key === TREND_KEY_);
+  var synced = {};
   writeAreaValues_(areaId, function (values) {
     values[tableValueKey_(key)] = JSON.stringify(t);
     var dk = dateKeyFor_(key); if (dk) values[dk] = todayStr_();
+    if (isStationKey_(key)) synced = syncStationTables_(values, key, t);   // 路線・駅は他の種別にも反映
   });
-  return { ok: true, total: tableTotal_(t), table: t };
+  return { ok: true, total: tableTotal_(t), table: t, synced: synced };
 }
 
 function api_deleteTable(areaId, key) {

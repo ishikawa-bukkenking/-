@@ -373,4 +373,6 @@ def test_station_pattern():
     assert "land.stations" in r["missing"] and "used_house.stations" not in r["missing"]
     assert r["ai"] == [["上田駅", "西上田駅", "大屋駅"], ["JR中央線", "JR中央線", "しなの鉄道"], [[120], [35], [None]], 155, 1]
     assert r["land"] == [155, True, True] and r["inherit"] == ["station", "station", True] and all(r["multi"])
+    assert r["sync"] == [3, ["上田駅", "西上田駅", "上田駅", "大屋駅"], ["JR中央線", "JR中央線", "しなの鉄道", "しなの鉄道"], [None, None, None, 7], ["上田駅", "西上田駅", "上田駅"], [None, None, None]]
+    assert r["syncList"] == [7, None] and r["syncLand"] == ["上田駅", "西上田駅", "上田駅"] and r["syncHidden"]   # 他の種別へ反映(件数は残す/空なら0件にしない/表示しない種別は対象外)
     assert r["std"] == 300 and r["denied"]
