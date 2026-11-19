@@ -62,6 +62,10 @@ const r = vm.runInContext(`(function () {
   api_deleteTable(stn.areaId, 'inputs.new_house.station_image');
   var fo = api_stationFromOthers(stn.areaId, 'inputs.new_house.station_image');
   r.fromOthers = [fo.added > 0, fo.table.cells.every(function (c) { return c[0] === null; })];
+  // 路線ごとに「○○駅〜○○駅」(1駅だけも可)。「~」は「〜」にそろえる
+  var rg = api_saveTable(stn.areaId, 'inputs.used_house.station_image', { lines: ['JR中央線', '上田電鉄別所線', '大糸線'], rows: ['上田駅~屋代駅', '上田駅〜別所温泉駅', '松本駅'], cells: [['10'], ['20'], ['5']] });
+  var h = buildArea_(stn.areaId).html;
+  r.range = [rg.table.rows, h.indexOf('上田駅〜屋代駅') > 0, h.indexOf('class="stn-range">松本駅') > 0, rg.total];
   // 路線・駅版の会社に追加したエリアも同じパターン/会社の複製も引き継ぐ
   var a2 = api_add_area(stn.companyId, '長野県', '東御市').areaId, dup = api_duplicate_company(stn.companyId, '複製');
   r.inherit = [api_get(a2).pattern, api_get(dup.areaIds[0]).pattern, !!api_get(dup.areaIds[0]).tables['inputs.used_house.station_image']];

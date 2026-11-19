@@ -48,7 +48,7 @@ details.sec .body{padding:8px 18px 18px}
 .tbl{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;overflow-x:auto}
 .tbl table{border-collapse:collapse;font-size:.8125rem}
 .tbl td,.tbl th{border:1px solid var(--line);padding:0}
-.stn-ed input{width:11em;text-align:left!important}.stn-ed td:nth-child(3) input{width:6em;text-align:right!important}.tbl input{width:4.5em;border:0;padding:6px 4px;text-align:right;min-height:32px}
+.stn-ed input{width:11em;text-align:left!important}.stn-ed td:nth-child(4) input{width:6em;text-align:right!important}.tbl input{width:4.5em;border:0;padding:6px 4px;text-align:right;min-height:32px}
 .tbl th input{font-weight:700;background:var(--teal-l);text-align:center;width:5.5em}
 .tbl .warn{color:#B00020;font-size:.8125rem;margin:6px 0}
 .field.off{opacity:.45}
@@ -271,19 +271,19 @@ function tableEditor(f, t) {
 /* 路線・駅別の物件数: 路線・駅・件数の行を、手入力・追加・削除できる(画像を貼ればAIが入れる) */
 function stationEditor(t) {
   var tb = el('table', { class: 'stn-ed' }), rows = [];
-  tb.appendChild(el('tr', {}, [el('th', { text: '路線' }), el('th', { text: '駅' }), el('th', { text: '物件数' }), el('th')]));
+  tb.appendChild(el('tr', {}, [el('th', { text: '路線' }), el('th', { text: '駅(から)' }), el('th', { text: '駅(まで)' }), el('th', { text: '物件数' }), el('th')]));
   function addRow(line, st, n) {
-    var a = el('input', { type: 'text', value: line || '', placeholder: '例: JR中央線', 'aria-label': '路線' }), b = el('input', { type: 'text', value: st || '', placeholder: '例: 上田駅(路線全体なら空)', 'aria-label': '駅' }),
+    var rg = String(st || '').split(/[〜~～]/), a = el('input', { type: 'text', value: line || '', placeholder: '例: JR中央線', 'aria-label': '路線' }), b = el('input', { type: 'text', value: (rg[0] || '').trim(), placeholder: '例: 上田駅', 'aria-label': '駅(から)' }), b2 = el('input', { type: 'text', value: (rg[1] || '').trim(), placeholder: '1駅だけなら空', 'aria-label': '駅(まで)' }),
       c = el('input', { type: 'text', inputmode: 'numeric', value: n === null || n === undefined ? '' : String(n), 'aria-label': '物件数' }), x = el('button', { type: 'button', class: 'ghost', text: '×', 'aria-label': 'この行を削除', style: 'padding:2px 10px;min-height:32px' });
-    var tr = el('tr', {}, [el('td', {}, [a]), el('td', {}, [b]), el('td', {}, [c]), el('td', {}, [x])]), o = { tr: tr, a: a, b: b, c: c };
+    var tr = el('tr', {}, [el('td', {}, [a]), el('td', {}, [b]), el('td', {}, [b2]), el('td', {}, [c]), el('td', {}, [x])]), o = { tr: tr, a: a, b: b, b2: b2, c: c };
     x.onclick = function () { tr.remove(); rows.splice(rows.indexOf(o), 1); };
     rows.push(o); tb.appendChild(tr);
   }
   (t.rows || []).forEach(function (r, i) { addRow(t.lines[i], r, t.cells[i][0]); });
   if (!rows.length) { addRow('', '', null); addRow('', '', null); addRow('', '', null); }
   var add = el('button', { type: 'button', class: 'ghost', text: '行を追加' });
-  add.onclick = function () { addRow(rows.length ? rows[rows.length - 1].a.value : '', '', null); rows[rows.length - 1].b.focus(); };   // 同じ路線の続きを入力しやすいよう、路線名を引き継ぐ
-  var get = function () { return { caption: t.caption || '', lines: rows.map(function (o) { return o.a.value; }), rows: rows.map(function (o) { return o.b.value; }), cells: rows.map(function (o) { return [o.c.value]; }) }; };
+  add.onclick = function () { addRow('', '', null); rows[rows.length - 1].b.focus(); };   // 同じ路線の続きを入力しやすいよう、路線名を引き継ぐ
+  var get = function () { return { caption: t.caption || '', lines: rows.map(function (o) { return o.a.value; }), rows: rows.map(function (o) { var f1 = o.b.value.trim(), f2 = o.b2.value.trim(); return f2 ? (f1 ? f1 + '〜' + f2 : f2) : f1; }), cells: rows.map(function (o) { return [o.c.value]; }) }; };
   return { node: tb, add: add, get: get };
 }
 var stnFields = {}, prevs = {};
@@ -301,7 +301,7 @@ function renderStation(f, errMsg) {
   if (f.fresh) {
     box.appendChild(el('p', { class: 'note', text: 'AIが自動で作りました(LPに反映済み)。元の画像と見比べて、違う数字があれば直して「保存」を押してください。' }));
     (t.warnings || []).forEach(function (w) { box.appendChild(el('p', { class: 'warn', text: '要確認: ' + w })); });
-  } else box.appendChild(el('p', { class: 'note', text: '路線・駅ごとの物件数を入力します。物件数は、ここに入れた件数の合計になります。駅名を空にすると、路線全体の1行になります。保存すると、路線・駅が他の物件種別にも反映されます(件数は種別ごとに入力)。' + (tables[f.k] ? '' : '(未保存)') }));
+  } else box.appendChild(el('p', { class: 'note', text: '路線ごとに、駅の区間(○○駅〜○○駅。1駅だけなら「から」だけ)と、その路線の物件数を入力します。物件数は、ここに入れた件数の合計になります。保存すると、路線・駅が他の物件種別にも反映されます(件数は種別ごとに入力)。' + (tables[f.k] ? '' : '(未保存)') }));
   box.appendChild(el('div', { class: 'tbl' }, [ed.node]));
   var sv = el('button', { type: 'button', text: '保存' }), rd = el('button', { type: 'button', class: 'ghost', text: 'AIで画像から読み取り直す' }), rm = el('button', { type: 'button', class: 'ghost', text: '表を削除' }),
     fo = el('button', { type: 'button', class: 'ghost', text: '他の種別の路線・駅を取り込む' }), un = el('button', { type: 'button', class: 'ghost', text: 'ひとつ前に戻す' });

@@ -286,3 +286,5 @@ a{color:var(--c-ink)}
   .stn-cols.many{column-count:3;column-gap:14px}
   .stn-cols.many .stn th,.stn-cols.many .stn td{font-size:.9375rem;padding:4px 10px}
 }
+
+.stn .stn-range{text-align:left;font-weight:400}

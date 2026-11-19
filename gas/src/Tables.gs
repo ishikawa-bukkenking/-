@@ -38,7 +38,7 @@ function normalizeStationTable_(t) {
   var rows = t.rows || [], lines = t.lines || [], cells = t.cells || [], out = { caption: String(t.caption || '').trim().slice(0, 60), cols: ['物件数'], lines: [], rows: [], cells: [] };
   if (rows.length > 150) throw new Error('行が多すぎます(150行まで)。');
   rows.forEach(function (st, i) {
-    var line = String(lines[i] === null || lines[i] === undefined ? '' : lines[i]).trim().slice(0, 30), name = String(st === null || st === undefined ? '' : st).trim().slice(0, 30);
+    var line = String(lines[i] === null || lines[i] === undefined ? '' : lines[i]).trim().slice(0, 30), name = String(st === null || st === undefined ? '' : st).trim().replace(/[~～]/g, '〜').slice(0, 60);
     var raw = (cells[i] || [])[0], blank = raw === null || raw === undefined || String(raw).trim() === '';
     if (!line && !name && blank) return;   // 空の行は無視
     if (!line && !name) throw new Error('路線名か駅名を入力してください(' + (i + 1) + '行目)。');
@@ -115,8 +115,9 @@ var TREND_PROMPT_ = [
 
 var STATION_PROMPT_ = [
   'この画像は、不動産の「路線・駅ごとの物件数」の表(またはグラフ)です。内容を、一切変えずに正確に読み取ってください。',
-  '- 1行ごとに、路線名(lines)、駅名(rows)、物件数(cells の数値)を書き写します。路線名が複数の駅にまたがる場合は、駅ごとの行すべてに同じ路線名を入れます。',
-  '- 路線全体の合計だけが載っている場合は、駅名を空文字にして、その路線の1行にします。',
+  '- 路線ごとに1行にします。路線名(lines)、その路線の駅の区間(rows)、その路線の物件数(cells の数値)を書き写します。',
+  '- 駅の区間(rows)は、「始点駅〜終点駅」の形(例: 上田駅〜大屋駅)にします。1つの駅だけの路線は、駅名だけ(例: 上田駅)にします。駅の記載が無い路線は空文字にします。',
+  '- 路線の中で駅ごとに物件数が分かれて載っている場合は、駅ごとの数を足した路線の合計を cells に入れます(足せないときは null にして warnings に書く)。',
   '- 物件数が読み取れない・自信がない行は推測せず null にし、warnings にその位置を日本語で書きます。',
   '- caption には、表のタイトルや単位の説明が画像にあれば書き写します(無ければ空文字)。',
   '次のJSONだけを返してください(説明文やコードブロックは付けない)。',

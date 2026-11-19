@@ -377,4 +377,5 @@ def test_station_pattern():
     assert r["syncList"] == [7, None] and r["syncLand"] == ["上田駅", "西上田駅", "上田駅", "大屋駅"] and r["syncHidden"]   # 他の種別へ反映(行は消さない/空なら0件にしない/表示しない種別は対象外)
     assert r["keepOnUpload"] == [4, 1] and r["merged"] == [["上田駅", "西上田駅", "大屋駅", "篠ノ井駅"], [120, 35, None, 44]] and r["keepOnDelete"] == 4   # 画像を貼っても入力済みの路線・駅は消えない
     assert r["undo"] == [[1, None, None, 44], True] and r["noPrev"] and r["fromOthers"] == [True, True]
+    assert r["range"] == [["上田駅〜屋代駅", "上田駅〜別所温泉駅", "松本駅"], True, True, 35]   # 路線ごとに駅の区間(または1駅)
     assert r["std"] == 300 and r["denied"]

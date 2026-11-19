@@ -51,9 +51,9 @@ function stationBlock_(sec, label) {
   var many = t.rows.length + groups.length > 22;
   return '<div class="stn-blk"><p class="sub">' + esc_(label) + 'の路線・駅別の物件数</p><div class="stn-cols' + (many ? ' many' : '') + '">' +
     groups.map(function (g) {
-      var only = g.items.length === 1 && !g.items[0].st;   // 駅名なし: 路線全体の1行
+      var only = g.items.length === 1;   // 路線ごとに1行(駅は「○○駅〜○○駅」の区間、または1つの駅)
       return '<table class="stn"><tbody><tr class="stn-l"><th scope="col">' + esc_(g.line || 'その他') + '</th><td>' + (only ? (g.items[0].n != null ? num_(g.items[0].n) + '件' : '—') : '計 ' + num_(g.sum) + '件') + '</td></tr>' +
-        (only ? '' : g.items.map(function (it) { return '<tr><th scope="row">' + esc_(it.st || '路線全体') + '</th><td>' + (it.n != null ? num_(it.n) + '件' : '—') + '</td></tr>'; }).join('')) + '</tbody></table>';
+        (only ? (g.items[0].st ? '<tr><th scope="row" colspan="2" class="stn-range">' + esc_(g.items[0].st) + '</th></tr>' : '') : g.items.map(function (it) { return '<tr><th scope="row">' + esc_(it.st || '路線全体') + '</th><td>' + (it.n != null ? num_(it.n) + '件' : '—') + '</td></tr>'; }).join('')) + '</tbody></table>';
     }).join('') + '</div><p class="stn-all">合計 <b>' + num_(total) + '件</b></p></div>';
 }
 
