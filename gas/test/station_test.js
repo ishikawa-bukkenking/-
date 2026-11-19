@@ -66,6 +66,14 @@ const r = vm.runInContext(`(function () {
   var rg = api_saveTable(stn.areaId, 'inputs.used_house.station_image', { lines: ['JR中央線', '上田電鉄別所線', '大糸線'], rows: ['上田駅~屋代駅', '上田駅〜別所温泉駅', '松本駅'], cells: [['10'], ['20'], ['5']] });
   var h = buildArea_(stn.areaId).html;
   r.range = [rg.table.rows, h.indexOf('上田駅〜屋代駅') > 0, h.indexOf('class="stn-range">松本駅') > 0, rg.total];
+  // 路線と駅名だけ(件数は空)を保存しても、他の種別に反映される。件数は反映しない
+  var c3 = api_create_company('株式会社名前だけ', '長野県', '上田市', 'station').areaId;
+  var n1 = api_saveTable(c3, 'inputs.land.station_image', { lines: ['JR中央線', '大糸線'], rows: ['上田駅〜屋代駅', '松本駅'], cells: [[''], ['']] });
+  var g3 = api_get(c3).tables;
+  r.namesOnly = [Object.keys(n1.synced).length, ['used_house', 'used_mansion', 'new_house'].map(function (t) { var x = g3['inputs.' + t + '.station_image']; return [x.lines.join('/'), x.rows.join('/'), x.cells.map(function (c) { return c[0]; }).join(',')].join('|'); })];
+  api_saveTable(c3, 'inputs.land.station_image', { lines: ['JR中央線', '大糸線', '篠ノ井線'], rows: ['上田駅〜屋代駅', '松本駅', '篠ノ井駅'], cells: [['100'], ['50'], ['']] });
+  var g4 = api_get(c3).tables['inputs.used_house.station_image'];
+  r.noCounts = [g4.rows.length, g4.cells.every(function (c) { return c[0] === null; })];
   // 路線・駅版の会社に追加したエリアも同じパターン/会社の複製も引き継ぐ
   var a2 = api_add_area(stn.companyId, '長野県', '東御市').areaId, dup = api_duplicate_company(stn.companyId, '複製');
   r.inherit = [api_get(a2).pattern, api_get(dup.areaIds[0]).pattern, !!api_get(dup.areaIds[0]).tables['inputs.used_house.station_image']];
