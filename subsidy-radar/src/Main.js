@@ -51,6 +51,7 @@ function runCollect_(ss) {
     if (row['受付終了'] && daysBetween_(row['受付終了'], today) > settings.keep) archive.push(row); else keep.push(row);
   });
   writeTab_(ss, TAB.SUBSIDY, keep);
+  buildViewTab_(ss, keep, today);
   if (archive.length) {
     var have = {}; readTab_(ss, TAB.ARCHIVE).forEach(function (r) { have[r['ID']] = 1; });
     appendTab_(ss, TAB.ARCHIVE, archive.filter(function (r) { return !have[r['ID']]; }));
@@ -58,6 +59,39 @@ function runCollect_(ss) {
   appendTab_(ss, TAB.HISTORY, ctx.history);
   appendTab_(ss, TAB.RUNS, runs);
   return runs;
+}
+
+/**
+ * 「見る用」タブ: 募集中で、点数が高・中のものだけを、読みやすい列で、締切が近い順に並べる。
+ * 毎回、作り直す(編集しても消える。気になる印・メモは「気になる」タブへ)
+ */
+function buildViewTab_(ss, rows, today) {
+  var list = rows.filter(function (r) { return r['状態'] === '募集中' && (r['段階'] === '高' || r['段階'] === '中'); });
+  list.sort(function (a, b) {
+    if (a['段階'] !== b['段階']) return a['段階'] === '高' ? -1 : 1;
+    return (a['受付終了'] || '9999') < (b['受付終了'] || '9999') ? -1 : 1;
+  });
+  var out = list.map(function (r) {
+    var lim = r['上限額'] === '' ? REVIEW : fmtLimit_(r['上限額']);
+    return {
+      '締切まで': r['受付終了'] ? daysLabel_(r['受付終了'], today) + '(' + mdLabel_(r['受付終了'], today) + ')' : REVIEW,
+      '段階': r['段階'], '名前': r['名前'], '上限額': lim,
+      '受付期間': (r['受付開始'] ? mdLabel_(r['受付開始'], today) : REVIEW) + ' 〜 ' + (r['受付終了'] ? mdLabel_(r['受付終了'], today) : REVIEW),
+      '関連(なぜ上に出たか)': shortReasons_(r['点数の理由'], 4), 'リンク': r['元のリンク'], '確認が必要な項目': r['要確認']
+    };
+  });
+  writeTab_(ss, TAB.VIEW, out);
+  try {
+    var sh = ss.getSheetByName(TAB.VIEW), w = [110, 50, 380, 90, 150, 260, 300, 120];
+    w.forEach(function (px, i) { sh.setColumnWidth(i + 1, px); });
+    if (out.length) sh.getRange(2, 1, out.length, w.length).setWrap(true).setVerticalAlignment('top');
+    sh.getRange(1, 1, 1, w.length).setBackground('#04746D').setFontColor('#FFFFFF');
+  } catch (e) { /* 見た目の設定に失敗しても、収集は止めない */ }
+}
+
+function viewUrl_(ss) {
+  var sh = ss.getSheetByName(TAB.VIEW);
+  return sh ? ss.getUrl() + '#gid=' + sh.getSheetId() : ss.getUrl();
 }
 
 function markDuplicates_(rows, today) {
@@ -96,10 +130,9 @@ function buildCtx_(ss, today, settings) {
   var bySrc = {};
   runs.filter(function (r) { return r['日付'] === today; }).forEach(function (r) { bySrc[r['情報源']] = r; });
   var sources = Object.keys(bySrc).map(function (k) { var r = bySrc[k]; return { name: k, ok: !r['エラー'], count: r['取得件数'], error: r['エラー'] }; });
-  var sheetUrl = ss.getUrl();
   return {
-    today: today, watch: changes, sheetUrl: sheetUrl, sources: sources, prevFailed: false,
-    deadlines: deadlines.map(function (r) { return { title: r['名前'], end: r['受付終了'], url: link(r), _row: r }; }),
+    today: today, watch: changes, viewUrl: viewUrl_(ss), sources: sources, prevFailed: false, maxNew: NOTIFY.MAX_NEW, maxDeadline: NOTIFY.MAX_DEADLINE,
+    deadlines: deadlines.map(function (r) { return { title: r['名前'], end: r['受付終了'], limit: r['上限額'] === '' ? null : r['上限額'], url: link(r), _row: r }; }),
     newHigh: newHigh.map(function (r) { return { title: r['名前'], institution: r['実施機関'], start: r['受付開始'], end: r['受付終了'], limit: r['上限額'] === '' ? null : r['上限額'], reasons: r['点数の理由'], url: link(r), _row: r }; }),
     midCount: newRows.filter(function (r) { return r['段階'] === '中'; }).length,
     _newRows: newRows

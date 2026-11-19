@@ -9,7 +9,7 @@ var DB_NAME = '補助金レーダーDB';
 
 var TAB = {
   SUBSIDY: '制度', HISTORY: '更新の履歴', WATCH: 'ウォッチ', NOTICE: '通知の履歴',
-  RUNS: '実行の記録', SETTINGS: '設定', MARKS: '気になる', ARCHIVE: 'アーカイブ'
+  RUNS: '実行の記録', SETTINGS: '設定', MARKS: '気になる', ARCHIVE: 'アーカイブ', VIEW: '見る用'
 };
 
 var HEADERS = {};
@@ -24,6 +24,7 @@ HEADERS['実行の記録'] = ['日時', '日付', '情報源', '取得件数', '
 HEADERS['設定'] = ['区分', '項目', '値', '点数', '範囲', 'メモ'];
 HEADERS['気になる'] = ['制度ID', '印', 'メモ', '付けた人', '日付'];
 HEADERS['アーカイブ'] = HEADERS['制度'];
+HEADERS['見る用'] = ['締切まで', '段階', '名前', '上限額', '受付期間', '関連(なぜ上に出たか)', 'リンク', '確認が必要な項目'];
 
 /** 点数の初期値(たたき台)。[カテゴリ, キーワード, 点数, 範囲(空=全項目)] — 設定タブに書き出される */
 var DEFAULT_RULES = [
@@ -79,4 +80,4 @@ var WATCH_SEEDS = [
 
 var WATCH = { WAIT_MS: 3000, USER_AGENT: 'BukkenkingSubsidyRadar/1.0 (internal; once-a-day)' };
 
-var NOTIFY = { CHATWORK_BASE: 'https://api.chatwork.com/v2', MAX_CHARS: 3500 };
+var NOTIFY = { CHATWORK_BASE: 'https://api.chatwork.com/v2', MAX_CHARS: 3500, MAX_NEW: 5, MAX_DEADLINE: 5 };

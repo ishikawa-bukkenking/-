@@ -81,18 +81,18 @@ test('変化検知: 書き換えを検出し、追加・削除の抜粋が出る
   assert.deepEqual(plain(d), { added: ['助成率 75%'], removed: ['助成率 60%'] });
 });
 test('通知文: 空の日・取れなかった情報源・件数制限・長さ', () => {
-  const base = { today: '2026-11-18', watch: [], deadlines: [], newHigh: [], midCount: 4, sources: [{ name: 'Jグランツ', ok: true, count: 146 }], sheetUrl: 'https://example.com/sheet' };
+  const base = { today: '2026-11-18', watch: [], deadlines: [], newHigh: [], midCount: 4, sources: [{ name: 'Jグランツ', ok: true, count: 146 }], viewUrl: 'https://example.com/sheet#gid=1' };
   const m0 = L.buildMorningMessage_(base);
-  assert.match(m0, /本日の新着なし/); assert.ok(m0.split('\n').length < 12);
+  assert.match(m0, /本日の新着はありません/); assert.ok(m0.split('\n').length < 12);
   const m1 = L.buildMorningMessage_(Object.assign({}, base, { sources: [{ name: 'Jグランツ', ok: false, error: 'HTTP 500' }] }));
   assert.match(m1, /取れなかった情報源】Jグランツ\(HTTP 500\)/);
-  assert.ok(m1.indexOf('取れなかった') < m1.indexOf('本日の新着なし'), '目立つ位置(上)に出る');
+  assert.ok(m1.indexOf('取れなかった') < m1.indexOf('本日の新着はありません'), '目立つ位置(上)に出る');
   const many = Array.from({ length: 15 }, (_, i) => ({ title: '制度' + i, institution: '機関', start: '2026-04-01', end: '2026-12-01', limit: 10000000, reasons: '地域:全国(+5)', url: 'https://x/' + i }));
   const m2 = L.buildMorningMessage_(Object.assign({}, base, { newHigh: many }));
-  assert.equal((m2.match(/^・制度/gm) || []).length, 10);
+  assert.equal((m2.match(/^\d+\. 制度/gm) || []).length, 5, '新着は5件まで'); assert.match(m2, /ほか10件は「見る用」タブ/);
   assert.match(m2, /上限1000万円/); assert.match(m2, /あと13日/);
   const m3 = L.buildMorningMessage_(Object.assign({}, base, { newHigh: [{ title: 'X', start: '', end: '', limit: null, reasons: 'r', url: 'u' }] }));
-  assert.match(m3, /上限要確認/); assert.match(m3, /要確認 〜 要確認/);
+  assert.match(m3, /上限要確認/); assert.match(m3, /受付 要確認〜要確認/);
 });
 
 test('点数: 全業種が対象の制度は、業種欄では加点しない/億円の表示', () => {
@@ -100,4 +100,20 @@ test('点数: 全業種が対象の制度は、業種欄では加点しない/�
   assert.equal(L.scoreRecord_({ title: '汎用の補助金', industry: all, area: '全国' }, rules()).score, 5);
   assert.ok(L.scoreRecord_({ title: '汎用の補助金', industry: '建設業 / 不動産業、物品賃貸業', area: '全国' }, rules()).score >= 35);
   assert.equal(L.fmtLimit_(150000000), '1億5000万円'); assert.equal(L.fmtLimit_(500000000), '5億円'); assert.equal(L.fmtLimit_(1200000), '120万円');
+});
+
+test('通知文: 要点・曜日・締切・理由の短縮・リンク', () => {
+  const ctx = { today: '2026-11-19', watch: [{ name: '人材開発支援助成金', url: 'https://w', added: ['助成率 75%'], removed: ['助成率 60%'], pdf: '' }],
+    deadlines: [{ title: '持続化補助金', end: '2026-11-22', url: 'https://d', limit: 2000000 }],
+    newHigh: [{ title: '新制度', start: '2026-11-01', end: '2026-12-25', limit: 50000000, reasons: '物件王の扱う制度:業務改善助成金(+30) / 地域:愛知(+10) / 引く条件:NPO(-15)', url: 'https://n' }],
+    midCount: 2, sources: [{ name: 'Jグランツ', ok: true, count: 227 }], viewUrl: 'https://sheet#gid=9' };
+  const m = L.buildMorningMessage_(ctx);
+  assert.match(m, /補助金レーダー 11\/19\(木\)/);
+  assert.match(m, /制度の更新: 1件 \/ 締切が近い: 1件 \/ 新着: 1件/);
+  assert.match(m, /■ 【あと3日】持続化補助金\n  11\/22\(日\)まで \/ 上限200万円\n  → https:\/\/d/);
+  assert.match(m, /追加: 助成率 75%\n  削除: 助成率 60%/);
+  assert.match(m, /関連: 業務改善助成金、愛知\n/); assert.doesNotMatch(m, /NPO/);
+  assert.match(m, /→ https:\/\/sheet#gid=9/);
+  assert.ok(m.split('\n').length <= 30, '行数: ' + m.split('\n').length);
+  assert.ok(m.indexOf('制度の更新】') < m.indexOf('締切が近い】') && m.indexOf('締切が近い】') < m.indexOf('新着】'));
 });

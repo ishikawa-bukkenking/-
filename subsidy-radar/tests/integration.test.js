@@ -56,7 +56,7 @@ test('新着(2日目)→ 通知に載る → 同じ日に2回送っても1通 �
   assert.equal(r1.result, '成功');
   const msg = c.bodies[0];
   assert.ok(!JSON.stringify(tab(c, '通知の履歴')).includes('dummy-token'), '履歴にトークンが残らない');
-  assert.match(msg, /住宅リフォーム 省エネ改修/); assert.match(msg, /あと6日/); assert.match(msg, /理由: /);
+  assert.match(msg, /住宅リフォーム 省エネ改修/); assert.match(msg, /あと6日/); assert.match(msg, /関連: /);
   run(c, 'sendMorning()');
   assert.equal(tab(c, '通知の履歴').length, 1, '同じ日に2通にならない');
   assert.equal(c.bodies.length, 1);
@@ -64,8 +64,8 @@ test('新着(2日目)→ 通知に載る → 同じ日に2回送っても1通 �
   run(c, 'collectDaily()');
   run(c, 'sendMorning(true)'); // 翌日は新着として出ない(強制実行で確認)
   const msg2 = c.bodies[1];
-  assert.doesNotMatch(msg2, /■ 新着/);
-  assert.match(msg2, /本日の新着なし|■ 締切/, '新着は2回目に出ない');
+  assert.doesNotMatch(msg2, /【新着】/);
+  assert.match(msg2, /本日の新着はありません|【締切が近い】/, '新着は2回目に出ない');
 });
 test('更新の検知: 変更なしでは出ない/書き換えで出る/情報源の失敗は目立つ位置に出る', () => {
   const st = newState(), c = boot(st);
@@ -79,12 +79,12 @@ test('更新の検知: 変更なしでは出ない/書き換えで出る/情報�
   assert.ok(w.length >= 1, '差分を検知');
   run(c, 'sendMorning()');
   const msg = tab(c, '通知の履歴')[0]['メモ'];
-  assert.match(msg, /■ 制度の更新/); assert.match(msg, /令和9年度の変更案/);
+  assert.match(msg, /【制度の更新】/); assert.match(msg, /令和9年度の変更案/);
   // 情報源の失敗
   c.TEST_TODAY = '2026-11-21'; st.pageFail = true; run(c, 'collectDaily()'); run(c, 'sendMorning()');
   const msg3 = tab(c, '通知の履歴')[1]['メモ'];
   assert.match(msg3, /取れなかった情報源】ウォッチ/);
-  assert.ok(msg3.indexOf('取れなかった') < msg3.indexOf('取得:'));
+  assert.ok(msg3.indexOf('取れなかった') < msg3.indexOf('取得できた情報源'));
 });
 test('本文を丸ごと保存していない(行の指紋は先頭40文字まで)', () => {
   const st = newState(), c = boot(st);
@@ -123,4 +123,19 @@ test('weeklyHealth: 日ごとの収集・エラー・通知を集計', () => {
   const h = JSON.parse(JSON.stringify(run(c, 'weeklyHealth(3)')));
   assert.equal(h.days.length, 3); assert.equal(h.okDays, 1);
   assert.match(h.days[2].errors[0], /Jグランツ: HTTP 500/);
+});
+
+test('見る用タブ: 募集中の高・中だけ、締切が近い順、読みやすい列', () => {
+  const st = newState(), c = boot(st);
+  run(c, 'setup()'); run(c, 'collectDaily()');
+  const v = tab(c, '見る用');
+  assert.ok(v.length > 0);
+  assert.ok(v.every(r => r['段階'] === '高' || r['段階'] === '中'));
+  const highs = v.filter(r => r['段階'] === '高'); assert.equal(v.slice(0, highs.length).every(r => r['段階'] === '高'), true, '高が先');
+  assert.match(v[0]['締切まで'], /あと\d+日|本日まで|要確認/);
+  assert.match(v[0]['リンク'], /^https:\/\/www\.jgrants-portal\.go\.jp\//);
+  assert.ok(v.every(r => !/\(\+\d+\)/.test(r['関連(なぜ上に出たか)'])), '点数の数字は出さない');
+  // 通知のリンクが「見る用」タブ(gid)を指す
+  setMode(c, 'dry'); run(c, 'sendMorning(true)');
+  assert.match(tab(c, '通知の履歴')[0]['メモ'], /#gid=\d+/);
 });

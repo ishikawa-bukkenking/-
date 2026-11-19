@@ -1,7 +1,7 @@
 // Google のサービス(SpreadsheetApp など)の最小の代用品。通し試験用。
 const crypto = require('crypto');
 function makeSheet(name) {
-  const s = { name, data: [], getLastRow() { let n = this.data.length; while (n > 0 && this.data[n - 1].every(c => c === '' || c == null)) n--; return n; },
+  const s = { name, getSheetId() { return 100 + name.length; }, data: [], getLastRow() { let n = this.data.length; while (n > 0 && this.data[n - 1].every(c => c === '' || c == null)) n--; return n; },
     getRange(r, c, nr, nc) { const sh = this; return {
       getValues() { const o = []; for (let i = 0; i < nr; i++) { const row = []; for (let j = 0; j < nc; j++) row.push(((sh.data[r - 1 + i] || [])[c - 1 + j]) ?? ''); o.push(row); } return o; },
       setValues(v) { v.forEach((row, i) => { sh.data[r - 1 + i] = sh.data[r - 1 + i] || []; row.forEach((x, j) => { sh.data[r - 1 + i][c - 1 + j] = x; }); }); return this; },

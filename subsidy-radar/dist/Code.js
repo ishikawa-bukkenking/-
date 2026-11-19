@@ -12,7 +12,7 @@ var DB_NAME = '補助金レーダーDB';
 
 var TAB = {
   SUBSIDY: '制度', HISTORY: '更新の履歴', WATCH: 'ウォッチ', NOTICE: '通知の履歴',
-  RUNS: '実行の記録', SETTINGS: '設定', MARKS: '気になる', ARCHIVE: 'アーカイブ'
+  RUNS: '実行の記録', SETTINGS: '設定', MARKS: '気になる', ARCHIVE: 'アーカイブ', VIEW: '見る用'
 };
 
 var HEADERS = {};
@@ -27,6 +27,7 @@ HEADERS['実行の記録'] = ['日時', '日付', '情報源', '取得件数', '
 HEADERS['設定'] = ['区分', '項目', '値', '点数', '範囲', 'メモ'];
 HEADERS['気になる'] = ['制度ID', '印', 'メモ', '付けた人', '日付'];
 HEADERS['アーカイブ'] = HEADERS['制度'];
+HEADERS['見る用'] = ['締切まで', '段階', '名前', '上限額', '受付期間', '関連(なぜ上に出たか)', 'リンク', '確認が必要な項目'];
 
 /** 点数の初期値(たたき台)。[カテゴリ, キーワード, 点数, 範囲(空=全項目)] — 設定タブに書き出される */
 var DEFAULT_RULES = [
@@ -82,7 +83,7 @@ var WATCH_SEEDS = [
 
 var WATCH = { WAIT_MS: 3000, USER_AGENT: 'BukkenkingSubsidyRadar/1.0 (internal; once-a-day)' };
 
-var NOTIFY = { CHATWORK_BASE: 'https://api.chatwork.com/v2', MAX_CHARS: 3500 };
+var NOTIFY = { CHATWORK_BASE: 'https://api.chatwork.com/v2', MAX_CHARS: 3500, MAX_NEW: 5, MAX_DEADLINE: 5 };
 
 
 /* ===== Logic.js ===== */
@@ -330,59 +331,89 @@ function fmtLimit_(n) {
   return n >= 10000 ? (n % 10000 === 0 ? n / 10000 : (n / 10000).toFixed(1).replace(/\.0$/, '')) + '万円' : n + '円';
 }
 
+function weekdayJa_(ymd) {
+  var p = ymd.split('-');
+  return '日月火水木金土'.charAt(new Date(Date.UTC(+p[0], p[1] - 1, +p[2])).getUTCDay());
+}
+
+/** 'YYYY-MM-DD' → '12/25'(今年なら年を省く)。空なら '要確認' */
+function mdLabel_(ymd, today) {
+  if (!ymd) return REVIEW;
+  var p = ymd.split('-'), md = (+p[1]) + '/' + (+p[2]);
+  return p[0] === String(today).slice(0, 4) ? md : p[0] + '/' + md;
+}
+
 function fmtPeriod_(start, end, today) {
-  var s = start ? start.replace(/-/g, '/') : REVIEW, e = end ? end.replace(/-/g, '/') + '(' + daysLabel_(end, today) + ')' : REVIEW;
-  return s + ' 〜 ' + e;
+  var e = end ? mdLabel_(end, today) + '(' + daysLabel_(end, today) + ')' : REVIEW;
+  return '受付 ' + (start ? mdLabel_(start, today) : REVIEW) + '〜' + e;
+}
+
+/** 点数の理由を短く: 'カテゴリ:キーワード(+15) / ...' → 'キーワード、キーワード'(加点の上位 n 件) */
+function shortReasons_(reasons, n) {
+  var out = [];
+  String(reasons || '').split(' / ').forEach(function (r) {
+    if (/\(-/.test(r)) return;
+    var kw = r.replace(/\([+-]?\d+\)$/, '').replace(/^[^:]*:/, '').trim();
+    if (kw && out.indexOf(kw) < 0) out.push(kw);
+  });
+  return out.slice(0, n || 3).join('、') || '関連キーワードなし';
 }
 
 /**
- * ctx: { today, watch:[{name,url,added,removed,pdf}], deadlines:[{title,end,url,level}],
+ * Chatwork に送る朝の通知。スマホで1画面を目安に、「要点 → 更新 → 締切 → 新着」の順。
+ * ctx: { today, watch:[{name,url,added,removed,pdf}], deadlines:[{title,end,url,limit}],
  *        newHigh:[{title,institution,start,end,limit,reasons,url}], midCount, sources:[{name,ok,count,error}],
- *        sheetUrl, prevFailed }
+ *        viewUrl(「見る用」タブのリンク), prevFailed, maxNew, maxDeadline }
  */
 function buildMorningMessage_(ctx) {
-  var L = [], today = ctx.today;
+  var L = [], today = ctx.today, maxNew = ctx.maxNew || 5, maxDl = ctx.maxDeadline || 5;
   var bad = (ctx.sources || []).filter(function (s) { return !s.ok; });
-  L.push('[info][title]補助金レーダー ' + today.replace(/-/g, '/') + '[/title]');
-  if (bad.length) L.push('【取れなかった情報源】' + bad.map(function (s) { return s.name + '(' + (s.error || '失敗') + ')'; }).join('、') + '\n※この情報源の分は、今日は確認できていません');
-  if (ctx.prevFailed) L.push('【お知らせ】前回の通知は送信に失敗していました');
-  var empty = !(ctx.watch.length || ctx.deadlines.length || ctx.newHigh.length);
-  if (empty) {
-    L.push('本日の新着なし(新着の点数「中」: ' + (ctx.midCount || 0) + '件)');
-  } else {
-    if (ctx.watch.length) {
-      L.push('■ 制度の更新(' + ctx.watch.length + '件)');
-      ctx.watch.forEach(function (w) {
-        var line = '・' + w.name;
-        if (w.pdf) line += '\n  ' + w.pdf;
-        (w.added || []).slice(0, 3).forEach(function (t) { line += '\n  + ' + t; });
-        (w.removed || []).slice(0, 3).forEach(function (t) { line += '\n  - ' + t; });
-        var more = ((w.added || []).length - 3 > 0 ? (w.added.length - 3) : 0) + ((w.removed || []).length - 3 > 0 ? (w.removed.length - 3) : 0);
-        if (more) line += '\n  ほか' + more + '行';
-        L.push(line + '\n  ' + w.url);
-      });
-    }
-    if (ctx.deadlines.length) {
-      L.push('■ 締切が近い(点数「高」)');
-      ctx.deadlines.slice(0, 8).forEach(function (d) {
-        L.push('・' + d.title + '\n  ' + d.end.replace(/-/g, '/') + '(' + daysLabel_(d.end, today) + ')\n  ' + d.url);
-      });
-      if (ctx.deadlines.length > 8) L.push('  ほか' + (ctx.deadlines.length - 8) + '件は表で確認');
-    }
-    if (ctx.newHigh.length) {
-      L.push('■ 新着(点数「高」 ' + ctx.newHigh.length + '件)');
-      ctx.newHigh.slice(0, 10).forEach(function (n) {
-        L.push('・' + n.title + '\n  ' + (n.institution ? n.institution + ' / ' : '') + '上限' + fmtLimit_(n.limit) +
-          '\n  ' + fmtPeriod_(n.start, n.end, today) + '\n  理由: ' + n.reasons + '\n  ' + n.url);
-      });
-    }
-    if (ctx.newHigh.length > 10) L.push('  ほか' + (ctx.newHigh.length - 10) + '件は表で確認');
-    L.push('新着の点数「中」: ' + (ctx.midCount || 0) + '件(表で確認)');
+  var nW = ctx.watch.length, nD = ctx.deadlines.length, nN = ctx.newHigh.length;
+  var p = today.split('-');
+  L.push('[info][title]補助金レーダー ' + (+p[1]) + '/' + (+p[2]) + '(' + weekdayJa_(today) + ')[/title]');
+  if (bad.length) {
+    L.push('【取れなかった情報源】' + bad.map(function (s) { return s.name + '(' + (s.error || '失敗') + ')'; }).join('、') + '\n→ この分は、今日は確認できていません');
+    L.push('[hr]');
   }
+  if (ctx.prevFailed) L.push('【お知らせ】前回の通知は、送信に失敗していました');
+  if (!(nW || nD || nN)) {
+    L.push('本日の新着はありません(新着の点数「中」: ' + (ctx.midCount || 0) + '件)');
+  } else {
+    L.push('今日の要点\n  制度の更新: ' + nW + '件 / 締切が近い: ' + nD + '件 / 新着: ' + nN + '件');
+  }
+  if (nW) {
+    L.push('[hr]\n【制度の更新】公式ページが変わりました');
+    ctx.watch.forEach(function (w) {
+      var line = '■ ' + w.name;
+      if (w.pdf) line += '\n  ' + w.pdf;
+      (w.added || []).slice(0, 3).forEach(function (t) { line += '\n  追加: ' + t; });
+      (w.removed || []).slice(0, 3).forEach(function (t) { line += '\n  削除: ' + t; });
+      var more = Math.max(0, (w.added || []).length - 3) + Math.max(0, (w.removed || []).length - 3);
+      if (more) line += '\n  ほか' + more + '行';
+      L.push(line + '\n  → ' + w.url);
+    });
+  }
+  if (nD) {
+    L.push('[hr]\n【締切が近い】');
+    ctx.deadlines.slice(0, maxDl).forEach(function (d) {
+      var wd = '(' + weekdayJa_(d.end) + ')';
+      L.push('■ 【' + daysLabel_(d.end, today) + '】' + d.title + '\n  ' + mdLabel_(d.end, today) + wd + 'まで' + (d.limit != null && d.limit !== '' ? ' / 上限' + fmtLimit_(d.limit) : '') + '\n  → ' + d.url);
+    });
+    if (nD > maxDl) L.push('  ほか' + (nD - maxDl) + '件は「見る用」タブで確認');
+  }
+  if (nN) {
+    L.push('[hr]\n【新着】物件王に関係が深い制度');
+    ctx.newHigh.slice(0, maxNew).forEach(function (n, i) {
+      L.push((i + 1) + '. ' + n.title + '\n  上限' + fmtLimit_(n.limit) + ' / ' + fmtPeriod_(n.start, n.end, today) + '\n  関連: ' + shortReasons_(n.reasons, 3) + '\n  → ' + n.url);
+    });
+    if (nN > maxNew) L.push('  ほか' + (nN - maxNew) + '件は「見る用」タブで確認');
+  }
+  L.push('[hr]');
+  if (nW || nD || nN) L.push('新着の点数「中」: ' + (ctx.midCount || 0) + '件');
   var ok = (ctx.sources || []).filter(function (s) { return s.ok; });
-  if (ok.length) L.push('取得: ' + ok.map(function (s) { return s.name + ' ' + s.count + '件'; }).join(' / '));
-  if (ctx.sheetUrl) L.push('一覧(表): ' + ctx.sheetUrl);
-  L.push('出典: Jグランツ(デジタル庁)、厚生労働省 ほか。金額・日付は必ず元のページで確認してください[/info]');
+  if (ok.length) L.push('取得できた情報源: ' + ok.map(function (s) { return s.name + ' ' + s.count + '件'; }).join(' / '));
+  if (ctx.viewUrl) L.push('全件を見る(「見る用」タブ。締切が近い順)\n→ ' + ctx.viewUrl);
+  L.push('出典: Jグランツ(デジタル庁)、厚生労働省。金額・日付は、必ず元のページで確認してください[/info]');
   return L.join('\n');
 }
 
@@ -428,17 +459,7 @@ function setup() {
     ss = SpreadsheetApp.create(DB_NAME);
     props_().setProperty('DB_ID', ss.getId());
   }
-  Object.keys(TAB).forEach(function (k) {
-    var name = TAB[k];
-    var sh = ss.getSheetByName(name);
-    if (!sh) {
-      sh = ss.insertSheet(name);
-      sh.getRange(1, 1, 1, HEADERS[name].length).setValues([HEADERS[name]]);
-      sh.getRange(1, 1, 1, HEADERS[name].length).setFontWeight('bold');
-      sh.setFrozenRows(1);
-      sh.getRange(1, 1, 1000, HEADERS[name].length).setNumberFormat('@');
-    }
-  });
+  ensureTabs_(ss);
   var first = ss.getSheetByName('シート1') || ss.getSheetByName('Sheet1');
   if (first && ss.getSheets().length > 1) ss.deleteSheet(first);
   seedSettings_(ss);
@@ -450,7 +471,21 @@ function setup() {
 function openDb_() {
   var id = props_().getProperty('DB_ID');
   if (!id) throw new Error('DBがありません。先に setup() を実行してください');
-  return SpreadsheetApp.openById(id);
+  var ss = SpreadsheetApp.openById(id);
+  ensureTabs_(ss); // 後から増えたタブ(見る用 など)も、自動で作る
+  return ss;
+}
+
+function ensureTabs_(ss) {
+  Object.keys(TAB).forEach(function (k) {
+    var name = TAB[k];
+    if (ss.getSheetByName(name)) return;
+    var sh = ss.insertSheet(name);
+    sh.getRange(1, 1, 1, HEADERS[name].length).setValues([HEADERS[name]]);
+    sh.getRange(1, 1, 1, HEADERS[name].length).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1000, HEADERS[name].length).setNumberFormat('@');
+  });
 }
 
 function cellText_(v) {
@@ -802,6 +837,7 @@ function runCollect_(ss) {
     if (row['受付終了'] && daysBetween_(row['受付終了'], today) > settings.keep) archive.push(row); else keep.push(row);
   });
   writeTab_(ss, TAB.SUBSIDY, keep);
+  buildViewTab_(ss, keep, today);
   if (archive.length) {
     var have = {}; readTab_(ss, TAB.ARCHIVE).forEach(function (r) { have[r['ID']] = 1; });
     appendTab_(ss, TAB.ARCHIVE, archive.filter(function (r) { return !have[r['ID']]; }));
@@ -809,6 +845,39 @@ function runCollect_(ss) {
   appendTab_(ss, TAB.HISTORY, ctx.history);
   appendTab_(ss, TAB.RUNS, runs);
   return runs;
+}
+
+/**
+ * 「見る用」タブ: 募集中で、点数が高・中のものだけを、読みやすい列で、締切が近い順に並べる。
+ * 毎回、作り直す(編集しても消える。気になる印・メモは「気になる」タブへ)
+ */
+function buildViewTab_(ss, rows, today) {
+  var list = rows.filter(function (r) { return r['状態'] === '募集中' && (r['段階'] === '高' || r['段階'] === '中'); });
+  list.sort(function (a, b) {
+    if (a['段階'] !== b['段階']) return a['段階'] === '高' ? -1 : 1;
+    return (a['受付終了'] || '9999') < (b['受付終了'] || '9999') ? -1 : 1;
+  });
+  var out = list.map(function (r) {
+    var lim = r['上限額'] === '' ? REVIEW : fmtLimit_(r['上限額']);
+    return {
+      '締切まで': r['受付終了'] ? daysLabel_(r['受付終了'], today) + '(' + mdLabel_(r['受付終了'], today) + ')' : REVIEW,
+      '段階': r['段階'], '名前': r['名前'], '上限額': lim,
+      '受付期間': (r['受付開始'] ? mdLabel_(r['受付開始'], today) : REVIEW) + ' 〜 ' + (r['受付終了'] ? mdLabel_(r['受付終了'], today) : REVIEW),
+      '関連(なぜ上に出たか)': shortReasons_(r['点数の理由'], 4), 'リンク': r['元のリンク'], '確認が必要な項目': r['要確認']
+    };
+  });
+  writeTab_(ss, TAB.VIEW, out);
+  try {
+    var sh = ss.getSheetByName(TAB.VIEW), w = [110, 50, 380, 90, 150, 260, 300, 120];
+    w.forEach(function (px, i) { sh.setColumnWidth(i + 1, px); });
+    if (out.length) sh.getRange(2, 1, out.length, w.length).setWrap(true).setVerticalAlignment('top');
+    sh.getRange(1, 1, 1, w.length).setBackground('#04746D').setFontColor('#FFFFFF');
+  } catch (e) { /* 見た目の設定に失敗しても、収集は止めない */ }
+}
+
+function viewUrl_(ss) {
+  var sh = ss.getSheetByName(TAB.VIEW);
+  return sh ? ss.getUrl() + '#gid=' + sh.getSheetId() : ss.getUrl();
 }
 
 function markDuplicates_(rows, today) {
@@ -847,10 +916,9 @@ function buildCtx_(ss, today, settings) {
   var bySrc = {};
   runs.filter(function (r) { return r['日付'] === today; }).forEach(function (r) { bySrc[r['情報源']] = r; });
   var sources = Object.keys(bySrc).map(function (k) { var r = bySrc[k]; return { name: k, ok: !r['エラー'], count: r['取得件数'], error: r['エラー'] }; });
-  var sheetUrl = ss.getUrl();
   return {
-    today: today, watch: changes, sheetUrl: sheetUrl, sources: sources, prevFailed: false,
-    deadlines: deadlines.map(function (r) { return { title: r['名前'], end: r['受付終了'], url: link(r), _row: r }; }),
+    today: today, watch: changes, viewUrl: viewUrl_(ss), sources: sources, prevFailed: false, maxNew: NOTIFY.MAX_NEW, maxDeadline: NOTIFY.MAX_DEADLINE,
+    deadlines: deadlines.map(function (r) { return { title: r['名前'], end: r['受付終了'], limit: r['上限額'] === '' ? null : r['上限額'], url: link(r), _row: r }; }),
     newHigh: newHigh.map(function (r) { return { title: r['名前'], institution: r['実施機関'], start: r['受付開始'], end: r['受付終了'], limit: r['上限額'] === '' ? null : r['上限額'], reasons: r['点数の理由'], url: link(r), _row: r }; }),
     midCount: newRows.filter(function (r) { return r['段階'] === '中'; }).length,
     _newRows: newRows

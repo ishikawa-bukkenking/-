@@ -11,17 +11,7 @@ function setup() {
     ss = SpreadsheetApp.create(DB_NAME);
     props_().setProperty('DB_ID', ss.getId());
   }
-  Object.keys(TAB).forEach(function (k) {
-    var name = TAB[k];
-    var sh = ss.getSheetByName(name);
-    if (!sh) {
-      sh = ss.insertSheet(name);
-      sh.getRange(1, 1, 1, HEADERS[name].length).setValues([HEADERS[name]]);
-      sh.getRange(1, 1, 1, HEADERS[name].length).setFontWeight('bold');
-      sh.setFrozenRows(1);
-      sh.getRange(1, 1, 1000, HEADERS[name].length).setNumberFormat('@');
-    }
-  });
+  ensureTabs_(ss);
   var first = ss.getSheetByName('シート1') || ss.getSheetByName('Sheet1');
   if (first && ss.getSheets().length > 1) ss.deleteSheet(first);
   seedSettings_(ss);
@@ -33,7 +23,21 @@ function setup() {
 function openDb_() {
   var id = props_().getProperty('DB_ID');
   if (!id) throw new Error('DBがありません。先に setup() を実行してください');
-  return SpreadsheetApp.openById(id);
+  var ss = SpreadsheetApp.openById(id);
+  ensureTabs_(ss); // 後から増えたタブ(見る用 など)も、自動で作る
+  return ss;
+}
+
+function ensureTabs_(ss) {
+  Object.keys(TAB).forEach(function (k) {
+    var name = TAB[k];
+    if (ss.getSheetByName(name)) return;
+    var sh = ss.insertSheet(name);
+    sh.getRange(1, 1, 1, HEADERS[name].length).setValues([HEADERS[name]]);
+    sh.getRange(1, 1, 1, HEADERS[name].length).setFontWeight('bold');
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1000, HEADERS[name].length).setNumberFormat('@');
+  });
 }
 
 function cellText_(v) {
