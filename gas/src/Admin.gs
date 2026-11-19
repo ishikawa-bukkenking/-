@@ -45,14 +45,20 @@ function api_list() {
   return { companies: companies, hasUrl: !!lpBase_(st), provisional: !st.url };
 }
 
-function api_create_company(name, pref, city) {
+/** pattern: 'standard'(標準) / 'station'(路線・駅別の物件数あり)。会社ごとに決まり、追加するエリアも同じパターンになる */
+function api_create_company(name, pref, city, pattern) {
   requireUser_();
   normalizePrefecture_(pref);
   if (!String(city || '').trim()) throw new Error('市区町村を入力してください。');
   var cid = createCompany_(name);
-  return { companyId: cid, areaId: createArea_(cid, pref, city) };
+  return { companyId: cid, areaId: createArea_(cid, pref, city, pattern === 'station' ? { pattern: 'station' } : null) };
 }
-function api_add_area(companyId, pref, city) { requireUser_(); return { areaId: createArea_(companyId, pref, city) }; }
+function companyPattern_(companyId) {
+  var first = listAreas_().filter(function (x) { return x.companyId === companyId; })[0];
+  var a = first ? areaById_(first.id) : null;
+  return a && a.values.pattern === 'station' ? 'station' : 'standard';
+}
+function api_add_area(companyId, pref, city) { requireUser_(); return { areaId: createArea_(companyId, pref, city, companyPattern_(companyId) === 'station' ? { pattern: 'station' } : null) }; }
 function api_rename_company(id, name) { requireUser_(); renameCompany_(id, name); return { ok: true }; }
 function api_delete_area(areaId) { requireUser_(); deleteArea_(areaId); return { ok: true }; }
 function api_delete_company(id) { requireUser_(); deleteCompany_(id); return { ok: true }; }
@@ -66,7 +72,8 @@ function api_get(areaId) {
   var c = companyById_(a.companyId), st = readSettings_(), images = {};
   FIELDS_.forEach(function (f) { if (f.t === 'image') images[f.k] = /^drive:/.test(a.values[f.k] || ''); });
   var siblings = listAreas_().filter(function (x) { return x.companyId === a.companyId; }).map(function (x) { return { id: x.id, label: x.pref + ' ' + x.city }; });
-  return { id: a.id, company: c ? { id: c.id, name: c.name } : { id: '', name: '' }, fields: fieldsMeta_(), values: a.values, images: images,
+  var pattern = a.values.pattern === 'station' ? 'station' : 'standard';
+  return { id: a.id, company: c ? { id: c.id, name: c.name } : { id: '', name: '' }, pattern: pattern, fields: fieldsMeta_(pattern), values: a.values, images: images,
     tables: TABLE_KEYS_.reduce(function (o, k) { o[k] = savedTable_(a.values, k); return o; }, {}), aiReady: !!aiKey_(),
     autoHouseholds: a.values['auto.households'] ? Number(a.values['auto.households']) : null, hasEstat: !!st.estat,
     url: lpUrl_(st, primaryAreaId_(a)), primary: primaryAreaId_(a) === a.id, provisional: !st.url, prefectures: PREFECTURES, siblings: siblings };

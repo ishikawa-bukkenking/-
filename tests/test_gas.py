@@ -362,3 +362,15 @@ def test_data_migration():
     assert o["img"] and o["imgReadable"] and o["fr"] == 202 and o["frHas"] and o["lp"]
     assert o["again"]["companies"] == 0 and o["again"]["areas"] == 0 and o["again"]["skipped"] == 3 and o["companiesAfter"] == 1
     assert o["bad"] and o["denied"]
+
+
+def test_station_pattern():
+    """パターン2(路線・駅別の物件数): 作成時に選べる/入力項目が切り替わる/手入力・AI読み取り/物件数は合計/複数エリア・複製・標準版は従来どおり"""
+    r = run_node("station_test.js", dict(geoDir=geo_dir("長野県")))
+    assert r["pattern"] == ["standard", "station"] and r["fields"] == [True, False, False, 4]
+    assert r["save"] == [155, ["上田駅", "西上田駅"], ["JR中央線", "JR中央線"]] and r["bad"] and r["bad2"]
+    assert r["listings"] == [155, "station", None] and all(r["html"]) and r["stdHtml"]
+    assert "land.stations" in r["missing"] and "used_house.stations" not in r["missing"]
+    assert r["ai"] == [["上田駅", "西上田駅", "大屋駅"], ["JR中央線", "JR中央線", "しなの鉄道"], [[120], [35], [None]], 155, 1]
+    assert r["land"] == [155, True, True] and r["inherit"] == ["station", "station", True] and all(r["multi"])
+    assert r["std"] == 300 and r["denied"]

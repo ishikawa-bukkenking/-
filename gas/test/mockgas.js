@@ -91,6 +91,8 @@ function makeEnv(geoDir) {
       if ((o.headers || {})['x-api-key'] !== 'sk-ant-testtesttesttesttesttest') return reply(401, { error: { message: 'invalid x-api-key' } });
       if (global.__aiMode === 'refusal') return reply(200, { stop_reason: 'refusal', content: [] });
       if (global.__aiMode === 'junk') return reply(200, { stop_reason: 'end_turn', content: [{ type: 'text', text: '読み取れません' }] });
+      if (JSON.parse(o.payload).messages[0].content[1].text.indexOf('路線・駅ごと') >= 0)
+        return reply(200, { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ caption: '', lines: ['JR中央線', 'JR中央線', 'しなの鉄道'], rows: ['上田駅', '西上田駅', '大屋駅'], cells: [[120], [35], [null]], warnings: ['大屋駅の件数が読めません'] }) }] });
       if (JSON.parse(o.payload).messages[0].content[1].text.indexOf('折れ線グラフ') >= 0)
         return reply(200, { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ caption: '', cols: ['2023', '2024', '2025'], rows: ['中古マンション', '土地'], cells: [[2800, '2900', 3100.5], [900, null, 950]], warnings: ['グラフの値は目盛りからの概算です'] }) }] });
       const t = { caption: '土地面積×価格', cols: ['〜1000', '1000〜2000', '2000〜'], rows: ['〜100㎡', '100〜150㎡'], cells: [[3, 12, null], [5, '8', 1]], warnings: ['左下の数字がやや不鮮明'] };

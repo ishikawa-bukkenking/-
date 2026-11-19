@@ -2,8 +2,10 @@
 
 var AI_MODEL_ = 'claude-opus-5-5';
 var TREND_KEY_ = 'inputs.price_trend.image';
-var TABLE_KEYS_ = [TREND_KEY_, 'inputs.used_house.heatmap_image', 'inputs.used_mansion.heatmap_image', 'inputs.new_house.heatmap_image'];
+var STATION_KEYS_ = ['inputs.land.station_image', 'inputs.used_house.station_image', 'inputs.used_mansion.station_image', 'inputs.new_house.station_image'];
+var TABLE_KEYS_ = [TREND_KEY_, 'inputs.used_house.heatmap_image', 'inputs.used_mansion.heatmap_image', 'inputs.new_house.heatmap_image'].concat(STATION_KEYS_);
 function isTableKey_(key) { return TABLE_KEYS_.indexOf(key) >= 0; }
+function isStationKey_(key) { return STATION_KEYS_.indexOf(key) >= 0; }
 function tableValueKey_(key) { return 'tbl.' + key; }
 
 function aiKey_() { return String(PropertiesService.getScriptProperties().getProperty('ANTHROPIC_KEY') || '').trim(); }
@@ -30,6 +32,23 @@ function normalizeTable_(t, allowNeg) {
   return out;
 }
 
+/** 路線・駅別の物件数(純粋関数): { caption, cols:['物件数'], lines:[路線名], rows:[駅名], cells:[[件数]] }。路線名・駅名のどちらかと件数がある行だけ残す */
+function normalizeStationTable_(t) {
+  if (!t || typeof t !== 'object') throw new Error('表のデータがありません。');
+  var rows = t.rows || [], lines = t.lines || [], cells = t.cells || [], out = { caption: String(t.caption || '').trim().slice(0, 60), cols: ['物件数'], lines: [], rows: [], cells: [] };
+  if (rows.length > 150) throw new Error('行が多すぎます(150行まで)。');
+  rows.forEach(function (st, i) {
+    var line = String(lines[i] === null || lines[i] === undefined ? '' : lines[i]).trim().slice(0, 30), name = String(st === null || st === undefined ? '' : st).trim().slice(0, 30);
+    var raw = (cells[i] || [])[0], blank = raw === null || raw === undefined || String(raw).trim() === '';
+    if (!line && !name && blank) return;   // 空の行は無視
+    if (!line && !name) throw new Error('路線名か駅名を入力してください(' + (i + 1) + '行目)。');
+    var n = blank ? null : parseNum_(raw);
+    if (n === undefined || (n !== null && (n < 0 || n !== Math.floor(n)))) throw new Error('物件数は0以上の整数で入力してください(' + (i + 1) + '行目)。');
+    out.lines.push(line); out.rows.push(name); out.cells.push([n]);
+  });
+  return out;
+}
+
 /** 表 → 描画用(heat_html_ の入力) */
 function tableToHeat_(t) {
   var max = 0;
@@ -48,6 +67,17 @@ var TREND_PROMPT_ = [
   '次のJSONだけを返してください(説明文やコードブロックは付けない)。',
   '{"type":"line","unit":"","caption":"","cols":["時点",...],"rows":["系列名",...],"cells":[[数値またはnull,...],...],"warnings":["..."]}',
   'cells は rows と同じ行数、cols と同じ列数にしてください。'
+].join('\n');
+
+var STATION_PROMPT_ = [
+  'この画像は、不動産の「路線・駅ごとの物件数」の表(またはグラフ)です。内容を、一切変えずに正確に読み取ってください。',
+  '- 1行ごとに、路線名(lines)、駅名(rows)、物件数(cells の数値)を書き写します。路線名が複数の駅にまたがる場合は、駅ごとの行すべてに同じ路線名を入れます。',
+  '- 路線全体の合計だけが載っている場合は、駅名を空文字にして、その路線の1行にします。',
+  '- 物件数が読み取れない・自信がない行は推測せず null にし、warnings にその位置を日本語で書きます。',
+  '- caption には、表のタイトルや単位の説明が画像にあれば書き写します(無ければ空文字)。',
+  '次のJSONだけを返してください(説明文やコードブロックは付けない)。',
+  '{"caption":"","lines":["路線名",...],"rows":["駅名",...],"cells":[[数値またはnull],...],"warnings":["..."]}',
+  'lines・rows・cells は同じ行数にしてください。'
 ].join('\n');
 
 var TABLE_PROMPT_ = [
@@ -74,7 +104,7 @@ function aiReadTable_(base64, mediaType, key, fetch, kind) {
     model: AI_MODEL_, max_tokens: 8000, output_config: { effort: 'low' },
     messages: [{ role: 'user', content: [
       { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-      { type: 'text', text: kind === 'trend' ? TREND_PROMPT_ : TABLE_PROMPT_ }] }]
+      { type: 'text', text: kind === 'trend' ? TREND_PROMPT_ : kind === 'station' ? STATION_PROMPT_ : TABLE_PROMPT_ }] }]
   };
   var res = fetch('https://api.anthropic.com/v1/messages', {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true,
@@ -89,7 +119,7 @@ function aiReadTable_(base64, mediaType, key, fetch, kind) {
   if (r.stop_reason === 'max_tokens') throw new Error('表が大きすぎて読み取りきれませんでした。');
   var text = (r.content || []).filter(function (b) { return b.type === 'text'; }).map(function (b) { return b.text; }).join('');
   var raw = extractJson_(text);
-  var t = normalizeTable_(raw, kind === 'trend');
+  var t = kind === 'station' ? normalizeStationTable_(raw) : normalizeTable_(raw, kind === 'trend');
   t.warnings = (raw.warnings || []).map(String).slice(0, 10);
   return t;
 }
@@ -97,7 +127,7 @@ function aiReadTable_(base64, mediaType, key, fetch, kind) {
 function savedTable_(values, key) {
   var s = values[tableValueKey_(key)];
   if (!s) return null;
-  try { return normalizeTable_(JSON.parse(s), key === TREND_KEY_); } catch (e) { return null; }
+  try { return isStationKey_(key) ? normalizeStationTable_(JSON.parse(s)) : normalizeTable_(JSON.parse(s), key === TREND_KEY_); } catch (e) { return null; }
 }
 
 /** 保存済みの画像をAIで読み取る。save=true なら表として自動保存(貼り付け時)。false は候補を返すだけ */
@@ -109,7 +139,7 @@ function api_readTable(areaId, key, save) {
   var ref = String(a.values[key] || '').match(/^drive:([A-Za-z0-9_-]+)$/);
   if (!ref) throw new Error('先に画像を登録してください。');
   var blob = DriveApp.getFileById(ref[1]).getBlob();
-  var t = aiReadTable_(Utilities.base64Encode(blob.getBytes()), blob.getContentType(), aiKey_(), function (u, o) { return UrlFetchApp.fetch(u, o); }, key === TREND_KEY_ ? 'trend' : 'table');
+  var t = aiReadTable_(Utilities.base64Encode(blob.getBytes()), blob.getContentType(), aiKey_(), function (u, o) { return UrlFetchApp.fetch(u, o); }, key === TREND_KEY_ ? 'trend' : isStationKey_(key) ? 'station' : 'table');
   t.total = tableTotal_(t);
   if (save) {   // 貼り付けたら自動で表にして保存する(あとから画面で直せる)
     writeAreaValues_(areaId, function (values) {
@@ -124,12 +154,12 @@ function api_readTable(areaId, key, save) {
 function api_saveTable(areaId, key, table) {
   requireUser_();
   if (!isTableKey_(key)) throw new Error('この項目は表に作り直せません。');
-  var t = normalizeTable_(table, key === TREND_KEY_);
+  var t = isStationKey_(key) ? normalizeStationTable_(table) : normalizeTable_(table, key === TREND_KEY_);
   writeAreaValues_(areaId, function (values) {
     values[tableValueKey_(key)] = JSON.stringify(t);
     var dk = dateKeyFor_(key); if (dk) values[dk] = todayStr_();
   });
-  return { ok: true, total: tableTotal_(t) };
+  return { ok: true, total: tableTotal_(t), table: t };
 }
 
 function api_deleteTable(areaId, key) {

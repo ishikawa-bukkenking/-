@@ -51,7 +51,8 @@ var FIELDS_ = [
   { k: 'inputs.land.tsubo_price_man', l: '坪単価(万円/坪)', t: 'num', req: 1 },
   { k: 'inputs.land.tsubo_price_low_rise_residential_man', l: '低層住居専用地域の相場(万円/坪)', t: 'num', req: 1 },
   { k: 'inputs.land.tsubo_price_other_residential_man', l: 'それ以外の住居専用地域(万円/坪)', t: 'num', req: 1 },
-  { k: 'inputs.land.listings', l: '土地の物件数(件)', t: 'num', req: 1 },
+  { k: 'inputs.land.listings', l: '土地の物件数(件)', t: 'num', req: 1, np: 'station' },
+  { k: 'inputs.land.station_image', l: '路線・駅別の物件数(画像)', t: 'image', req: 1, pat: 'station', d: '路線・駅ごとの物件数の画像を貼ると、AIが表にします。画像が無くても、下の表に手入力できます(物件数はこの合計になります)' },
   { k: 'inputs.land.price_man', l: '土地の売却価格相場(万円)', t: 'num', req: 1, d: 'まとめ(P10)に表示' },
   { k: 'inputs.land.price_per_m2_man', l: '土地の平米単価(万円/㎡)', t: 'num', req: 1 },
   { k: 'inputs.land.land_area_median_m2', l: '土地面積の中央値(㎡)', t: 'num', req: 1 },
@@ -62,20 +63,23 @@ var FIELDS_ = [
   { k: 'compare.4', l: '比較市5', t: 'list' },
   { h: '中古戸建て' },
   { k: 'inputs.used_house.price_man', l: '売却価格相場(万円)', t: 'num', req: 1 },
-  { k: 'inputs.used_house.listings', l: '物件数(件)', t: 'num', req: 1 },
+  { k: 'inputs.used_house.listings', l: '物件数(件)', t: 'num', req: 1, np: 'station' },
+  { k: 'inputs.used_house.station_image', l: '路線・駅別の物件数(画像)', t: 'image', req: 1, pat: 'station', d: '路線・駅ごとの物件数の画像を貼ると、AIが表にします。画像が無くても、下の表に手入力できます(物件数はこの合計になります)' },
   { k: 'inputs.used_house.building_area_median_m2', l: '建物面積の中央値(㎡)', t: 'num', req: 1 },
   { k: 'inputs.used_house.land_area_median_m2', l: '土地面積の中央値(㎡)', t: 'num', req: 1 },
   { k: 'inputs.used_house.age_median_years', l: '築年数の中央値(年)', t: 'num', req: 1 },
   { k: 'inputs.used_house.heatmap_image', l: '面積×価格の分布表(画像)', t: 'image', req: 1 },
   { h: '中古マンション' },
   { k: 'inputs.used_mansion.price_man', l: '売却価格相場(万円)', t: 'num', req: 1 },
-  { k: 'inputs.used_mansion.listings', l: '物件数(件)', t: 'num', req: 1 },
+  { k: 'inputs.used_mansion.listings', l: '物件数(件)', t: 'num', req: 1, np: 'station' },
+  { k: 'inputs.used_mansion.station_image', l: '路線・駅別の物件数(画像)', t: 'image', req: 1, pat: 'station', d: '路線・駅ごとの物件数の画像を貼ると、AIが表にします。画像が無くても、下の表に手入力できます(物件数はこの合計になります)' },
   { k: 'inputs.used_mansion.exclusive_area_median_m2', l: '専有面積の中央値(㎡)', t: 'num', req: 1 },
   { k: 'inputs.used_mansion.age_median_years', l: '築年数の中央値(年)', t: 'num', req: 1 },
   { k: 'inputs.used_mansion.heatmap_image', l: '面積×価格の分布表(画像)', t: 'image', req: 1 },
   { h: '新築戸建て' },
   { k: 'inputs.new_house.price_man', l: '売却価格相場(万円)', t: 'num', req: 1 },
-  { k: 'inputs.new_house.listings', l: '物件数(件)', t: 'num', req: 1 },
+  { k: 'inputs.new_house.listings', l: '物件数(件)', t: 'num', req: 1, np: 'station' },
+  { k: 'inputs.new_house.station_image', l: '路線・駅別の物件数(画像)', t: 'image', req: 1, pat: 'station', d: '路線・駅ごとの物件数の画像を貼ると、AIが表にします。画像が無くても、下の表に手入力できます(物件数はこの合計になります)' },
   { k: 'inputs.new_house.building_area_median_m2', l: '建物面積の中央値(㎡)', t: 'num', req: 1 },
   { k: 'inputs.new_house.land_area_median_m2', l: '土地面積の中央値(㎡)', t: 'num', req: 1 },
   { k: 'inputs.new_house.heatmap_image', l: '面積×価格の分布表(画像)', t: 'image', req: 1 },
@@ -112,7 +116,7 @@ function dateKeyFor_(key) {
   if (/^kw\./.test(key)) return 'auto.date.keywords';
   return null;
 }
-function isImageKey_(key) { return /\.image$|\.heatmap_image$/.test(key) && FIELDS_.some(function (f) { return f.k === key && f.t === 'image'; }); }
+function isImageKey_(key) { return /\.image$|\.heatmap_image$|\.station_image$/.test(key) && FIELDS_.some(function (f) { return f.k === key && f.t === 'image'; }); }
 
 function parseNum_(s) {
   if (s === null || s === undefined) return undefined;
@@ -137,6 +141,7 @@ function setPath_(obj, path, val) {
 /** 商談先タブの値(キー→表示文字列)を設定オブジェクトに変換する。純粋関数(テスト可) */
 function valuesToConfig_(vals, today) {
   var cfg = { inputs: {} }, sh = [], yearly = [], series = {}, compare = [], comp = [], kw = [];
+  cfg.pattern = String(vals.pattern || '') === 'station' ? 'station' : 'standard';   // LPのパターン(標準 / 路線・駅別の物件数)
   FIELDS_.forEach(function (f) {
     if (f.h) return;
     var raw = vals[f.k];
@@ -195,10 +200,11 @@ function colsFor_(key) {
 }
 
 /** クライアントに渡す項目定義 */
-function fieldsMeta_() {
+function fieldsMeta_(pattern) {
   var out = [];
   FIELDS_.forEach(function (f) {
     if (f.hidden) return;
+    if ((f.pat && f.pat !== pattern) || (f.np && f.np === pattern)) return;   // 路線・駅版にだけある項目 / 標準版にだけある項目
     if (f.h) { if (f.h !== '自動記録(編集不要)') out.push({ h: f.h.replace(/\{市\}/g, '○○市') }); return; }
     out.push({ k: f.k, l: f.l.replace('{市}', '○○市'), t: f.t || 'text', req: f.req ? 1 : 0, d: f.d || '', cols: colsFor_(f.k), grp: f.grp || '' });
   });

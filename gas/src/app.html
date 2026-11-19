@@ -48,7 +48,7 @@ details.sec .body{padding:8px 18px 18px}
 .tbl{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;overflow-x:auto}
 .tbl table{border-collapse:collapse;font-size:.8125rem}
 .tbl td,.tbl th{border:1px solid var(--line);padding:0}
-.tbl input{width:4.5em;border:0;padding:6px 4px;text-align:right;min-height:32px}
+.stn-ed input{width:11em;text-align:left!important}.stn-ed td:nth-child(3) input{width:6em;text-align:right!important}.tbl input{width:4.5em;border:0;padding:6px 4px;text-align:right;min-height:32px}
 .tbl th input{font-weight:700;background:var(--teal-l);text-align:center;width:5.5em}
 .tbl .warn{color:#B00020;font-size:.8125rem;margin:6px 0}
 .field.off{opacity:.45}
@@ -115,12 +115,14 @@ function viewList() {
     var add = el('div', { class: 'card' }, [el('h2', { text: '新しい会社を追加', style: 'margin-top:0;font-size:1.1rem' })]);
     var c1 = el('input', { id: 'nc', placeholder: '先方の会社名(例: 株式会社○○)' }), sel = prefSelect(''), c3 = el('input', { id: 'ncity', placeholder: '最初のエリアの市区町村(例: 上田市 / 横浜市中区)' });
     sel.id = 'np'; withCities(sel, c3);
+    var pat = el('select', { id: 'npat' }, [el('option', { value: 'standard', text: '標準(市区町村全体の物件数)' }), el('option', { value: 'station', text: '路線・駅別の物件数あり' })]);
     var ab = el('button', { text: '追加して入力を始める' });
     ab.onclick = function () {
       if (!c1.value.trim() || !sel.value || !c3.value.trim()) { $('msg').textContent = '会社名・都道府県・市区町村を入力してください。'; return; }
-      call('api_create_company', [c1.value, sel.value, c3.value], function (x) { openArea(x.areaId); });
+      call('api_create_company', [c1.value, sel.value, c3.value, pat.value], function (x) { openArea(x.areaId); });
     };
     add.appendChild(el('div', { class: 'row' }, [el('div', { class: 'grow' }, [c1]), el('div', { style: 'width:150px;flex:none' }, [sel]), el('div', { class: 'grow' }, [c3]), ab]));
+    add.appendChild(el('div', { class: 'field', style: 'margin-top:10px;max-width:420px' }, [el('label', { for: 'npat', text: 'LPのパターン' }), pat, el('div', { class: 'hint', text: '「路線・駅別」は、物件数を路線・駅ごとに入力して載せるパターンです(物件数は路線・駅の合計になります)。会社ごとに決まります。' })]));
     add.appendChild(el('p', { id: 'msg', class: 'msg' }));
     wrap.appendChild(add);
     if (!r.hasUrl) wrap.appendChild(el('div', { class: 'card' }, [el('p', { class: 'msg', text: 'LPのURLを作れません。ウェブアプリとしてデプロイしたあと、「設定」の「LPの公開URL」を入力してください。' })]));
@@ -246,7 +248,8 @@ function uploadImageFile(f, fl, st, th, sync) {
   }, function (m) { st.textContent = m; setSaved(m, true); });
 }
 var tables = {}, aiReady = false;
-function isTbl(k) { return /^inputs\.(used_house|used_mansion|new_house)\.heatmap_image$|^inputs\.price_trend\.image$/.test(k); }
+function isTbl(k) { return /^inputs\.(used_house|used_mansion|new_house)\.heatmap_image$|^inputs\.price_trend\.image$|^inputs\.(land|used_house|used_mansion|new_house)\.station_image$/.test(k); }
+function isStn(k) { return /\.station_image$/.test(k); }
 function readTableAI(f) {
   f.tb.replaceChildren(el('p', { class: 'note', text: 'AIで画像から表を読み取っています…(10〜30秒ほどかかります)' }));
   google.script.run.withSuccessHandler(function (t) { tables[f.k] = t; f.fresh = true; setSaved('AIが表を作りました'); renderTable(f); loadStatus(); })
@@ -265,8 +268,48 @@ function tableEditor(f, t) {
   var get = function () { return { caption: t.caption || '', cols: cin.map(function (x) { return x.value; }), rows: rin.map(function (x) { return x.value; }), cells: cin2.map(function (l) { return l.map(function (x) { return x.value; }); }) }; };
   return { node: tb, get: get };
 }
+/* 路線・駅別の物件数: 路線・駅・件数の行を、手入力・追加・削除できる(画像を貼ればAIが入れる) */
+function stationEditor(t) {
+  var tb = el('table', { class: 'stn-ed' }), rows = [];
+  tb.appendChild(el('tr', {}, [el('th', { text: '路線' }), el('th', { text: '駅' }), el('th', { text: '物件数' }), el('th')]));
+  function addRow(line, st, n) {
+    var a = el('input', { type: 'text', value: line || '', placeholder: '例: JR中央線', 'aria-label': '路線' }), b = el('input', { type: 'text', value: st || '', placeholder: '例: 上田駅(路線全体なら空)', 'aria-label': '駅' }),
+      c = el('input', { type: 'text', inputmode: 'numeric', value: n === null || n === undefined ? '' : String(n), 'aria-label': '物件数' }), x = el('button', { type: 'button', class: 'ghost', text: '×', 'aria-label': 'この行を削除', style: 'padding:2px 10px;min-height:32px' });
+    var tr = el('tr', {}, [el('td', {}, [a]), el('td', {}, [b]), el('td', {}, [c]), el('td', {}, [x])]), o = { tr: tr, a: a, b: b, c: c };
+    x.onclick = function () { tr.remove(); rows.splice(rows.indexOf(o), 1); };
+    rows.push(o); tb.appendChild(tr);
+  }
+  (t.rows || []).forEach(function (r, i) { addRow(t.lines[i], r, t.cells[i][0]); });
+  if (!rows.length) { addRow('', '', null); addRow('', '', null); addRow('', '', null); }
+  var add = el('button', { type: 'button', class: 'ghost', text: '行を追加' });
+  add.onclick = function () { addRow(rows.length ? rows[rows.length - 1].a.value : '', '', null); rows[rows.length - 1].b.focus(); };   // 同じ路線の続きを入力しやすいよう、路線名を引き継ぐ
+  var get = function () { return { caption: t.caption || '', lines: rows.map(function (o) { return o.a.value; }), rows: rows.map(function (o) { return o.b.value; }), cells: rows.map(function (o) { return [o.c.value]; }) }; };
+  return { node: tb, add: add, get: get };
+}
+function renderStation(f, errMsg) {
+  var box = f.tb; box.replaceChildren();
+  if (errMsg) box.appendChild(el('p', { class: 'warn', text: errMsg }));
+  var t = tables[f.k] || { lines: [], rows: [], cells: [] };
+  var ed = stationEditor(t), msg = el('span', { class: 'note' });
+  if (f.fresh) {
+    box.appendChild(el('p', { class: 'note', text: 'AIが自動で作りました(LPに反映済み)。元の画像と見比べて、違う数字があれば直して「保存」を押してください。' }));
+    (t.warnings || []).forEach(function (w) { box.appendChild(el('p', { class: 'warn', text: '要確認: ' + w })); });
+  } else box.appendChild(el('p', { class: 'note', text: '路線・駅ごとの物件数を入力します。物件数は、ここに入れた件数の合計になります。駅名を空にすると、路線全体の1行になります。' + (tables[f.k] ? '' : '(未保存)') }));
+  box.appendChild(el('div', { class: 'tbl' }, [ed.node]));
+  var sv = el('button', { type: 'button', text: '保存' }), rd = el('button', { type: 'button', class: 'ghost', text: 'AIで画像から読み取り直す' }), rm = el('button', { type: 'button', class: 'ghost', text: '表を削除' });
+  rd.hidden = !(aiReady && imgs[f.k]); rm.hidden = !tables[f.k];
+  sv.onclick = function () {
+    msg.textContent = '保存中…';
+    google.script.run.withSuccessHandler(function (r) { tables[f.k] = r.table; f.fresh = false; setSaved('保存しました(合計 ' + r.total.toLocaleString('ja-JP') + '件)'); renderStation(f); loadStatus(); })
+      .withFailureHandler(function (e) { msg.textContent = e.message || e; msg.className = 'msg'; }).api_saveTable(cur, f.k, ed.get());
+  };
+  rd.onclick = function () { readTableAI(f); };
+  rm.onclick = function () { google.script.run.withSuccessHandler(function () { tables[f.k] = null; f.fresh = false; renderStation(f); loadStatus(); }).api_deleteTable(cur, f.k); };
+  box.appendChild(el('div', { class: 'imgbox', style: 'margin-top:8px' }, [ed.add, sv, rd, rm, msg]));
+}
 function renderTable(f, errMsg) {
   var box = f.tb; if (!box) return; box.replaceChildren();
+  if (isStn(f.k)) { renderStation(f, errMsg); return; }
   if (errMsg) box.appendChild(el('p', { class: 'warn', text: errMsg }));
   var t = tables[f.k], isTrend = /price_trend/.test(f.k);
   if (!imgs[f.k]) return;
@@ -489,7 +532,7 @@ function fieldView(f) {
 function viewEdit(id, note) {
   call('api_get', [id], function (r) {
     cur = r.id; meta = r.fields; vals = r.values; dirty = {}; imgs = r.images || {}; autoHouseholds = r.autoHouseholds; lastImg = null; tables = r.tables || {}; aiReady = !!r.aiReady;
-    chrome(r.company.name + '　' + (vals.city || ''), true);
+    chrome(r.company.name + '　' + (vals.city || '') + (r.pattern === 'station' ? '　[路線・駅別]' : ''), true);
     if (note) setSaved(note);
     var top = el('div', { class: 'card' }, [
       el('div', { class: 'row' }, [el('span', { id: 'stat', class: 'chip need', text: '確認中…' }), el('span', { id: 'totals', class: 'note' })]),

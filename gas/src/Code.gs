@@ -221,8 +221,10 @@ function buildArea_(areaId, skipHtml) {
     var t = savedTable_(vals, k);
     if (!t) return;
     if (k === TREND_KEY_) { cfg.inputs.price_trend = cfg.inputs.price_trend || {}; if (!cfg.inputs.price_trend.series) cfg.inputs.price_trend.series = trendTableToSeries_(t); }
+    else if (isStationKey_(k)) setPath_(cfg, k.replace(/station_image$/, 'stations'), t);   // 路線・駅別の物件数
     else setPath_(cfg, k.replace(/heatmap_image$/, 'table'), t);
   });
+  STATION_KEYS_.forEach(function (k) { var p = k.split('.'); if (cfg.inputs[p[1]]) delete cfg.inputs[p[1]].station_image; });   // 画像の参照はLPに出さない
   resolveImages_(cfg);
   var frSh = ss.getSheetByName(SHEET_FR_);
   var data = { franchiseRows: frSh && frSh.getLastRow() > 1 ? franchiseRowsFrom_(frSh.getRange(2, 1, frSh.getLastRow() - 1, 6).getDisplayValues()) : [], listingRows: [] };

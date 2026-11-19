@@ -38,6 +38,26 @@ function mapLegend_(pins) {
   return '<p class="map-legend">' + parts.join('') + '</p>';
 }
 
+/** 路線・駅別の物件数(路線ごとのカードに、駅ごとの件数を棒つきで並べる)。標準版のLPでは出さない */
+function stationBlock_(sec, label) {
+  var t = sec.stations;
+  if (!t || !t.rows || !t.rows.length) return '';
+  var groups = [], idx = {}, max = 1, total = 0;
+  t.rows.forEach(function (st, i) {
+    var ln = t.lines[i] || '', n = t.cells[i][0];
+    if (idx[ln] === undefined) { idx[ln] = groups.length; groups.push({ line: ln, items: [], sum: 0 }); }
+    var g = groups[idx[ln]]; g.items.push({ st: st, n: n }); g.sum += n || 0; total += n || 0; if ((n || 0) > max) max = n;
+  });
+  var many = t.rows.length > 14;
+  return '<div class="stn-blk"><p class="sub">' + esc_(label) + 'の路線・駅別の物件数<span class="stn-total">合計 ' + num_(total) + '件</span></p><div class="stn-grid' + (many ? ' many' : '') + '">' +
+    groups.map(function (g) {
+      return '<div class="stn-line"><h4>' + esc_(g.line || 'その他') + (g.items.length > 1 || g.items[0].st ? '<span class="stn-sum">' + num_(g.sum) + '件</span>' : '') + '</h4><ul>' +
+        g.items.map(function (it) {
+          return '<li><span class="stn-name">' + (it.st ? esc_(it.st) : '路線全体') + '</span><span class="stn-bar"><i style="width:' + roundHalfUp_(100 * (it.n || 0) / max, 1) + '%"></i></span><span class="stn-n">' + (it.n != null ? num_(it.n) + '<small>件</small>' : '<small>—</small>') + '</span></li>';
+        }).join('') + '</ul></div>';
+    }).join('') + '</div></div>';
+}
+
 function houseSection_(id, no, sec, label, sfx) {   // no: 表示用の連番(文字列)
   var ok = sec.price_man != null && sec.listings != null;   // 相場だけ入っていても、見出しに出す(物件数は入っていれば添える)
   var h2 = sec.price_man != null ? esc_(label) + 'の相場は<span class="em">' + num_(sec.price_man) + '万円</span>' + (sec.listings != null ? '、物件数は<span class="em">' + num_(sec.listings) + '件</span>' : '') : esc_(label) + 'の価格相場・物件数';
@@ -57,7 +77,7 @@ function houseSection_(id, no, sec, label, sfx) {   // no: 表示用の連番(�
   } else {
     s += slot_('面積×価格の分布', [label + 'の分布表(画像)']);
   }
-  s += '</div><ul class="notes note">' + PRICE_NOTES.map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul>' + srcline_(sec) + '</div></section>';
+  s += '</div><ul class="notes note">' + PRICE_NOTES.map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul>' + srcline_(sec) + stationBlock_(sec, label) + '</div></section>';
   return s;
 }
 
@@ -211,7 +231,7 @@ function renderPage_(models, report, assets, styleCss, multi) {
     ((land.tsubo_price_man == null || land.listings == null) ? '<div style="margin-top:14px">' + slot_('土地の坪単価・物件数', ['土地の坪単価・物件数']) + '</div>' : '') +
     '<div class="card" style="margin-top:24px"><p class="sub">' + esc_(m.city) + 'と近隣・県内主要市の比較（坪単価）</p>' +
     (landOk ? '<div class="chart-d">' + landBarsSvg_(items, false) + '</div><div class="chart-c">' + landBarsSvg_(items, true) + '</div>' :
-      slot_('近隣・県内主要市の坪単価', ['比較市(市名,坪単価)'].concat(land.compare.suggested.length ? ['候補(隣接市): ' + land.compare.suggested.join('、')] : []))) + '</div>' + srcline_(land) + '</div></section>');
+      slot_('近隣・県内主要市の坪単価', ['比較市(市名,坪単価)'].concat(land.compare.suggested.length ? ['候補(隣接市): ' + land.compare.suggested.join('、')] : []))) + '</div>' + srcline_(land) + stationBlock_(land, '土地') + '</div></section>');
   [['used_house', uh, '中古戸建て'], ['used_mansion', um, '中古マンション'], ['new_house', nh, '新築戸建て']].forEach(function (x) { if (vis[x[0]]) h.push(houseSection_(ID(x[0]), N(), x[1], x[2], SFX)); });
   // 08 search(見出しの文章は出さない。セクション名と表だけ)
   h.push('<section class="sec' + alt() + '" id="' + ID('search') + '"><div class="wrap rv"><p class="sec-no">' + N() + '　検索ボリューム' + SFX + '</p>' +

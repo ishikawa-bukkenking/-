@@ -39,10 +39,10 @@ function src_(sec, created, rep, key) {
 var KEYS_ = {
   income: ['city_avg_man', 'prefecture_avg_man', 'national_avg_man', 'rank_in_prefecture', 'municipalities_in_prefecture', 'headline', 'body', 'brackets', 'largest_bracket', 'share_sum', 'diff_vs_national_man'],
   price_trend: ['city_3y_pct', 'prefecture_3y_pct', 'yearly_pct', 'series', 'image', 'body', 'judgement_vs_prefecture'],
-  land: ['tsubo_price_man', 'tsubo_price_low_rise_residential_man', 'tsubo_price_other_residential_man', 'listings', 'price_man', 'price_per_m2_man', 'land_area_median_m2', 'heatmaps', 'heatmap_image', 'table'],
-  used_house: ['price_man', 'listings', 'building_area_median_m2', 'land_area_median_m2', 'age_median_years', 'heatmaps', 'heatmap_image', 'table'],
-  used_mansion: ['price_man', 'listings', 'exclusive_area_median_m2', 'age_median_years', 'heatmaps', 'heatmap_image', 'table'],
-  new_house: ['price_man', 'listings', 'building_area_median_m2', 'land_area_median_m2', 'heatmaps', 'heatmap_image', 'table']
+  land: ['tsubo_price_man', 'tsubo_price_low_rise_residential_man', 'tsubo_price_other_residential_man', 'listings', 'price_man', 'price_per_m2_man', 'land_area_median_m2', 'heatmaps', 'heatmap_image', 'table', 'stations'],
+  used_house: ['price_man', 'listings', 'building_area_median_m2', 'land_area_median_m2', 'age_median_years', 'heatmaps', 'heatmap_image', 'table', 'stations'],
+  used_mansion: ['price_man', 'listings', 'exclusive_area_median_m2', 'age_median_years', 'heatmaps', 'heatmap_image', 'table', 'stations'],
+  new_house: ['price_man', 'listings', 'building_area_median_m2', 'land_area_median_m2', 'heatmaps', 'heatmap_image', 'table', 'stations']
 };
 
 /**
@@ -136,6 +136,7 @@ function buildModel_(cfg, services, data) {
 
   // --- 物件(シートの物件データ → 手入力で上書き) ---
   var secs = cfg.sections || {}, vis = { land: secs.land !== false, used_house: secs.used_house !== false, used_mansion: secs.used_mansion !== false, new_house: secs.new_house !== false };
+  model.pattern = cfg.pattern === 'station' ? 'station' : 'standard';
   model.visible = vis;   // その地域に無い物件種別は表示しない
   var visTypes = TYPES.filter(function (t) { return vis[t]; });
   var csvStats = (data.listingRows && data.listingRows.length) ? summarizeListings_(data.listingRows) : {};
@@ -149,7 +150,11 @@ function buildModel_(cfg, services, data) {
     var sd = src_({ source: source, date: date }, created, rep, key); sec.source = sd[0]; sec.date = sd[1];
     model[key] = sec;
     status_(rep, key + '.price_man', label + ' 売却価格相場', sec.price_man, label + 'の入力');
-    status_(rep, key + '.listings', label + ' 物件数', sec.listings, label + 'の入力');
+    if (cfg.pattern === 'station') {   // 路線・駅版: 物件数は路線・駅別の件数の合計
+      var stn = sec.stations && sec.stations.rows && sec.stations.rows.length ? sec.stations : null, stotal = stn ? tableTotal_(stn) : null;
+      sec.stations = stn; sec.listings = stn ? stotal : null;
+      status_(rep, key + '.stations', label + ' 路線・駅別の物件数', stn, label + 'の路線・駅別の物件数(画像を貼るか、手入力)');
+    } else status_(rep, key + '.listings', label + ' 物件数', sec.listings, label + 'の入力');
     if (key !== 'land') status_(rep, key + '.heatmap', label + ' 面積×価格の分布', sec.heatmaps || sec.table || sec.heatmap_image, '分布表の画像');
   });
   var land = model.land;
