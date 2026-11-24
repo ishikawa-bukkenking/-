@@ -270,16 +270,86 @@ function shortReasons_(reasons, n) {
   return out.slice(0, n || 3).join('、') || '関連キーワードなし';
 }
 
+/* ---------- 厚労省 新着情報(お知らせの見出し) ---------- */
+
+/** 厚労省「新着情報」ページの HTML → [{date, cat, url, title}]。各項目の直後にある注釈コメントから読む */
+function parseMhlwNews_(html) {
+  var out = [], re = /<!--(\d{12}) \[([^\]]*)\] (\S+) (.*?)-->/g, m;
+  while ((m = re.exec(String(html || '')))) {
+    var d = m[1];
+    out.push({ date: d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8), cat: m[2], url: m[3], title: m[4].replace(/\s+/g, ' ').trim() });
+  }
+  return out;
+}
+
+/** 関連する見出しだけ残す。キーワードのどれかを含み、除外する分類(審議会など)でないもの */
+function filterNews_(items, keywords, excludeCats, excludeWords) {
+  var kws = keywords.map(function (k) { return nfkc_(k).trim(); }).filter(Boolean);
+  var ex = (excludeWords || []).map(function (k) { return nfkc_(k).trim(); }).filter(Boolean);
+  return items.filter(function (x) {
+    if (excludeCats.indexOf(x.cat) >= 0) return false;
+    var t = nfkc_(x.title);
+    if (ex.some(function (k) { return t.indexOf(k) >= 0; })) return false;
+    return kws.some(function (k) { return t.indexOf(k) >= 0; });
+  });
+}
+
+/* ---------- 「何がどう変わったか」の整形 ---------- */
+
+function maskDigits_(s) { return nfkc_(s).replace(/\d+(?:[.,]\d+)*/g, '#').replace(/\s+/g, ''); }
+
+function commonPrefixLen_(a, b) {
+  var n = Math.min(a.length, b.length), i = 0;
+  while (i < n && a.charAt(i) === b.charAt(i)) i++;
+  return i;
+}
+
 /**
- * Chatwork に送る朝の通知。スマホで1画面を目安に、「要点 → 更新 → 締切 → 新着」の順。
- * ctx: { today, watch:[{name,url,added,removed,pdf}], deadlines:[{title,end,url,limit}],
- *        newHigh:[{title,institution,start,end,limit,reasons,url}], midCount, sources:[{name,ok,count,error}],
- *        viewUrl(「見る用」タブのリンク), prevFailed, maxNew, maxDeadline }
+ * 削除された行と追加された行から、「同じ行の数字・語句が変わっただけ」の組を見つける。
+ * 戻り値: {changed:[{from,to}], added:[...], removed:[...]}
+ */
+function pairChanges_(removed, added) {
+  var used = {}, changed = [], restA = [];
+  added.forEach(function (a) {
+    var best = -1, bestScore = 0, A = nfkc_(a).replace(/\s+/g, '').slice(0, 40);
+    removed.forEach(function (r, i) {
+      if (used[i]) return;
+      var R = nfkc_(r).replace(/\s+/g, '').slice(0, 40), score = 0;
+      if (maskDigits_(r) === maskDigits_(a.slice(0, 40))) score = 1;                 // 数字だけが違う
+      else {
+        var pre = commonPrefixLen_(R, A);
+        if (pre >= 4 && pre / Math.min(R.length, A.length) >= 0.5) score = 0.8;      // 書き出しが同じ
+      }
+      if (score > bestScore) { bestScore = score; best = i; }
+    });
+    if (best >= 0) { used[best] = 1; changed.push({ from: removed[best], to: a }); } else restA.push(a);
+  });
+  return { changed: changed, added: restA, removed: removed.filter(function (_, i) { return !used[i]; }) };
+}
+
+var FIELD_LABEL = { '受付開始': '受付開始', '受付終了': '受付終了', '上限額': '上限額', '補助率': '補助率', '地域': '対象地域', '対象': '対象(従業員数)', '名前': '名称' };
+
+function fmtChange_(field, v, today) {
+  if (v === '' || v == null) return REVIEW;
+  if (field === '受付開始' || field === '受付終了') return mdLabel_(String(v), today);
+  if (field === '上限額') return fmtLimit_(v);
+  return String(v).slice(0, 40);
+}
+
+function cut_(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n) + '…' : s; }
+
+/**
+ * Chatwork に送る朝の通知。スマホで1画面を目安に。
+ * 順番: 要点 → 新着(何が出たか) → 締切 → 制度の変更(公開中の制度の条件変更) → 公式のお知らせ → 公式ページの更新
+ * ctx: { today, newHigh:[{title,start,end,limit,reasons,url,outline,rate,target}], deadlines:[{title,end,url,limit}],
+ *        changes:[{title,url,items:[{field,from,to}]}], news:[{date,cat,title,url}],
+ *        watch:[{name,url,added,removed,pdf}], midCount, sources, viewUrl, prevFailed, maxNew, maxDeadline, maxChange, maxNews }
  */
 function buildMorningMessage_(ctx) {
-  var L = [], today = ctx.today, maxNew = ctx.maxNew || 5, maxDl = ctx.maxDeadline || 5;
+  var L = [], today = ctx.today, maxNew = ctx.maxNew || 5, maxDl = ctx.maxDeadline || 5, maxCh = ctx.maxChange || 5, maxNews = ctx.maxNews || 5;
+  var changes = ctx.changes || [], news = ctx.news || [];
   var bad = (ctx.sources || []).filter(function (s) { return !s.ok; });
-  var nW = ctx.watch.length, nD = ctx.deadlines.length, nN = ctx.newHigh.length;
+  var nW = ctx.watch.length, nD = ctx.deadlines.length, nN = ctx.newHigh.length, nC = changes.length, nNews = news.length;
   var p = today.split('-');
   L.push('[info][title]補助金レーダー ' + (+p[1]) + '/' + (+p[2]) + '(' + weekdayJa_(today) + ')[/title]');
   if (bad.length) {
@@ -287,40 +357,68 @@ function buildMorningMessage_(ctx) {
     L.push('[hr]');
   }
   if (ctx.prevFailed) L.push('【お知らせ】前回の通知は、送信に失敗していました');
-  if (!(nW || nD || nN)) {
-    L.push('本日の新着はありません(新着の点数「中」: ' + (ctx.midCount || 0) + '件)');
+  if (!(nW || nD || nN || nC || nNews)) {
+    L.push('本日の新着・変更はありません(新着の点数「中」: ' + (ctx.midCount || 0) + '件)');
   } else {
-    L.push('今日の要点\n  制度の更新: ' + nW + '件 / 締切が近い: ' + nD + '件 / 新着: ' + nN + '件');
+    var parts = [];
+    if (nN) parts.push('新着の補助金 ' + nN + '件');
+    if (nD) parts.push('締切が近い ' + nD + '件');
+    if (nC) parts.push('条件の変更 ' + nC + '件');
+    if (nNews) parts.push('公式のお知らせ ' + nNews + '件');
+    if (nW) parts.push('公式ページの更新 ' + nW + '件');
+    L.push('今日の要点\n  ' + parts.join(' / '));
   }
-  if (nW) {
-    L.push('[hr]\n【制度の更新】公式ページが変わりました');
-    ctx.watch.forEach(function (w) {
-      var line = '■ ' + w.name;
-      if (w.pdf) line += '\n  ' + w.pdf;
-      (w.added || []).slice(0, 3).forEach(function (t) { line += '\n  追加: ' + t; });
-      (w.removed || []).slice(0, 3).forEach(function (t) { line += '\n  削除: ' + t; });
-      var more = Math.max(0, (w.added || []).length - 3) + Math.max(0, (w.removed || []).length - 3);
-      if (more) line += '\n  ほか' + more + '行';
-      L.push(line + '\n  → ' + w.url);
+  if (nN) {
+    L.push('[hr]\n【新着】新しく出た補助金(物件王に関係が深いもの)');
+    ctx.newHigh.slice(0, maxNew).forEach(function (n, i) {
+      var l = (i + 1) + '. ' + n.title + '\n  上限' + fmtLimit_(n.limit) + (n.rate ? ' / 補助率 ' + cut_(n.rate, 20) : '') + ' / ' + fmtPeriod_(n.start, n.end, today);
+      if (n.target) l += '\n  対象: ' + cut_(n.target, 30);
+      if (n.outline) l += '\n  内容: ' + cut_(n.outline, 70);
+      l += '\n  関連: ' + shortReasons_(n.reasons, 3) + '\n  → ' + n.url;
+      L.push(l);
     });
+    if (nN > maxNew) L.push('  ほか' + (nN - maxNew) + '件は「見る用」タブで確認');
   }
   if (nD) {
     L.push('[hr]\n【締切が近い】');
     ctx.deadlines.slice(0, maxDl).forEach(function (d) {
-      var wd = '(' + weekdayJa_(d.end) + ')';
-      L.push('■ 【' + daysLabel_(d.end, today) + '】' + d.title + '\n  ' + mdLabel_(d.end, today) + wd + 'まで' + (d.limit != null && d.limit !== '' ? ' / 上限' + fmtLimit_(d.limit) : '') + '\n  → ' + d.url);
+      L.push('■ 【' + daysLabel_(d.end, today) + '】' + d.title + '\n  ' + mdLabel_(d.end, today) + '(' + weekdayJa_(d.end) + ')まで' + (d.limit != null && d.limit !== '' ? ' / 上限' + fmtLimit_(d.limit) : '') + '\n  → ' + d.url);
     });
     if (nD > maxDl) L.push('  ほか' + (nD - maxDl) + '件は「見る用」タブで確認');
   }
-  if (nN) {
-    L.push('[hr]\n【新着】物件王に関係が深い制度');
-    ctx.newHigh.slice(0, maxNew).forEach(function (n, i) {
-      L.push((i + 1) + '. ' + n.title + '\n  上限' + fmtLimit_(n.limit) + ' / ' + fmtPeriod_(n.start, n.end, today) + '\n  関連: ' + shortReasons_(n.reasons, 3) + '\n  → ' + n.url);
+  if (nC) {
+    L.push('[hr]\n【条件の変更】公開中の制度で、変わったところ');
+    changes.slice(0, maxCh).forEach(function (c) {
+      var l = '■ ' + c.title;
+      c.items.slice(0, 4).forEach(function (it) { l += '\n  ' + (FIELD_LABEL[it.field] || it.field) + ': ' + fmtChange_(it.field, it.from, today) + ' → ' + fmtChange_(it.field, it.to, today); });
+      L.push(l + '\n  → ' + c.url);
     });
-    if (nN > maxNew) L.push('  ほか' + (nN - maxNew) + '件は「見る用」タブで確認');
+    if (nC > maxCh) L.push('  ほか' + (nC - maxCh) + '件は「更新の履歴」タブで確認');
+  }
+  if (nNews) {
+    L.push('[hr]\n【公式のお知らせ】厚生労働省の新着情報から');
+    news.slice(0, maxNews).forEach(function (n) {
+      L.push('■ ' + mdLabel_(n.date, today) + ' ' + cut_(n.title, 60) + '\n  → ' + n.url);
+    });
+    if (nNews > maxNews) L.push('  ほか' + (nNews - maxNews) + '件は「お知らせ」タブで確認');
+  }
+  if (nW) {
+    L.push('[hr]\n【公式ページの更新】見ているページで、変わったところ');
+    ctx.watch.slice(0, 3).forEach(function (w) {
+      var line = '■ ' + w.name;
+      if (w.pdf) line += '\n  ' + w.pdf;
+      var d = pairChanges_(w.removed || [], w.added || []), shown = 0;
+      d.changed.slice(0, 3).forEach(function (c) { line += '\n  変更: ' + cut_(c.from, 40) + ' → ' + cut_(c.to, 60); shown++; });
+      d.added.slice(0, 3).forEach(function (t) { line += '\n  追加: ' + t; shown++; });
+      d.removed.slice(0, 2).forEach(function (t) { line += '\n  削除: ' + t; shown++; });
+      var more = d.changed.length + d.added.length + d.removed.length - shown;
+      if (more > 0) line += '\n  ほか' + more + '件';
+      L.push(line + '\n  → ' + w.url);
+    });
+    if (nW > 3) L.push('  ほか' + (nW - 3) + 'ページ');
   }
   L.push('[hr]');
-  if (nW || nD || nN) L.push('新着の点数「中」: ' + (ctx.midCount || 0) + '件');
+  if (nW || nD || nN || nC || nNews) L.push('新着の点数「中」: ' + (ctx.midCount || 0) + '件');
   var ok = (ctx.sources || []).filter(function (s) { return s.ok; });
   if (ok.length) L.push('取得できた情報源: ' + ok.map(function (s) { return s.name + ' ' + s.count + '件'; }).join(' / '));
   if (ctx.viewUrl) L.push('全件を見る(「見る用」タブ。締切が近い順)\n→ ' + ctx.viewUrl);

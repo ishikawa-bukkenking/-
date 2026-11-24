@@ -15,7 +15,7 @@ function runCollect_(ss) {
   var today = today_(), settings = getSettings_(ss);
   var subs = readTab_(ss, TAB.SUBSIDY), rowsById = {}, order = [];
   subs.forEach(function (r) { rowsById[r['ID']] = r; order.push(r['ID']); });
-  var ctx = { ss: ss, settings: settings, today: today, rowsById: rowsById, order: order, history: [], watchRows: readTab_(ss, TAB.WATCH) };
+  var ctx = { ss: ss, settings: settings, today: today, rowsById: rowsById, order: order, history: [], watchRows: readTab_(ss, TAB.WATCH), newsRows: readTab_(ss, TAB.NEWS) };
   var runs = [];
 
   function record(name, t0, r) {
@@ -28,6 +28,14 @@ function runCollect_(ss) {
     var r = collectJgrants_(ctx);
     if (ctx.initial && r.count > 0) props_().setProperty(initKey, today);
     record('Jグランツ', t0, r);
+  }
+  if (settings.sources.mhlw_news !== false) {
+    var t2 = Date.now(), initN = 'INIT_news';
+    ctx.newsInitial = !props_().getProperty(initN);
+    var n = collectNews_(ctx);
+    if (ctx.newsInitial && n.ok) props_().setProperty(initN, today);
+    record(NEWS_SOURCE.NAME, t2, n);
+    writeTab_(ss, TAB.NEWS, ctx.newsRows);
   }
   if (settings.sources.watch !== false) {
     var t1 = Date.now();
@@ -112,6 +120,8 @@ function markDuplicates_(rows, today) {
 
 /* ---------- 通知 ---------- */
 
+function mode_(settings) { return String(settings.notify['送信モード'] || 'dry'); }
+
 function buildCtx_(ss, today, settings) {
   var rows = readTab_(ss, TAB.SUBSIDY), watch = readTab_(ss, TAB.WATCH), runs = readTab_(ss, TAB.RUNS);
   var link = function (r) { return r['元のリンク']; };
@@ -130,10 +140,26 @@ function buildCtx_(ss, today, settings) {
   var bySrc = {};
   runs.filter(function (r) { return r['日付'] === today; }).forEach(function (r) { bySrc[r['情報源']] = r; });
   var sources = Object.keys(bySrc).map(function (k) { var r = bySrc[k]; return { name: k, ok: !r['エラー'], count: r['取得件数'], error: r['エラー'] }; });
+  // 公開中の制度の条件の変更(前回の通知より後に検知したもの。点数が高・中の制度だけ)
+  var lastOk = '';
+  readTab_(ss, TAB.NOTICE).forEach(function (r) { if ((r['結果'] === '成功' || r['結果'] === 'ドライ') && r['モード'] === mode_(settings) && r['日付'] < today && r['日付'] > lastOk) lastOk = r['日付']; });
+  var byId = {}; rows.forEach(function (r) { byId[r['ID']] = r; });
+  var chMap = {}, chOrder = [];
+  readTab_(ss, TAB.HISTORY).forEach(function (h) {
+    if (String(h['制度ID']).indexOf('jgrants:') !== 0) return;
+    if (!(h['検知した日'] > lastOk || h['検知した日'] === today)) return;
+    var r = byId[h['制度ID']]; if (!r || (r['段階'] !== '高' && r['段階'] !== '中') || r['状態'] === '終了') return;
+    if (!chMap[h['制度ID']]) { chMap[h['制度ID']] = { title: r['名前'], url: r['元のリンク'], items: [], _lv: r['段階'] }; chOrder.push(h['制度ID']); }
+    chMap[h['制度ID']].items.push({ field: h['変わった項目'], from: h['前の値'], to: h['後の値'] });
+  });
+  var chList = chOrder.map(function (k) { return chMap[k]; }).sort(function (a, b) { return a._lv === b._lv ? 0 : (a._lv === '高' ? -1 : 1); });
+  var newsRows = readTab_(ss, TAB.NEWS).filter(function (r) { return r['通知'] === 'Y'; });
   return {
+    changes: chList, news: newsRows.map(function (r) { return { date: r['公開日'], cat: r['分類'], title: r['見出し'], url: r['リンク'] }; }), _newsRows: newsRows,
+    maxChange: NOTIFY.MAX_CHANGE, maxNews: NOTIFY.MAX_NEWS,
     today: today, watch: changes, viewUrl: viewUrl_(ss), sources: sources, prevFailed: false, maxNew: NOTIFY.MAX_NEW, maxDeadline: NOTIFY.MAX_DEADLINE,
     deadlines: deadlines.map(function (r) { return { title: r['名前'], end: r['受付終了'], limit: r['上限額'] === '' ? null : r['上限額'], url: link(r), _row: r }; }),
-    newHigh: newHigh.map(function (r) { return { title: r['名前'], institution: r['実施機関'], start: r['受付開始'], end: r['受付終了'], limit: r['上限額'] === '' ? null : r['上限額'], reasons: r['点数の理由'], url: link(r), _row: r }; }),
+    newHigh: newHigh.map(function (r) { return { title: r['名前'], institution: r['実施機関'], start: r['受付開始'], end: r['受付終了'], limit: r['上限額'] === '' ? null : r['上限額'], reasons: r['点数の理由'], rate: r['補助率'], target: r['対象'], outline: r['短い抜粋'], url: link(r), _row: r }; }),
     midCount: newRows.filter(function (r) { return r['段階'] === '中'; }).length,
     _newRows: newRows
   };
@@ -153,7 +179,7 @@ function runSend_(ss, force) {
   var ctx = buildCtx_(ss, today, settings);
   var last = log.filter(function (r) { return r['モード'] === mode && r['日付'] < today; }).pop();
   ctx.prevFailed = !!(last && last['結果'] === '失敗');
-  var empty = !(ctx.watch.length || ctx.deadlines.length || ctx.newHigh.length);
+  var empty = !(ctx.watch.length || ctx.deadlines.length || ctx.newHigh.length || ctx.changes.length || ctx.news.length);
   var anyBad = ctx.sources.some(function (s) { return !s.ok; });
   if (empty && !anyBad && String(settings.notify['該当なしの日も送る']).toUpperCase() === 'OFF') {
     appendTab_(ss, TAB.NOTICE, [{ '日時': nowText_(), '日付': today, '宛先': '-', 'モード': mode, '件数': 0, '結果': 'ドライ', 'メモ': '該当なしのため送らない設定' }]);
@@ -162,7 +188,7 @@ function runSend_(ss, force) {
   var body = buildMorningMessage_(ctx);
   if (body.length > NOTIFY.MAX_CHARS) body = body.slice(0, NOTIFY.MAX_CHARS - 40) + '\n…(続きは表で確認)[/info]';
   var r = deliver_(mode, body);
-  appendTab_(ss, TAB.NOTICE, [{ '日時': nowText_(), '日付': today, '宛先': mode === 'dry' ? '-' : 'chatwork:' + mode, 'モード': mode, '件数': ctx.watch.length + ctx.deadlines.length + ctx.newHigh.length, '結果': r.result, 'メモ': mode === 'dry' ? body.slice(0, 45000) : r.note }]);
+  appendTab_(ss, TAB.NOTICE, [{ '日時': nowText_(), '日付': today, '宛先': mode === 'dry' ? '-' : 'chatwork:' + mode, 'モード': mode, '件数': ctx.watch.length + ctx.deadlines.length + ctx.newHigh.length + ctx.changes.length + ctx.news.length, '結果': r.result, 'メモ': mode === 'dry' ? body.slice(0, 45000) : r.note }]);
   if (r.result === 'ドライ') Logger.log(body); // 公開情報のみの文面
   if (r.result === '成功') markNotified_(ss, ctx, today);
   return r;
@@ -175,6 +201,10 @@ function markNotified_(ss, ctx, today) {
   ctx._newRows.forEach(function (n) { if (byId[n['ID']]) byId[n['ID']]['新着扱い'] = 'done'; });
   ctx.deadlines.forEach(function (d) { var r = byId[d._row['ID']]; if (r) r['締切通知済'] = deadlineLevel_(r['受付終了'], today); });
   writeTab_(ss, TAB.SUBSIDY, rows);
+  var doneNews = {}; (ctx._newsRows || []).forEach(function (n) { doneNews[n['リンク'] + '|' + n['見出し']] = 1; });
+  var newsAll = readTab_(ss, TAB.NEWS);
+  newsAll.forEach(function (n) { if (n['通知'] === 'Y' && doneNews[n['リンク'] + '|' + n['見出し']]) n['通知'] = 'done'; });
+  writeTab_(ss, TAB.NEWS, newsAll);
   var watch = readTab_(ss, TAB.WATCH);
   watch.forEach(function (w) { if (w['差分検知日']) w['通知済の日'] = w['差分検知日']; });
   writeTab_(ss, TAB.WATCH, watch);

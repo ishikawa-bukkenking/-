@@ -9,7 +9,7 @@ var DB_NAME = '補助金レーダーDB';
 
 var TAB = {
   SUBSIDY: '制度', HISTORY: '更新の履歴', WATCH: 'ウォッチ', NOTICE: '通知の履歴',
-  RUNS: '実行の記録', SETTINGS: '設定', MARKS: '気になる', ARCHIVE: 'アーカイブ', VIEW: '見る用'
+  RUNS: '実行の記録', SETTINGS: '設定', MARKS: '気になる', ARCHIVE: 'アーカイブ', VIEW: '見る用', NEWS: 'お知らせ'
 };
 
 var HEADERS = {};
@@ -24,6 +24,7 @@ HEADERS['実行の記録'] = ['日時', '日付', '情報源', '取得件数', '
 HEADERS['設定'] = ['区分', '項目', '値', '点数', '範囲', 'メモ'];
 HEADERS['気になる'] = ['制度ID', '印', 'メモ', '付けた人', '日付'];
 HEADERS['アーカイブ'] = HEADERS['制度'];
+HEADERS['お知らせ'] = ['検知した日', '出典', '分類', '見出し', '公開日', 'リンク', '通知'];
 HEADERS['見る用'] = ['締切まで', '段階', '名前', '上限額', '受付期間', '関連(なぜ上に出たか)', 'リンク', '確認が必要な項目'];
 
 /** 点数の初期値(たたき台)。[カテゴリ, キーワード, 点数, 範囲(空=全項目)] — 設定タブに書き出される */
@@ -48,6 +49,7 @@ var DEFAULT_SETTINGS = [
   ['しきい値', '中', 10, '', '', '点数がこれ以上なら「中」(通知は件数だけ)'],
   ['情報源', 'jgrants', 'ON', '', '', 'Jグランツ API(デジタル庁)'],
   ['情報源', 'watch', 'ON', '', '', 'ウォッチ(指定ページの変化検知)'],
+  ['情報源', 'mhlw_news', 'ON', '', '', '厚生労働省の新着情報(助成金などのお知らせの見出し)'],
   ['通知', '送信モード', 'dry', '', '', 'dry=送らず履歴だけ / test=テストの部屋へ送る / prod=本番(承認後に手動で変える)'],
   ['通知', '該当なしの日も送る', 'ON', '', '', 'OFFにすると、該当が1件もない日は送らない'],
   ['通知', '時刻(時)', 9, '', '', '毎朝この時刻に通知。変えたら installTriggers を実行'],
@@ -80,4 +82,15 @@ var WATCH_SEEDS = [
 
 var WATCH = { WAIT_MS: 3000, USER_AGENT: 'BukkenkingSubsidyRadar/1.0 (internal; once-a-day)' };
 
-var NOTIFY = { CHATWORK_BASE: 'https://api.chatwork.com/v2', MAX_CHARS: 3500, MAX_NEW: 5, MAX_DEADLINE: 5 };
+var NOTIFY = { CHATWORK_BASE: 'https://api.chatwork.com/v2', MAX_CHARS: 3500, MAX_NEW: 5, MAX_DEADLINE: 5, MAX_CHANGE: 5, MAX_NEWS: 5 };
+
+/**
+ * 公式のお知らせ(厚生労働省の新着情報)。出典は厚生労働省(公共データ利用規約 PDL1.0。出典を付ければ利用可)。
+ * 取り出すのは、見出し・日付・分類・リンクだけ。1日1回、1ページ。
+ * キーワードと除外する分類は、「設定」タブ(区分=お知らせ語 / お知らせ除外)で直せる。
+ */
+var NEWS_SOURCE = { URL: 'https://www.mhlw.go.jp/stf/new-info/index.html', NAME: '厚労省 新着情報', FIRST_DAYS: 7, KEEP: 300 };
+var DEFAULT_NEWS_WORDS = ['助成金', '補助金', '奨励金', '給付金', '支給要領', 'リスキリング', '人材開発', 'キャリアアップ', '最低賃金', '賃金引上げ', '雇用保険', '特例'];
+var DEFAULT_NEWS_EXCLUDE = ['審議会等', '採用情報', '統計情報', '大臣会見等'];
+/** 見出しにこの語を含むものは通知しない(医療機関・介護事業所向けなど、加盟店に関係が薄いもの) */
+var DEFAULT_NEWS_EXCLUDE_WORDS = ['医療施設', '医療機関', '医薬品', '診療報酬', '介護報酬', '感染症', '食品', '水道', '年金', '障害者', '生活保護', '老人保健', '設計・開発', 'ガバメントクラウド', '入札'];

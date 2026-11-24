@@ -83,10 +83,10 @@ test('変化検知: 書き換えを検出し、追加・削除の抜粋が出る
 test('通知文: 空の日・取れなかった情報源・件数制限・長さ', () => {
   const base = { today: '2026-11-18', watch: [], deadlines: [], newHigh: [], midCount: 4, sources: [{ name: 'Jグランツ', ok: true, count: 146 }], viewUrl: 'https://example.com/sheet#gid=1' };
   const m0 = L.buildMorningMessage_(base);
-  assert.match(m0, /本日の新着はありません/); assert.ok(m0.split('\n').length < 12);
+  assert.match(m0, /本日の新着・変更はありません/); assert.ok(m0.split('\n').length < 12);
   const m1 = L.buildMorningMessage_(Object.assign({}, base, { sources: [{ name: 'Jグランツ', ok: false, error: 'HTTP 500' }] }));
   assert.match(m1, /取れなかった情報源】Jグランツ\(HTTP 500\)/);
-  assert.ok(m1.indexOf('取れなかった') < m1.indexOf('本日の新着はありません'), '目立つ位置(上)に出る');
+  assert.ok(m1.indexOf('取れなかった') < m1.indexOf('本日の新着・変更はありません'), '目立つ位置(上)に出る');
   const many = Array.from({ length: 15 }, (_, i) => ({ title: '制度' + i, institution: '機関', start: '2026-04-01', end: '2026-12-01', limit: 10000000, reasons: '地域:全国(+5)', url: 'https://x/' + i }));
   const m2 = L.buildMorningMessage_(Object.assign({}, base, { newHigh: many }));
   assert.equal((m2.match(/^\d+\. 制度/gm) || []).length, 5, '新着は5件まで'); assert.match(m2, /ほか10件は「見る用」タブ/);
@@ -109,11 +109,37 @@ test('通知文: 要点・曜日・締切・理由の短縮・リンク', () => 
     midCount: 2, sources: [{ name: 'Jグランツ', ok: true, count: 227 }], viewUrl: 'https://sheet#gid=9' };
   const m = L.buildMorningMessage_(ctx);
   assert.match(m, /補助金レーダー 11\/19\(木\)/);
-  assert.match(m, /制度の更新: 1件 \/ 締切が近い: 1件 \/ 新着: 1件/);
+  assert.match(m, /新着の補助金 1件 \/ 締切が近い 1件 \/ 公式ページの更新 1件/);
   assert.match(m, /■ 【あと3日】持続化補助金\n  11\/22\(日\)まで \/ 上限200万円\n  → https:\/\/d/);
-  assert.match(m, /追加: 助成率 75%\n  削除: 助成率 60%/);
+  assert.match(m, /変更: 助成率 60% → 助成率 75%/);
   assert.match(m, /関連: 業務改善助成金、愛知\n/); assert.doesNotMatch(m, /NPO/);
   assert.match(m, /→ https:\/\/sheet#gid=9/);
   assert.ok(m.split('\n').length <= 30, '行数: ' + m.split('\n').length);
-  assert.ok(m.indexOf('制度の更新】') < m.indexOf('締切が近い】') && m.indexOf('締切が近い】') < m.indexOf('新着】'));
+  assert.ok(m.indexOf('【新着】') < m.indexOf('【締切が近い】') && m.indexOf('【締切が近い】') < m.indexOf('【公式ページの更新】'));
+});
+
+test('変更の整形: 数字だけの変更は「旧 → 新」、それ以外は追加/削除', () => {
+  const d = L.pairChanges_(['助成率 60%', '上限 1,000万円', '令和7年度 支給要領'], ['助成率 75%', '上限 1,200万円', '令和8年度 新設コース']);
+  assert.deepEqual(plain(d.changed.map(c => [c.from, c.to])), [['助成率 60%', '助成率 75%'], ['上限 1,000万円', '上限 1,200万円']]);
+  assert.deepEqual(plain(d.added), ['令和8年度 新設コース']); assert.deepEqual(plain(d.removed), ['令和7年度 支給要領']);
+  assert.equal(L.fmtChange_('受付終了', '2026-12-28', '2026-11-19'), '12/28'); assert.equal(L.fmtChange_('上限額', 8000000, '2026-11-19'), '800万円');
+});
+test('お知らせ: 厚労省の新着情報から、関連する見出しだけを取り出す', () => {
+  const html = require('fs').readFileSync(__dirname + '/fixtures/mhlw_news.html', 'utf8');
+  const items = L.parseMhlwNews_(html);
+  assert.ok(items.length >= 100); assert.match(items[0].date, /^\d{4}-\d\d-\d\d$/); assert.match(items[0].url, /^https:\/\//);
+  const hit = L.filterNews_(items, plain(L.DEFAULT_NEWS_WORDS), plain(L.DEFAULT_NEWS_EXCLUDE), plain(L.DEFAULT_NEWS_EXCLUDE_WORDS));
+  assert.ok(hit.every(x => !/医療施設|診療報酬|介護報酬/.test(x.title)), '医療機関向けは除外');
+  assert.ok(hit.length > 0 && hit.length < items.length / 2);
+  assert.ok(hit.every(x => !['審議会等', '採用情報', '統計情報', '大臣会見等'].includes(x.cat)));
+  assert.ok(hit.some(x => /助成金|補助金|最低賃金|リ・スキリング|リスキリング/.test(L.nfkc_(x.title))));
+});
+test('通知文: 条件の変更とお知らせが出る', () => {
+  const m = L.buildMorningMessage_({ today: '2026-11-19', watch: [], deadlines: [], newHigh: [], midCount: 0, sources: [{ name: 'Jグランツ', ok: true, count: 227 }],
+    changes: [{ title: '持続化補助金', url: 'https://c', items: [{ field: '受付終了', from: '2026-11-30', to: '2026-12-28' }, { field: '上限額', from: 2000000, to: 2500000 }] }],
+    news: [{ date: '2026-11-15', cat: '報道発表', title: '令和8年熊本地震に伴う産業雇用安定助成金の特例を実施します', url: 'https://n' }] });
+  assert.match(m, /条件の変更 1件 \/ 公式のお知らせ 1件/);
+  assert.match(m, /受付終了: 11\/30 → 12\/28\n  上限額: 200万円 → 250万円/);
+  assert.match(m, /■ 11\/15 令和8年熊本地震に伴う産業雇用安定助成金の特例を実施します\n  → https:\/\/n/);
+  assert.doesNotMatch(m, /本日の新着・変更はありません/);
 });

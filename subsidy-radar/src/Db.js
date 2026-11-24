@@ -76,10 +76,18 @@ function appendTab_(ss, name, objs) {
 
 /* ---------- 設定 ---------- */
 
+/** 設定の初期値を書く。既にある項目は上書きしない(運用中の変更を守る)。後から増えた項目だけ足す */
 function seedSettings_(ss) {
-  if (readTab_(ss, TAB.SETTINGS).length) return; // 既にあれば上書きしない(運用中の変更を守る)
-  var rows = DEFAULT_SETTINGS.map(function (r) { return { '区分': r[0], '項目': r[1], '値': r[2], '点数': r[3], '範囲': r[4], 'メモ': r[5] }; });
-  DEFAULT_RULES.forEach(function (r) { rows.push({ '区分': 'キーワード', '項目': r[1], '値': r[0], '点数': r[2], '範囲': r[3], 'メモ': '' }); });
+  var have = readTab_(ss, TAB.SETTINGS), key = {}, kinds = {};
+  have.forEach(function (r) { key[r['区分'] + '|' + r['項目']] = 1; kinds[r['区分']] = 1; });
+  var rows = [];
+  DEFAULT_SETTINGS.forEach(function (r) {
+    if (!key[r[0] + '|' + r[1]]) rows.push({ '区分': r[0], '項目': r[1], '値': r[2], '点数': r[3], '範囲': r[4], 'メモ': r[5] });
+  });
+  if (!kinds['キーワード']) DEFAULT_RULES.forEach(function (r) { rows.push({ '区分': 'キーワード', '項目': r[1], '値': r[0], '点数': r[2], '範囲': r[3], 'メモ': '' }); });
+  if (!kinds['お知らせ語']) DEFAULT_NEWS_WORDS.forEach(function (w) { rows.push({ '区分': 'お知らせ語', '項目': w, '値': '', '点数': '', '範囲': '', 'メモ': 'この語を含む見出しを通知する' }); });
+  if (!kinds['お知らせ除外']) DEFAULT_NEWS_EXCLUDE.forEach(function (w) { rows.push({ '区分': 'お知らせ除外', '項目': w, '値': '', '点数': '', '範囲': '', 'メモ': 'この分類は通知しない' }); });
+  if (!kinds['お知らせ除外語']) DEFAULT_NEWS_EXCLUDE_WORDS.forEach(function (w) { rows.push({ '区分': 'お知らせ除外語', '項目': w, '値': '', '点数': '', '範囲': '', 'メモ': '見出しにこの語があれば通知しない' }); });
   appendTab_(ss, TAB.SETTINGS, rows);
 }
 
@@ -91,10 +99,14 @@ function seedWatch_(ss) {
 }
 
 function getSettings_(ss) {
-  var rows = readTab_(ss, TAB.SETTINGS), s = { rules: [], thresholds: { high: 30, mid: 10 }, sources: {}, notify: {}, keep: 90 };
+  seedSettings_(ss); // 後から増えた設定項目を、自動で足す
+  var rows = readTab_(ss, TAB.SETTINGS), s = { rules: [], thresholds: { high: 30, mid: 10 }, sources: {}, notify: {}, keep: 90, newsWords: [], newsExclude: [], newsExcludeWords: [] };
   rows.forEach(function (r) {
     if (r['区分'] === 'キーワード') s.rules.push({ category: r['値'], keyword: r['項目'], points: Number(r['点数']), scope: r['範囲'] });
     else if (r['区分'] === 'しきい値') s.thresholds[r['項目'] === '高' ? 'high' : 'mid'] = Number(r['値']);
+    else if (r['区分'] === 'お知らせ語') s.newsWords.push(r['項目']);
+    else if (r['区分'] === 'お知らせ除外') s.newsExclude.push(r['項目']);
+    else if (r['区分'] === 'お知らせ除外語') s.newsExcludeWords.push(r['項目']);
     else if (r['区分'] === '情報源') s.sources[r['項目']] = String(r['値']).toUpperCase() === 'ON';
     else if (r['区分'] === '通知') s.notify[r['項目']] = r['値'];
     else if (r['区分'] === '保存' && r['項目'] === 'アーカイブまでの日数') s.keep = Number(r['値']) || 90;
