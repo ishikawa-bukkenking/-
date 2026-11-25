@@ -91,15 +91,21 @@ function seedSettings_(ss) {
   appendTab_(ss, TAB.SETTINGS, rows);
 }
 
+/** ウォッチの初期値を足す。URL が同じ行が既にあれば足さない(運用中の変更を守る)。古い「OFF の公式サイト(トップ)」の行は外す */
 function seedWatch_(ss) {
-  if (readTab_(ss, TAB.WATCH).length) return;
-  appendTab_(ss, TAB.WATCH, WATCH_SEEDS.map(function (w) {
+  var have = readTab_(ss, TAB.WATCH);
+  var kept = have.filter(function (w) { return !(w['URL'] === 'https://it-shien.smrj.go.jp/' && String(w['有効']).toUpperCase() === 'OFF'); });
+  var urls = {}; kept.forEach(function (w) { urls[w['URL']] = 1; });
+  var add = WATCH_SEEDS.filter(function (w) { return !urls[w.url]; }).map(function (w) {
     return { '有効': w.enabled, '名前': w.name, 'URL': w.url, '種別': w.kind, '範囲の開始目印': w.start, '範囲の終了目印': w.end, '除外パターン': '', 'メモ': w.memo || '' };
-  }));
+  });
+  if (kept.length !== have.length) writeTab_(ss, TAB.WATCH, kept);
+  appendTab_(ss, TAB.WATCH, add);
 }
 
 function getSettings_(ss) {
   seedSettings_(ss); // 後から増えた設定項目を、自動で足す
+  seedWatch_(ss);    // 後から増えたウォッチ対象を、自動で足す
   var rows = readTab_(ss, TAB.SETTINGS), s = { rules: [], thresholds: { high: 30, mid: 10 }, sources: {}, notify: {}, keep: 90, newsWords: [], newsExclude: [], newsExcludeWords: [] };
   rows.forEach(function (r) {
     if (r['区分'] === 'キーワード') s.rules.push({ category: r['値'], keyword: r['項目'], points: Number(r['点数']), scope: r['範囲'] });

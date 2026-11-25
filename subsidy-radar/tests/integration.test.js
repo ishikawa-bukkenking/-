@@ -9,6 +9,7 @@ function boot(state) {
     if (url.includes('/v1/public/subsidies')) return state.listFail ? { code: 500, body: '{}' } : { code: 200, body: JSON.stringify(state.list) };
     if (url.includes('/v2/public/subsidies/id/')) return { code: 200, body: fx('jgrants_detail.json') };
     if (url.includes('api.chatwork.com')) return { code: state.cwCode || 200, body: '{}' };
+    if (url.includes('it-shien.smrj.go.jp')) return { code: 200, body: state.itPage || state.page };
     if (url.includes('/stf/new-info/')) return state.newsFail ? { code: 503, body: '' } : { code: 200, body: state.news };
     if (url.includes('mhlw.go.jp')) return state.pageFail ? { code: 503, body: '' } : { code: 200, body: state.page };
     return { code: 404, body: '' };
@@ -171,4 +172,29 @@ test('条件の変更: 公開中の制度の受付終了日が延びたら、旧
   assert.match(msg, /【条件の変更】/); assert.match(msg, /受付終了: .* → 2027\/2\/27/);
   c.TEST_TODAY = '2026-11-21'; run(c, 'collectDaily()'); run(c, 'sendMorning()');
   assert.doesNotMatch(c.bodies[c.bodies.length - 1], /【条件の変更】/, '同じ変更を2日続けて出さない');
+});
+
+test('デジタル化・AI導入補助金のウォッチ: 抜粋なし。更新されたことだけ知らせる', () => {
+  const st = newState(); st.itPage = fx('mhlw_page.html'); const c = boot(st); c.TEST_TODAY = '2026-11-25';
+  run(c, 'setup()'); useTest(c);
+  const w0 = tab(c, 'ウォッチ').filter(w => /it-shien/.test(w['URL']));
+  assert.equal(w0.length, 2); assert.ok(w0.every(w => w['有効'] === 'ON' && w['種別'] === 'html_hash'));
+  run(c, 'collectDaily()');
+  c.TEST_TODAY = '2026-11-26';
+  st.itPage = st.itPage.split('業務改善助成金について').join('第8次公募回の締切のお知らせ');
+  run(c, 'collectDaily()'); run(c, 'sendMorning()');
+  const msg = c.bodies[0];
+  assert.match(msg, /デジタル化・AI導入補助金\(新着情報の一覧\)\n  ページが更新されました\(抜粋なし/);
+  assert.doesNotMatch(msg, /第8次公募回/, '本文は出さない');
+  assert.ok(tab(c, 'ウォッチ').filter(w => /it-shien/.test(w['URL'])).every(w => !w['行の指紋']), '指紋も残さない');
+  assert.equal(c.calls.filter(u => /it-shien/.test(u)).length, 4, '2ページ × 2日 = 4回だけ');
+});
+test('ウォッチの初期値: 古いOFFのトップの行は外し、運用中の行は残す', () => {
+  const st = newState(), c = boot(st);
+  run(c, 'setup()');
+  run(c, `(function(){var ss=openDb_(),t=readTab_(ss,'ウォッチ');t.push({'有効':'OFF','名前':'古い','URL':'https://it-shien.smrj.go.jp/','種別':'html'});t.push({'有効':'ON','名前':'追加した行','URL':'https://example.com/x','種別':'html'});writeTab_(ss,'ウォッチ',t);})()`);
+  run(c, 'setup()');
+  const w = tab(c, 'ウォッチ');
+  assert.ok(!w.some(x => x['URL'] === 'https://it-shien.smrj.go.jp/')); assert.ok(w.some(x => x['名前'] === '追加した行'));
+  assert.equal(w.filter(x => /it-shien.*(news|schedule)/.test(x['URL'])).length, 2, '重複して足さない');
 });
