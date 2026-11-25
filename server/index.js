@@ -8,6 +8,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { makeRuntime, syncFetch } = require('./shim');
 const { openStore } = require('./store');
+const { Mirror, makeScheduler } = require('./sheetsMirror');
 
 const ALLOWED_DOMAIN = 'bukkenking.com';
 const PORT = Number(process.env.PORT || 3000);
@@ -59,8 +60,15 @@ function loginPage(msg) {
   const ctx = rt.ctx;
   vm_run(ctx, 'setupSheets_(ss_())');   // 初回: 保存先の表と同梱の加盟店一覧を用意(2回目以降は入力済みのデータを消さない)
   if (process.env.ANTHROPIC_API_KEY && !state.props.ANTHROPIC_KEY) vm_run(ctx, 'PropertiesService.getScriptProperties().setProperty("ANTHROPIC_KEY", ' + JSON.stringify(process.env.ANTHROPIC_API_KEY) + ')');
+  // 「商談先一覧」を、元のスプレッドシートにも写す(セールスベースが、そのシートを読むため)。環境変数がなければ、何もしない
+  const mirror = new Mirror(), mirrorSched = makeScheduler(mirror, function () {
+    const sh = ctx.__ss.getSheetByName('商談先一覧'); if (!sh) return [];
+    const out = [], last = sh.getLastRow(); for (let r = 2; r <= last; r++) { const row = []; for (let c = 1; c <= 9; c++) row.push(sh.get(r, c)); out.push(row); } return out;
+  });
+  if (!mirror.enabled()) console.warn('GOOGLE_SERVICE_ACCOUNT_JSON が未設定のため、商談先一覧を元のスプレッドシートに写しません(セールスベースに新しい調査が出ません)。');
   await flush();
-  async function flush() { if (rt.isDirty()) await store.save(rt.takeDirty()); }
+  mirrorSched.schedule(1000);   // 起動したとき: まだ写していない分を、写す
+  async function flush() { if (rt.isDirty()) { const d = rt.takeDirty(); await store.save(d); if (d.sheets) mirrorSched.schedule(); } }
   function vm_run(c, code) { return require('vm').runInContext(code, c); }
 
   let queue = Promise.resolve();   // GASのコードは同期で動くので、リクエストは1つずつ処理する
