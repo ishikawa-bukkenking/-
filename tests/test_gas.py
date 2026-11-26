@@ -381,4 +381,6 @@ def test_station_pattern():
     assert r["cleanup"] == [True, 5, ["多摩川〜蒲田"], None]   # 路線名が空の行は保存できず、まとめて削除できる
     assert r["mirror"] == ["東急池上/東急多摩川/東急大井/東急東横", "長原〜蒲田/多摩川〜矢口渡/北千束〜大岡山/田園調布", "7,,,"]   # 保存した路線・駅にそろう(件数が空の余分な行は消える)
     assert r["bigGas"] == [True, True, 45000]   # GAS版は上限を超えると、理由つきのエラーで知らせる
+    assert r["kwAll"] == [[True] * 4, ["bool"] * 4] and r["kwSome"] == [[True, True, False, False], 0]   # 検索ボリューム: 既定は全部表示。外したキーワードはLPに出ず、未入力にも数えない
+    assert r["kwNone"] == [[False] * 4, True, True, True] and r["kwBack"] == [True, False, False, False] and r["kwMissing"] == 0   # 全部外すと、検索ボリュームのページごと表示しない
     assert r["std"] == 300 and r["denied"]

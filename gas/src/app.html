@@ -188,7 +188,7 @@ function flush() {
 }
 function refreshNeed() {
   document.querySelectorAll('.field[data-req="1"]').forEach(function (f) {
-    var v = vals[f.getAttribute('data-k')], off = f.getAttribute('data-grp') === 'trend' && !trendOn();
+    var v = vals[f.getAttribute('data-k')], off = (f.getAttribute('data-grp') === 'trend' && !trendOn()) || f.classList.contains('off');
     f.classList.toggle('need', !off && (!v || !String(v).replace(/[,，\s]/g, '')));
   });
   document.querySelectorAll('details.sec').forEach(function (d) {
@@ -394,7 +394,7 @@ document.addEventListener('paste', function (e) {
 function fmt1(v) { var n = parseFloat(String(v).replace(/[,，％%\s]/g, '')); return isNaN(n) ? v : n.toFixed(1); }
 function trendOn() { return vals['show.price_trend'] !== '0'; }
 function applyGroups() {
-  [['trend', trendOn()], ['pins', vals['show.pins'] !== '0'], ['land', vals['show.land'] !== '0'], ['used_house', vals['show.used_house'] !== '0'], ['used_mansion', vals['show.used_mansion'] !== '0'], ['new_house', vals['show.new_house'] !== '0']].forEach(function (g) {
+  [['trend', trendOn()], ['pins', vals['show.pins'] !== '0'], ['land', vals['show.land'] !== '0'], ['used_house', vals['show.used_house'] !== '0'], ['used_mansion', vals['show.used_mansion'] !== '0'], ['new_house', vals['show.new_house'] !== '0'], ['kw0', vals['show.kw.土地'] !== '0'], ['kw1', vals['show.kw.中古マンション'] !== '0'], ['kw2', vals['show.kw.不動産'] !== '0'], ['kw3', vals['show.kw.中古物件'] !== '0']].forEach(function (g) {
     var on = g[1];
     document.querySelectorAll('.field[data-grp="' + g[0] + '"]').forEach(function (f) {
       f.classList.toggle('off', !on); f.querySelectorAll('input,button,label.btn').forEach(function (x) { if (x.tagName === 'LABEL') x.style.pointerEvents = on ? '' : 'none'; else x.disabled = !on; });

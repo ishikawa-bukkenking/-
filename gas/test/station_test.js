@@ -89,6 +89,26 @@ const r = vm.runInContext(`(function () {
   var bigErr = '';
   try { ['land', 'used_house', 'used_mansion', 'new_house'].forEach(function (k) { api_saveTable(c7, 'inputs.' + k + '.station_image', big); }); } catch (e) { bigErr = e.message; }
   r.bigGas = [bigErr.indexOf('大きすぎます') >= 0, bigErr.indexOf('文字。上限') > 0, AREA_JSON_MAX_];
+  // 検索ボリューム: キーワードごとにチェックで表示を選べる(既定は全部表示。外したキーワードは必須にもならず、LPにも出ない)
+  var c8 = api_create_company('株式会社検索', '長野県', '上田市').areaId;
+  var kv = { 'kw.土地': '1000,50,80', 'kw.中古マンション': '200,60,90', 'kw.不動産': '5000,70,100', 'kw.中古物件': '300,40,60' };
+  api_save(c8, kv);
+  var htmlKw = function () { return buildArea_(c8).html; };
+  var kwHas = function (h) { return ['土地', '中古マンション', '不動産', '中古物件'].map(function (x) { return h.indexOf('<td>上田市　' + x + '</td>') > 0; }); };
+  var meta = api_get(c8).fields.filter(function (f) { return /^show\.kw\./.test(f.k || ''); }).map(function (f) { return f.t; });
+  r.kwAll = [kwHas(htmlKw()), meta];
+  api_save(c8, { 'show.kw.不動産': '0', 'show.kw.中古物件': '0' });
+  var hk = htmlKw(), kmiss = buildArea_(c8).report.missing().map(function (i) { return i.key; }).filter(function (k) { return /^keywords\./.test(k); });
+  r.kwSome = [kwHas(hk), kmiss.length];
+  api_save(c8, { 'show.kw.土地': '0', 'show.kw.中古マンション': '0' });
+  var hn = htmlKw();
+  r.kwNone = [kwHas(hn), hn.indexOf('id="search"') < 0, hn.indexOf('href="#search"') < 0, hn.indexOf('検索ボリューム') < 0];
+  api_save(c8, { 'show.kw.土地': '1' });
+  r.kwBack = kwHas(htmlKw());
+  api_save(c8, { 'show.kw.土地': '0', 'show.kw.中古マンション': '1', 'show.kw.不動産': '1', 'show.kw.中古物件': '1' });
+  var c9 = api_create_company('株式会社検索2', '長野県', '上田市').areaId;   // 未入力でも、チェックを外した分は「未入力」に数えない
+  api_save(c9, { 'show.kw.土地': '0', 'show.kw.中古マンション': '0', 'show.kw.不動産': '0', 'show.kw.中古物件': '0' });
+  r.kwMissing = buildArea_(c9).report.missing().filter(function (i) { return /^keywords/.test(i.key); }).length;
   // 路線・駅版の会社に追加したエリアも同じパターン/会社の複製も引き継ぐ
   var a2 = api_add_area(stn.companyId, '長野県', '東御市').areaId, dup = api_duplicate_company(stn.companyId, '複製');
   r.inherit = [api_get(a2).pattern, api_get(dup.areaIds[0]).pattern, !!api_get(dup.areaIds[0]).tables['inputs.used_house.station_image']];

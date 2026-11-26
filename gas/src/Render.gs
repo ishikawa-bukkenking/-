@@ -246,7 +246,7 @@ function renderPage_(models, report, assets, styleCss, multi) {
   };
   [['used_house', uh, '中古戸建て'], ['used_mansion', um, '中古マンション'], ['new_house', nh, '新築戸建て']].forEach(function (x) { if (vis[x[0]]) h.push(houseSection_(ID(x[0]), N(), x[1], x[2], SFX, MED[x[0]])); });
   // 08 search(見出しの文章は出さない。セクション名と表だけ)
-  h.push('<section class="sec' + alt() + '" id="' + ID('search') + '"><div class="wrap rv"><p class="sec-no">' + N() + '　検索ボリューム' + SFX + '</p>' +
+  if (vis.search !== false) h.push('<section class="sec' + alt() + '" id="' + ID('search') + '"><div class="wrap rv"><p class="sec-no">' + N() + '　検索ボリューム' + SFX + '</p>' +
     '<div class="card"><table class="kw"><thead><tr><th scope="col">検索キーワード</th><th scope="col">月間平均検索ボリューム</th><th scope="col">予想クリック単価</th></tr></thead><tbody>' +
     kw.rows.map(function (r) {
       return '<tr><td>' + esc_(r.keyword) + '</td><td class="v num">' + (r.monthly_volume != null ? num_(r.monthly_volume) + '<span class="bar" style="width:' + roundHalfUp_(100 * r.monthly_volume / kwMax, 1) + '%" aria-hidden="true"></span>' : '<span class="note">未入力</span>') +

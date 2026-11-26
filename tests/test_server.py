@@ -136,5 +136,6 @@ def test_station_table_autosave_in_browser(tmp_path):
         assert r.returncode == 0, r.stderr
         j = json.loads(r.stdout.strip().splitlines()[-1])
         assert j["autosaved"] == [93, "上田駅〜屋代駅"] and j["kept"] == [True, 7, "7"] and j["reload"] == ["93", "7"] and j["errs"] == []
+        assert j["kwChecked"] and j["kwOff"] == [True, False] and j["kwSaved"] == "0"   # 検索キーワードのチェックを外すと、入力欄が薄くなり必須でなくなる
     finally:
         s.stop()

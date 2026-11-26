@@ -27,6 +27,12 @@ out.kept = [u.rows.length >= 2, u.cells[0][0], await uh.nth(3).inputValue()];
 // 再読み込みしても残る
 await p.evaluate(id => { openArea(id); }, c.areaId); await p.waitForTimeout(1500);
 out.reload = [await field('land').locator('table.stn-ed tr').nth(1).locator('input').nth(3).inputValue(), await field('used_house').locator('table.stn-ed tr').nth(1).locator('input').nth(3).inputValue()];
+// 検索ボリューム: チェックを外すとそのキーワードの入力欄が薄くなり(必須でなくなる)、保存される
+const ck = p.locator('.field[data-k="show.kw.不動産"] input[type=checkbox]');
+out.kwChecked = await ck.isChecked();
+await ck.uncheck(); await p.waitForTimeout(1800);
+out.kwOff = await p.locator('.field[data-k="kw.不動産"]').evaluate(e => [e.classList.contains('off'), e.classList.contains('need')]);
+out.kwSaved = (await rpc('api_get', c.areaId)).result.values['show.kw.不動産'];
 out.errs = errs;
 console.log(JSON.stringify(out));
 await b.close();
