@@ -89,26 +89,27 @@ const r = vm.runInContext(`(function () {
   var bigErr = '';
   try { ['land', 'used_house', 'used_mansion', 'new_house'].forEach(function (k) { api_saveTable(c7, 'inputs.' + k + '.station_image', big); }); } catch (e) { bigErr = e.message; }
   r.bigGas = [bigErr.indexOf('大きすぎます') >= 0, bigErr.indexOf('文字。上限') > 0, AREA_JSON_MAX_];
-  // 検索ボリューム: キーワードごとにチェックで表示を選べる(既定は全部表示。外したキーワードは必須にもならず、LPにも出ない)
+  // 検索ボリューム: キーワードは自由に書き換え・追加・削除できる。チェックを外した行はLPに出さず、必須にもしない。旧形式の入力も読める
   var c8 = api_create_company('株式会社検索', '長野県', '上田市').areaId;
-  var kv = { 'kw.土地': '1000,50,80', 'kw.中古マンション': '200,60,90', 'kw.不動産': '5000,70,100', 'kw.中古物件': '300,40,60' };
-  api_save(c8, kv);
-  var htmlKw = function () { return buildArea_(c8).html; };
-  var kwHas = function (h) { return ['土地', '中古マンション', '不動産', '中古物件'].map(function (x) { return h.indexOf('<td>上田市　' + x + '</td>') > 0; }); };
-  var meta = api_get(c8).fields.filter(function (f) { return /^show\.kw\./.test(f.k || ''); }).map(function (f) { return f.t; });
-  r.kwAll = [kwHas(htmlKw()), meta];
-  api_save(c8, { 'show.kw.不動産': '0', 'show.kw.中古物件': '0' });
-  var hk = htmlKw(), kmiss = buildArea_(c8).report.missing().map(function (i) { return i.key; }).filter(function (k) { return /^keywords\./.test(k); });
-  r.kwSome = [kwHas(hk), kmiss.length];
-  api_save(c8, { 'show.kw.土地': '0', 'show.kw.中古マンション': '0' });
-  var hn = htmlKw();
-  r.kwNone = [kwHas(hn), hn.indexOf('id="search"') < 0, hn.indexOf('href="#search"') < 0, hn.indexOf('検索ボリューム') < 0];
-  api_save(c8, { 'show.kw.土地': '1' });
-  r.kwBack = kwHas(htmlKw());
-  api_save(c8, { 'show.kw.土地': '0', 'show.kw.中古マンション': '1', 'show.kw.不動産': '1', 'show.kw.中古物件': '1' });
-  var c9 = api_create_company('株式会社検索2', '長野県', '上田市').areaId;   // 未入力でも、チェックを外した分は「未入力」に数えない
-  api_save(c9, { 'show.kw.土地': '0', 'show.kw.中古マンション': '0', 'show.kw.不動産': '0', 'show.kw.中古物件': '0' });
-  r.kwMissing = buildArea_(c9).report.missing().filter(function (i) { return /^keywords/.test(i.key); }).length;
+  var kwHas = function (h, words) { return words.map(function (x) { return h.indexOf('<td>上田市　' + x + '</td>') > 0; }); };
+  var kwl = function (a) { return JSON.stringify(a); };
+  r.kwDefault = [JSON.parse(api_get(c8).values['kw.list']).map(function (x) { return x.t + ':' + x.on; }).join(','), kwHas(buildArea_(c8).html, ['土地', '中古マンション', '不動産', '中古物件'])];
+  var okSave = api_save(c8, { 'kw.list': kwl([{ t: '売却', on: true, v: '1,000', lo: '50', hi: '80' }, { t: '査定 無料', on: true, v: '200', lo: '60', hi: '90' }, { t: '不動産', on: false, v: '', lo: '', hi: '' }, { t: '空き家', on: true, v: '', lo: '', hi: '' }]) });
+  var h1 = buildArea_(c8).html;
+  r.kwFree = [okSave.saved, kwHas(h1, ['売却', '査定 無料', '不動産', '空き家', '土地']), h1.indexOf('<td class="v num">1,000') > 0];
+  var ms = buildArea_(c8).report.missing().map(function (i) { return i.key; }).filter(function (k) { return /^keywords\./.test(k); }).sort();
+  r.kwMissing1 = ms;   // 表示する行だけ。空き家は未入力
+  var e1 = api_save(c8, { 'kw.list': kwl([{ t: '', on: true }]) }), e2 = api_save(c8, { 'kw.list': kwl([{ t: 'A', on: true }, { t: 'A', on: true }]) }), e3 = api_save(c8, { 'kw.list': kwl([{ t: 'A', on: true, v: 'x' }]) });
+  r.kwErr = [Object.keys(e1.errors).length, Object.keys(e2.errors).length, Object.keys(e3.errors).length, e1.errors['kw.list'].indexOf('キーワードを入力') >= 0, e2.errors['kw.list'].indexOf('重複') >= 0];
+  api_save(c8, { 'kw.list': kwl([{ t: '土地', on: false }, { t: '中古', on: false }]) });
+  var hn = buildArea_(c8).html;
+  r.kwNone = [hn.indexOf('id="search"') < 0, hn.indexOf('href="#search"') < 0, hn.indexOf('検索ボリューム') < 0];
+  api_save(c8, { 'kw.list': '[]' });
+  r.kwEmpty = buildArea_(c8).html.indexOf('id="search"') < 0;
+  var c9 = api_create_company('株式会社旧形式', '長野県', '上田市').areaId;   // 旧形式(固定4項目)の入力は、そのまま表示され、一覧の形で渡る
+  writeAreaValues_(c9, function (v) { v['kw.土地'] = '1000,50,80'; v['kw.不動産'] = '5000,70,100'; v['show.kw.不動産'] = '0'; });
+  var hl = buildArea_(c9).html;
+  r.kwLegacy = [kwHas(hl, ['土地', '不動産']), JSON.parse(api_get(c9).values['kw.list']).map(function (x) { return x.t + ':' + x.on + ':' + x.v; }).join(',')];
   // 路線・駅版の会社に追加したエリアも同じパターン/会社の複製も引き継ぐ
   var a2 = api_add_area(stn.companyId, '長野県', '東御市').areaId, dup = api_duplicate_company(stn.companyId, '複製');
   r.inherit = [api_get(a2).pattern, api_get(dup.areaIds[0]).pattern, !!api_get(dup.areaIds[0]).tables['inputs.used_house.station_image']];

@@ -27,12 +27,17 @@ out.kept = [u.rows.length >= 2, u.cells[0][0], await uh.nth(3).inputValue()];
 // 再読み込みしても残る
 await p.evaluate(id => { openArea(id); }, c.areaId); await p.waitForTimeout(1500);
 out.reload = [await field('land').locator('table.stn-ed tr').nth(1).locator('input').nth(3).inputValue(), await field('used_house').locator('table.stn-ed tr').nth(1).locator('input').nth(3).inputValue()];
-// 検索ボリューム: チェックを外すとそのキーワードの入力欄が薄くなり(必須でなくなる)、保存される
-const ck = p.locator('.field[data-k="show.kw.不動産"] input[type=checkbox]');
-out.kwChecked = await ck.isChecked();
-await ck.uncheck(); await p.waitForTimeout(1800);
-out.kwOff = await p.locator('.field[data-k="kw.不動産"]').evaluate(e => [e.classList.contains('off'), e.classList.contains('need')]);
-out.kwSaved = (await rpc('api_get', c.areaId)).result.values['show.kw.不動産'];
+// 検索キーワード: 行のチェックを外すと薄くなって保存される。キーワードは自由に書き換え・追加できる
+await p.evaluate(() => document.querySelectorAll('details.sec').forEach(d => { d.open = true; }));
+const rowsKw = p.locator('.field[data-k="kw.list"] .kwr:not(.kwh)');
+out.kwRows = await rowsKw.count();
+await rowsKw.nth(2).locator('input[type=checkbox]').uncheck();
+await rowsKw.nth(0).locator('input[type=text]').first().fill('売却');
+await p.locator('.field[data-k="kw.list"] button:has-text("キーワードを追加")').click();
+await p.locator('.field[data-k="kw.list"] .kwr:not(.kwh)').last().locator('input[type=text]').first().fill('空き家');
+await p.waitForTimeout(2000);
+out.kwSaved = JSON.parse((await rpc('api_get', c.areaId)).result.values['kw.list']).map(x => x.t + ':' + x.on);
+out.kwOff = await rowsKw.nth(2).evaluate(e => e.classList.contains('off'));
 out.errs = errs;
 console.log(JSON.stringify(out));
 await b.close();

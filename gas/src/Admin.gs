@@ -73,7 +73,8 @@ function api_get(areaId) {
   FIELDS_.forEach(function (f) { if (f.t === 'image') images[f.k] = /^drive:/.test(a.values[f.k] || ''); });
   var siblings = listAreas_().filter(function (x) { return x.companyId === a.companyId; }).map(function (x) { return { id: x.id, label: x.pref + ' ' + x.city }; });
   var pattern = a.values.pattern === 'station' ? 'station' : 'standard';
-  return { id: a.id, company: c ? { id: c.id, name: c.name } : { id: '', name: '' }, pattern: pattern, fields: fieldsMeta_(pattern), values: a.values, images: images,
+  var shown = Object.assign({}, a.values); if (!shown['kw.list']) shown['kw.list'] = JSON.stringify(kwListFromValues_(shown));   // 旧形式の入力も、一覧の形で渡す
+  return { id: a.id, company: c ? { id: c.id, name: c.name } : { id: '', name: '' }, pattern: pattern, fields: fieldsMeta_(pattern), values: shown, images: images,
     tables: TABLE_KEYS_.reduce(function (o, k) { o[k] = savedTable_(a.values, k); return o; }, {}), prevs: STATION_KEYS_.reduce(function (o, k) { o[k] = !!a.values['tblprev.' + k]; return o; }, {}), aiReady: !!aiKey_(),
     autoHouseholds: a.values['auto.households'] ? Number(a.values['auto.households']) : null, hasEstat: !!st.estat,
     url: lpUrl_(st, primaryAreaId_(a)), primary: primaryAreaId_(a) === a.id, provisional: !st.url, prefectures: PREFECTURES, siblings: siblings };

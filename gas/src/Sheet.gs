@@ -84,14 +84,7 @@ var FIELDS_ = [
   { k: 'inputs.new_house.heatmap_image', l: '面積×価格の分布表(画像)', t: 'image', req: 1 },
   { k: 'inputs.new_house.station_image', l: '路線・駅別の物件数', t: 'stations', req: 1, pat: 'station', d: '路線ごとに、駅の区間(○○駅〜○○駅。1駅だけなら「から」だけ)と物件数を入力します。物件数は、この合計になります' },
   { h: '検索ボリューム(出典: Google広告調べ)' },
-  { k: 'show.kw.土地', l: '「{市} 土地」を表示する', t: 'bool', d: 'チェックを外した検索キーワードは、LPに表示しません(全部外すと、検索ボリュームのページごと表示しません)' },
-  { k: 'kw.土地', grp: 'kw0', l: '「{市} 土地」', t: 'list', req: 1 },
-  { k: 'show.kw.中古マンション', l: '「{市} 中古マンション」を表示する', t: 'bool' },
-  { k: 'kw.中古マンション', grp: 'kw1', l: '「{市} 中古マンション」', t: 'list', req: 1 },
-  { k: 'show.kw.不動産', l: '「{市} 不動産」を表示する', t: 'bool' },
-  { k: 'kw.不動産', grp: 'kw2', l: '「{市} 不動産」', t: 'list', req: 1 },
-  { k: 'show.kw.中古物件', l: '「{市} 中古物件」を表示する', t: 'bool' },
-  { k: 'kw.中古物件', grp: 'kw3', l: '「{市} 中古物件」', t: 'list', req: 1 },
+  { k: 'kw.list', l: '検索キーワード', t: 'kwlist', d: '「○○市 ＿＿＿」の形で表示します。キーワードは自由に書き換え・追加・削除できます。チェックを外した行は、LPに表示しません(全部外すと、検索ボリュームのページごと表示しません)' },
   { h: '近隣不動産会社(「{市} 不動産」「{市} 土地」「{市} 中古」で検索したSEO上位3社)' },
   { k: 'comp.0', l: '近隣不動産会社1', t: 'list', req: 1 },
   { k: 'comp.1', l: '近隣不動産会社2', t: 'list', req: 1 },
@@ -122,6 +115,38 @@ function dateKeyFor_(key) {
 }
 function isImageKey_(key) { return /\.image$|\.heatmap_image$/.test(key) && FIELDS_.some(function (f) { return f.k === key && f.t === 'image'; }); }
 
+/** 検索キーワードの一覧: [{ t: キーワード, on: 表示するか, v: 月間検索ボリューム, lo: CPC下限, hi: CPC上限 }]。旧形式(kw.土地 など4つの固定項目)で入力済みのものも読める */
+var KW_DEFAULT_ = ['土地', '中古マンション', '不動産', '中古物件'];
+function kwItem_(x) {
+  x = x || {};
+  var s = function (v) { return v === null || v === undefined ? '' : String(v).trim(); };
+  return { t: s(x.t).slice(0, 30), on: !(x.on === false || x.on === '0' || x.on === 0), v: s(x.v), lo: s(x.lo), hi: s(x.hi) };
+}
+function kwListFromValues_(vals) {
+  var raw = vals['kw.list'];
+  if (raw !== undefined && String(raw).trim() !== '') { try { var a = JSON.parse(raw); if (Array.isArray(a)) return a.map(kwItem_); } catch (e) { /* 旧形式として読む */ } }
+  return KW_DEFAULT_.map(function (t) {
+    var p = splitList_(vals['kw.' + t] || '');
+    return kwItem_({ t: t, on: vals['show.kw.' + t] !== '0', v: p[0], lo: p[1], hi: p[2] });
+  });
+}
+function validateKwList_(value) {
+  var a;
+  try { a = JSON.parse(String(value)); } catch (e) { return '不正な値です'; }
+  if (!Array.isArray(a)) return '不正な値です';
+  if (a.length > 20) return '検索キーワードは20個までです';
+  var seen = {};
+  for (var i = 0; i < a.length; i++) {
+    var it = kwItem_(a[i]);
+    if (!it.t) return (i + 1) + '行目: キーワードを入力してください(不要な行は「×」で削除)';
+    if (seen[it.t]) return '「' + it.t + '」が重複しています';
+    seen[it.t] = 1;
+    var nums = [['月間検索ボリューム', it.v], ['CPC下限', it.lo], ['CPC上限', it.hi]];
+    for (var j = 0; j < nums.length; j++) if (nums[j][1] !== '' && parseNum_(nums[j][1]) === undefined) return '「' + it.t + '」の' + nums[j][0] + 'は数値で入力してください';
+  }
+  return '';
+}
+
 function parseNum_(s) {
   if (s === null || s === undefined) return undefined;
   s = String(s).replace(/[,，\s％%円件万㎡坪位年世帯]/g, '').replace(/[０-９．]/g, function (c) { return c === '．' ? '.' : String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
@@ -148,6 +173,7 @@ function valuesToConfig_(vals, today) {
   cfg.pattern = String(vals.pattern || '') === 'station' ? 'station' : 'standard';   // LPのパターン(標準 / 路線・駅別の物件数)
   FIELDS_.forEach(function (f) {
     if (f.h) return;
+    if (f.t === 'kwlist') return;   // 検索キーワードは下でまとめて読む
     var raw = vals[f.k];
     if (raw === undefined || String(raw).trim() === '') return;
     var k = f.k, v;
@@ -159,7 +185,6 @@ function valuesToConfig_(vals, today) {
     else if ((m = k.match(/^series\.(.+)$/))) series[m[1]] = m[1] === 'labels' ? v : v.map(parseNum_);
     else if ((m = k.match(/^compare\.(\d)$/))) { if (v[0]) compare.push({ city: v[0], tsubo_price_man: parseNum_(v[1]), listings: parseNum_(v[2]) }); }
     else if ((m = k.match(/^comp\.(\d)$/))) { if (v[0]) comp.push({ name: v[0], area: v[1] || undefined, url: v[2] || undefined, listing_count: parseNum_(v[3]) }); }
-    else if ((m = k.match(/^kw\.(.+)$/))) kw.push({ term: m[1], monthly_volume: parseNum_(v[0]), cpc_low_yen: parseNum_(v[1]), cpc_high_yen: parseNum_(v[2]) });
     else if ((m = k.match(/^show\.(.+)$/))) { cfg.sections = cfg.sections || {}; cfg.sections[m[1]] = v; }   // 価格推移・ピン・物件種別の表示/非表示
     else if (k.indexOf('auto.') === 0) { /* 下で処理 */ }
     else setPath_(cfg, k, v);
@@ -184,7 +209,10 @@ function valuesToConfig_(vals, today) {
   // series: 画面からは入力しない(互換用)
   if (series.labels && Object.keys(series).length > 1) { cfg.inputs.price_trend = cfg.inputs.price_trend || {}; cfg.inputs.price_trend.series = series; }
   if (compare.length) { cfg.inputs.land = cfg.inputs.land || {}; cfg.inputs.land.compare_cities = compare; }
-  if (kw.length) { cfg.inputs.keywords = cfg.inputs.keywords || {}; cfg.inputs.keywords.rows = kw; }
+  var kl = kwListFromValues_(vals).filter(function (x) { return x.on && x.t; });   // 表示する検索キーワード(チェックを外したものは出さない)
+  cfg.inputs.keywords = cfg.inputs.keywords || {};
+  cfg.inputs.keywords.terms = kl.map(function (x) { return x.t; });
+  cfg.inputs.keywords.rows = kl.map(function (x) { return { term: x.t, monthly_volume: parseNum_(x.v), cpc_low_yen: parseNum_(x.lo), cpc_high_yen: parseNum_(x.hi) }; });
   if (comp.length) cfg.competitors = comp;
   return cfg;
 }
@@ -221,6 +249,7 @@ function validateValue_(key, value) {
   FIELDS_.forEach(function (x) { if (x.k === key) f = x; });
   if (!f || f.hidden) return '不明な項目です';
   if (f.t === 'image') return '画像はアップロードで登録してください';
+  if (f.t === 'kwlist') return validateKwList_(value);
   value = String(value);
   if (value.length > 600) return '長すぎます(600文字まで)';
   if (value.trim() === '') return '';

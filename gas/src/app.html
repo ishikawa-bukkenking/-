@@ -48,6 +48,7 @@ details.sec .body{padding:8px 18px 18px}
 .tbl{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff;overflow-x:auto}
 .tbl table{border-collapse:collapse;font-size:.8125rem}
 .tbl td,.tbl th{border:1px solid var(--line);padding:0}
+.kwl .kwr{display:grid;grid-template-columns:auto minmax(9em,1.6fr) 1fr 1fr 1fr auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}.kwl .kwh{font-size:.8125rem;color:var(--sub);border-bottom:2px solid var(--line)}.kwl .kwr.off input[type=text]{opacity:.45}.kwl .kwt{display:flex;align-items:center;gap:4px}.kwl .kwt input{flex:1;min-width:6em}@media (max-width:640px){.kwl .kwr{grid-template-columns:auto 1fr 1fr auto}.kwl .kwh{display:none}.kwl .kwt{grid-column:2/4}}
 .stn-ed input{width:11em;text-align:left!important}.stn-ed td:nth-child(4) input{width:6em;text-align:right!important}.tbl input{width:4.5em;border:0;padding:6px 4px;text-align:right;min-height:32px}
 .tbl th input{font-weight:700;background:var(--teal-l);text-align:center;width:5.5em}
 .tbl .warn{color:#B00020;font-size:.8125rem;margin:6px 0}
@@ -189,6 +190,7 @@ function flush() {
 function refreshNeed() {
   document.querySelectorAll('.field[data-req="1"]').forEach(function (f) {
     var v = vals[f.getAttribute('data-k')], off = (f.getAttribute('data-grp') === 'trend' && !trendOn()) || f.classList.contains('off');
+    if (f.getAttribute('data-k') === 'kw.list') { var kl = []; try { kl = JSON.parse(v || '[]'); } catch (e) { kl = []; } f.classList.toggle('need', kl.some(function (x) { return x.on !== false && x.t && !String(x.v || '').trim(); })); return; }
     f.classList.toggle('need', !off && (!v || !String(v).replace(/[,，\s]/g, '')));
   });
   document.querySelectorAll('details.sec').forEach(function (d) {
@@ -394,7 +396,7 @@ document.addEventListener('paste', function (e) {
 function fmt1(v) { var n = parseFloat(String(v).replace(/[,，％%\s]/g, '')); return isNaN(n) ? v : n.toFixed(1); }
 function trendOn() { return vals['show.price_trend'] !== '0'; }
 function applyGroups() {
-  [['trend', trendOn()], ['pins', vals['show.pins'] !== '0'], ['land', vals['show.land'] !== '0'], ['used_house', vals['show.used_house'] !== '0'], ['used_mansion', vals['show.used_mansion'] !== '0'], ['new_house', vals['show.new_house'] !== '0'], ['kw0', vals['show.kw.土地'] !== '0'], ['kw1', vals['show.kw.中古マンション'] !== '0'], ['kw2', vals['show.kw.不動産'] !== '0'], ['kw3', vals['show.kw.中古物件'] !== '0']].forEach(function (g) {
+  [['trend', trendOn()], ['pins', vals['show.pins'] !== '0'], ['land', vals['show.land'] !== '0'], ['used_house', vals['show.used_house'] !== '0'], ['used_mansion', vals['show.used_mansion'] !== '0'], ['new_house', vals['show.new_house'] !== '0']].forEach(function (g) {
     var on = g[1];
     document.querySelectorAll('.field[data-grp="' + g[0] + '"]').forEach(function (f) {
       f.classList.toggle('off', !on); f.querySelectorAll('input,button,label.btn').forEach(function (x) { if (x.tagName === 'LABEL') x.style.pointerEvents = on ? '' : 'none'; else x.disabled = !on; });
@@ -527,12 +529,38 @@ function stationField(f) {
   f.tb = el('div'); wrap.appendChild(f.tb); stnFields[f.k] = f; renderStation(f);
   return wrap;
 }
+/* 検索キーワード: 行ごとに、表示のチェック・キーワード(自由記載)・月間検索ボリューム・CPCを入力。行の追加・削除ができる */
+function kwListField(f) {
+  var wrap = el('div', { class: 'field', 'data-k': f.k, 'data-req': '1', 'data-grp': '' }), rows = [], box = el('div', { class: 'kwl' }), list = [];   // 表示する行に、月間検索ボリュームが未入力のものがあれば「未入力」
+  try { list = JSON.parse(vals[f.k] || '[]'); } catch (e) { list = []; }
+  wrap.appendChild(el('label', { text: f.l }));
+  if (f.d) wrap.appendChild(el('div', { class: 'hint', text: f.d }));
+  box.appendChild(el('div', { class: 'kwr kwh' }, [el('span', { text: '表示' }), el('span', { text: 'キーワード' }), el('span', { text: '月間検索ボリューム' }), el('span', { text: 'CPC下限(円)' }), el('span', { text: 'CPC上限(円)' }), el('span')]));
+  function save() { markDirty(f.k, JSON.stringify(rows.map(function (o) { return { t: o.t.value.trim(), on: o.on.checked, v: o.v.value.trim(), lo: o.lo.value.trim(), hi: o.hi.value.trim() }; }))); }
+  function addRow(it) {
+    var on = el('input', { type: 'checkbox', 'aria-label': '表示する' }), t = el('input', { type: 'text', value: it.t || '', placeholder: '例: 土地', 'aria-label': 'キーワード' }),
+      v = el('input', { type: 'text', inputmode: 'decimal', value: it.v || '', 'aria-label': '月間検索ボリューム' }), lo = el('input', { type: 'text', inputmode: 'decimal', value: it.lo || '', 'aria-label': 'CPC下限(円)' }),
+      hi = el('input', { type: 'text', inputmode: 'decimal', value: it.hi || '', 'aria-label': 'CPC上限(円)' }), x = el('button', { type: 'button', class: 'ghost', text: '×', 'aria-label': 'この行を削除', style: 'padding:2px 10px;min-height:32px' });
+    on.checked = it.on !== false;
+    var row = el('div', { class: 'kwr' }, [on, el('span', { class: 'kwt' }, [el('span', { class: 'note', text: (vals.city || '○○市') + '　' }), t]), v, lo, hi, x]), o = { on: on, t: t, v: v, lo: lo, hi: hi, row: row };
+    var dim = function () { row.classList.toggle('off', !on.checked); };
+    on.onchange = function () { dim(); save(); }; [t, v, lo, hi].forEach(function (i) { i.oninput = save; });
+    x.onclick = function () { row.remove(); rows.splice(rows.indexOf(o), 1); save(); };
+    dim(); rows.push(o); box.appendChild(row);
+  }
+  list.forEach(addRow);
+  var add = el('button', { type: 'button', class: 'ghost', text: 'キーワードを追加' });
+  add.onclick = function () { addRow({ on: true }); rows[rows.length - 1].t.focus(); save(); };
+  wrap.appendChild(box); wrap.appendChild(add);
+  return wrap;
+}
 function fieldView(f) {
+  if (f.t === 'kwlist') return kwListField(f);
   if (f.t === 'stations') return stationField(f);
   if (f.t === 'frpick') return frPick(f);
   if (f.t === 'suumo') return suumoPick(f);
   if (f.t === 'srcpick') return srcPick(f);
-  if (f.t && ['text', 'num', 'pct1', 'date', 'list', 'image', 'bool', 'frpick', 'srcpick', 'suumo', 'stations'].indexOf(f.t) < 0) {   // この画面が知らない種類の項目(画面が古い)は、入力欄にせず再読み込みを案内する
+  if (f.t && ['text', 'num', 'pct1', 'date', 'list', 'image', 'bool', 'frpick', 'srcpick', 'suumo', 'stations', 'kwlist'].indexOf(f.t) < 0) {   // この画面が知らない種類の項目(画面が古い)は、入力欄にせず再読み込みを案内する
     return el('div', { class: 'field', 'data-k': f.k, 'data-req': '0' }, [el('label', { text: f.l }), el('p', { class: 'msg', text: 'この項目は、画面が古いため表示できません。ページを再読み込みしてください。' })]);
   }
   var wrap = el('div', { class: 'field', 'data-k': f.k, 'data-req': f.req ? '1' : '0', 'data-grp': f.grp || '' });

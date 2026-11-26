@@ -177,8 +177,6 @@ function buildModel_(cfg, services, data) {
   var terms = kwIn.terms || ['土地', '中古マンション', '不動産', '中古物件'];
   var given = {};
   (kwIn.rows || []).forEach(function (r) { given[r.term] = r; });
-  var kwSecs = cfg.sections || {};
-  terms = terms.filter(function (t) { return kwSecs['kw.' + t] !== false; });   // チェックを外した検索キーワードは表示しない
   var rows2 = terms.map(function (t) {
     var r = given[t] || {};
     status_(rep, 'keywords.' + t, '検索ボリューム「' + city + ' ' + t + '」', r.monthly_volume, '入力システムの検索ボリューム。Google広告APIは未接続');

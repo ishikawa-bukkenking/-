@@ -135,8 +135,7 @@ def sheet_values(cfg):
     for n, c in enumerate(i["land"]["compare_cities"]):
         v[f"compare.{n}"] = f"{c['city']},{c['tsubo_price_man']},{c['listings']}"
     v["inputs.keywords.source"], v["inputs.keywords.date"] = i["keywords"]["source"], str(i["keywords"]["date"])
-    for r in i["keywords"]["rows"]:
-        v[f"kw.{r['term']}"] = f"{r['monthly_volume']},{r['cpc_low_yen']},{r['cpc_high_yen']}"
+    v["kw.list"] = json.dumps([dict(t=r["term"], on=True, v=str(r["monthly_volume"]), lo=str(r["cpc_low_yen"]), hi=str(r["cpc_high_yen"])) for r in i["keywords"]["rows"]], ensure_ascii=False)
     for n, c in enumerate(cfg["competitors"]):
         v[f"comp.{n}"] = f"{c['name']},{c['area']},{c['url']}"
     return v
@@ -381,6 +380,8 @@ def test_station_pattern():
     assert r["cleanup"] == [True, 5, ["多摩川〜蒲田"], None]   # 路線名が空の行は保存できず、まとめて削除できる
     assert r["mirror"] == ["東急池上/東急多摩川/東急大井/東急東横", "長原〜蒲田/多摩川〜矢口渡/北千束〜大岡山/田園調布", "7,,,"]   # 保存した路線・駅にそろう(件数が空の余分な行は消える)
     assert r["bigGas"] == [True, True, 45000]   # GAS版は上限を超えると、理由つきのエラーで知らせる
-    assert r["kwAll"] == [[True] * 4, ["bool"] * 4] and r["kwSome"] == [[True, True, False, False], 0]   # 検索ボリューム: 既定は全部表示。外したキーワードはLPに出ず、未入力にも数えない
-    assert r["kwNone"] == [[False] * 4, True, True, True] and r["kwBack"] == [True, False, False, False] and r["kwMissing"] == 0   # 全部外すと、検索ボリュームのページごと表示しない
+    assert r["kwDefault"] == ["土地:true,中古マンション:true,不動産:true,中古物件:true", [True] * 4]   # 既定は4つとも表示
+    assert r["kwFree"] == [1, [True, True, False, True, False], True] and r["kwMissing1"] == ["keywords.空き家"]   # キーワードは自由に書ける。外した行は出さず、必須にもしない
+    assert r["kwErr"] == [1, 1, 1, True, True] and r["kwNone"] == [True] * 3 and r["kwEmpty"]   # 空・重複・数値でない値は保存できない。全部外す/全部削除すると、ページごと出ない
+    assert r["kwLegacy"] == [[True, False], "土地:true:1000,中古マンション:true:,不動産:false:5000,中古物件:true:"]   # 旧形式の入力も読める
     assert r["std"] == 300 and r["denied"]
