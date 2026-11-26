@@ -110,6 +110,11 @@ const r = vm.runInContext(`(function () {
   writeAreaValues_(c9, function (v) { v['kw.土地'] = '1000,50,80'; v['kw.不動産'] = '5000,70,100'; v['show.kw.不動産'] = '0'; });
   var hl = buildArea_(c9).html;
   r.kwLegacy = [kwHas(hl, ['土地', '不動産']), JSON.parse(api_get(c9).values['kw.list']).map(function (x) { return x.t + ':' + x.on + ':' + x.v; }).join(',')];
+  // 価格推移: 下落(マイナス)も入力でき、LPでは「下落」と表示される
+  var c10 = api_create_company('株式会社下落', '長野県', '上田市').areaId;
+  var ds = api_save(c10, { 'inputs.price_trend.city_3y_pct': '-3.2', 'inputs.price_trend.prefecture_3y_pct': '-1.5', 'yearly.0': '-1', 'yearly.1': '-1.2', 'yearly.2': '-1' });
+  var hd = buildArea_(c10).html, dtext = hd.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  r.down = [Object.keys(ds.errors).length, dtext.indexOf('3.20%の下落') >= 0, dtext.indexOf('1.00%、2年目は1.20%、3年目は1.00%の下落') >= 0];
   // 路線・駅版の会社に追加したエリアも同じパターン/会社の複製も引き継ぐ
   var a2 = api_add_area(stn.companyId, '長野県', '東御市').areaId, dup = api_duplicate_company(stn.companyId, '複製');
   r.inherit = [api_get(a2).pattern, api_get(dup.areaIds[0]).pattern, !!api_get(dup.areaIds[0]).tables['inputs.used_house.station_image']];

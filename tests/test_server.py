@@ -137,5 +137,6 @@ def test_station_table_autosave_in_browser(tmp_path):
         j = json.loads(r.stdout.strip().splitlines()[-1])
         assert j["autosaved"] == [93, "上田駅〜屋代駅"] and j["kept"] == [True, 7, "7"] and j["reload"] == ["93", "7"] and j["errs"] == []
         assert j["kwRows"] == 4 and j["kwOff"] and j["kwSaved"] == ["売却:true", "中古マンション:true", "不動産:false", "中古物件:true", "空き家:true"]   # 検索キーワード: 自由に書き換え・追加でき、チェックを外した行は薄くなる
+        assert j["down"] == ["-3.2", "-1.1", "down", "1.1"]   # 価格推移: 下落を選ぶとマイナスで保存される/「-」付きの入力も下落になる
     finally:
         s.stop()

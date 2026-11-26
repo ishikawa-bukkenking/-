@@ -128,7 +128,7 @@ function buildModel_(cfg, services, data) {
   tr.ai_note = ['※以下の条件でAI査定した参考価格', '・マンション：築10年/専有面積70㎡', '・一戸建て：築10年/延床面積70㎡', '・土地：敷地面積70㎡'];
   model.price_trend = tr;
   if (trendOn) {
-    [['city_3y_pct', '市の3年上昇率'], ['prefecture_3y_pct', '県の3年上昇率'], ['yearly_pct', '年ごとの内訳']].forEach(function (p) {
+    [['city_3y_pct', '市の3年上昇率・下落率'], ['prefecture_3y_pct', '県の3年上昇率・下落率'], ['yearly_pct', '年ごとの内訳']].forEach(function (p) {
       status_(rep, 'price_trend.' + p[0], p[1], tr[p[0]], '入力システムの価格推移');
     });
     status_(rep, 'price_trend.chart', '価格推移グラフ', tr.series || tr.image, '価格推移グラフの画像');

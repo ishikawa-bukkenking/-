@@ -38,6 +38,13 @@ await p.locator('.field[data-k="kw.list"] .kwr:not(.kwh)').last().locator('input
 await p.waitForTimeout(2000);
 out.kwSaved = JSON.parse((await rpc('api_get', c.areaId)).result.values['kw.list']).map(x => x.t + ':' + x.on);
 out.kwOff = await rowsKw.nth(2).evaluate(e => e.classList.contains('off'));
+// 価格推移: 「下落」を選んで数字を入力すると、マイナスの値で保存される。「-3」と入力しても下落になる
+const tr = p.locator('.field[data-k="inputs.price_trend.city_3y_pct"]');
+await tr.locator('select').selectOption('down'); await tr.locator('input').fill('3.2'); await p.waitForTimeout(1500);
+const tr2 = p.locator('.field[data-k="yearly.0"]');
+await tr2.locator('input').fill('-1.1'); await p.waitForTimeout(1500);
+const vv = (await rpc('api_get', c.areaId)).result.values;
+out.down = [vv['inputs.price_trend.city_3y_pct'], vv['yearly.0'], await tr2.locator('select').inputValue(), await tr2.locator('input').inputValue()];
 out.errs = errs;
 console.log(JSON.stringify(out));
 await b.close();

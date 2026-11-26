@@ -584,6 +584,22 @@ function fieldView(f) {
     wrap.appendChild(grid);
   } else {
     var inp;
+    if (/^(inputs\.price_trend\.(city|prefecture)_3y_pct|yearly\.\d)$/.test(f.k)) {   // 上昇・下落を選び、数字(%)を入力する(保存は、下落なら「-」付きの数値)
+      var num0 = parseFloat(String(v).replace(/[,，％%\s]/g, '')), down = !isNaN(num0) && num0 < 0;
+      var sel = el('select', { 'aria-label': f.l + ': 上昇か下落か', style: 'width:6.5em;flex:none' }, [el('option', { value: 'up', text: '上昇' }), el('option', { value: 'down', text: '下落' })]);
+      sel.value = down ? 'down' : 'up';
+      inp = el('input', { type: 'text', inputmode: 'decimal', value: isNaN(num0) ? '' : String(Math.abs(num0)), placeholder: '例: 3.2' });
+      var push = function () {
+        var t = inp.value.trim().replace(/[,，％%\s]/g, '');
+        if (/^[-−ー－]/.test(t)) { sel.value = 'down'; t = t.replace(/^[-−ー－]+/, ''); inp.value = t; }   // 「-3.2」と入力されたら、下落として扱う
+        markDirty(f.k, t === '' ? '' : (sel.value === 'down' && parseFloat(t) !== 0 ? '-' : '') + t);
+      };
+      inp.oninput = push; sel.onchange = push;
+      inp.setAttribute('aria-label', f.l);
+      wrap.appendChild(el('div', { style: 'display:flex;gap:8px;align-items:center' }, [sel, inp, el('span', { class: 'note', text: '%' })]));
+      if (f.d) wrap.appendChild(el('div', { class: 'hint', text: f.d }));
+      return wrap;
+    }
     if (f.k === 'prefecture') { inp = prefSelect(v); inp.onchange = function () { markDirty(f.k, inp.value); loadCities(inp.value); }; if (v) loadCities(v); }
     else {
       inp = el('input', { type: f.t === 'date' ? 'date' : 'text', value: f.t === 'pct1' ? (v ? fmt1(v) : '') : v, inputmode: (f.t === 'num' || f.t === 'pct1') ? 'decimal' : 'text' });

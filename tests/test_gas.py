@@ -384,4 +384,5 @@ def test_station_pattern():
     assert r["kwFree"] == [1, [True, True, False, True, False], True] and r["kwMissing1"] == ["keywords.空き家"]   # キーワードは自由に書ける。外した行は出さず、必須にもしない
     assert r["kwErr"] == [1, 1, 1, True, True] and r["kwNone"] == [True] * 3 and r["kwEmpty"]   # 空・重複・数値でない値は保存できない。全部外す/全部削除すると、ページごと出ない
     assert r["kwLegacy"] == [[True, False], "土地:true:1000,中古マンション:true:,不動産:false:5000,中古物件:true:"]   # 旧形式の入力も読める
+    assert r["down"][0] == 0 and r["down"][1] and r["down"][2]   # 下落(マイナス)の価格推移も入力でき、LPに「下落」と出る
     assert r["std"] == 300 and r["denied"]
