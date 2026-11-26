@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const { makeRuntime, syncFetch } = require('./shim');
 const { openStore } = require('./store');
 const { Mirror, makeScheduler } = require('./sheetsMirror');
+const { pullMissing } = require('./sheetsPull');
 
 const ALLOWED_DOMAIN = 'bukkenking.com';
 const PORT = Number(process.env.PORT || 3000);
@@ -73,6 +74,22 @@ function loginPage(msg) {
 
   let queue = Promise.resolve();   // GASのコードは同期で動くので、リクエストは1つずつ処理する
   const serial = fn => { const p = queue.then(fn); queue = p.catch(() => {}); return p; };
+  // 元のスプレッドシートの「会社」「エリア」にあって、こちらにないもの(旧ツールで作られた調査など)を、取り込む。起動時と10分ごと
+  async function pullFromSheet() {
+    if (!mirror.enabled()) return;
+    try {
+      const r = await pullMissing({
+        mirror,
+        haveIds: () => ({ companies: new Set(vm_run(ctx, 'listCompanies_().map(function (c) { return c.id; })')), areas: new Set(vm_run(ctx, 'listAreas_().map(function (a) { return a.id; })')) }),
+        seenIds: () => { try { return new Set(JSON.parse(vm_run(ctx, 'PropertiesService.getScriptProperties().getProperty("PULLED_IDS") || "[]"'))); } catch (e) { return new Set(); } },
+        importAll: data => { ctx.__email = 'system@' + ALLOWED_DOMAIN; ctx.__data = JSON.parse(JSON.stringify(data)); try { return vm_run(ctx, 'api_import_all(__data)'); } finally { ctx.__email = ''; ctx.__data = null; } },
+        markSeen: ids => { ctx.__ids = ids; vm_run(ctx, 'var __p = JSON.parse(PropertiesService.getScriptProperties().getProperty("PULLED_IDS") || "[]"); PropertiesService.getScriptProperties().setProperty("PULLED_IDS", JSON.stringify(__p.concat(__ids)))'); }
+      });
+      await flush();
+      if (r.companies || r.areas) console.log('[元のシートから取り込み] 会社 ' + r.companies + '件 / エリア ' + r.areas + '件');
+    } catch (e) { console.error('[元のシートから取り込み] 失敗: ' + (e && e.message || e)); }
+  }
+  setTimeout(() => serial(pullFromSheet), 5000); setInterval(() => serial(pullFromSheet), 10 * 60 * 1000);
   const readBody = (req, limit) => new Promise((res, rej) => { const a = []; let n = 0; req.on('data', d => { n += d.length; if (n > limit) { rej(new Error('too large')); req.destroy(); } else a.push(d); }).on('end', () => res(Buffer.concat(a).toString('utf8'))).on('error', rej); });
   const send = (res, code, body, type, extra) => { res.writeHead(code, Object.assign({ 'Content-Type': type || 'text/html; charset=utf-8', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' }, extra || {})); res.end(body); };
   const json = (res, code, o, extra) => send(res, code, JSON.stringify(o), 'application/json; charset=utf-8', extra);

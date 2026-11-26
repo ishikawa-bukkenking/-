@@ -22,3 +22,12 @@ const fakeFetch = async (url, o) => {
   assert.deepStrictEqual(await m.sync([]), { added: 0, updated: 0 });
   console.log('ok');
 })().catch(e => { console.error(e); process.exit(1); });
+
+// 元のシートからの取り込み: こちらにないIDだけ・取り込み済みは復活させない
+(() => {
+  const { pickMissing } = require('../server/sheetsPull');
+  const C = [['C1', 'A社', ''], ['C2', 'B社', ''], ['C3', 'C社', '']], A = [['A1', 'C1', 'A社'], ['A2', 'C2', 'B社'], ['A3', 'C3', 'C社']];
+  const r = pickMissing(C, A, new Set(['C1']), new Set(['A1']), new Set(['C3', 'A3']));
+  assert.deepStrictEqual(r.areas.map(x => x[0]), ['A2']); assert.deepStrictEqual(r.companies.map(x => x[0]), ['C2']);
+  console.log('ok(pull)');
+})();
